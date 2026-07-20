@@ -1,0 +1,351 @@
+<title>Manual — Consolidação iFE</title>
+<style>
+  :root {
+    --bg: #f5f6fb;
+    --surface: #ffffff;
+    --surface-2: #eef1f8;
+    --border: #e2e6f0;
+    --ink: #1a2234;
+    --muted: #5a6376;
+    --faint: #8b93a7;
+    --brand: #4f46e5;
+    --brand-soft: #eceafe;
+    --brand-ink: #3a32c4;
+    --ok: #1E8E4D;
+    --ok-soft: #e4f6ec;
+    --warn: #b45309;
+    --warn-soft: #fbeedd;
+    --crit: #C93A3A;
+    --crit-soft: #fbe6e6;
+    --shadow: 0 1px 2px rgba(20,28,50,.04), 0 6px 20px rgba(20,28,50,.05);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+    --step: linear-gradient(135deg, #6366f1, #4f46e5);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101320; --surface: #181c2b; --surface-2: #1f2436;
+      --border: #2a3048; --ink: #eef1f9; --muted: #a3abc2; --faint: #6d7690;
+      --brand: #8b85ff; --brand-soft: #23213f; --brand-ink: #b7b2ff;
+      --ok: #4ade80; --ok-soft: #16301f; --warn: #fbbf6b; --warn-soft: #322414;
+      --crit: #f98a8a; --crit-soft: #331a1a;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101320; --surface: #181c2b; --surface-2: #1f2436;
+    --border: #2a3048; --ink: #eef1f9; --muted: #a3abc2; --faint: #6d7690;
+    --brand: #8b85ff; --brand-soft: #23213f; --brand-ink: #b7b2ff;
+    --ok: #4ade80; --ok-soft: #16301f; --warn: #fbbf6b; --warn-soft: #322414;
+    --crit: #f98a8a; --crit-soft: #331a1a;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #f5f6fb; --surface: #ffffff; --surface-2: #eef1f8;
+    --border: #e2e6f0; --ink: #1a2234; --muted: #5a6376; --faint: #8b93a7;
+    --brand: #4f46e5; --brand-soft: #eceafe; --brand-ink: #3a32c4;
+    --ok: #1E8E4D; --ok-soft: #e4f6ec; --warn: #b45309; --warn-soft: #fbeedd;
+    --crit: #C93A3A; --crit-soft: #fbe6e6;
+    --shadow: 0 1px 2px rgba(20,28,50,.04), 0 6px 20px rgba(20,28,50,.05);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--font); line-height: 1.6;
+    -webkit-font-smoothing: antialiased; letter-spacing: -0.01em;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 0 20px 90px; }
+
+  /* ---- Capa ---- */
+  .capa {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; box-shadow: var(--shadow);
+    padding: 40px 34px; margin: 34px 0 24px;
+    position: relative; overflow: hidden;
+  }
+  .capa::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 60%);
+    pointer-events: none;
+  }
+  .logo {
+    width: 52px; height: 52px; border-radius: 15px; background: var(--step);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 19px; letter-spacing: -0.02em;
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--brand) 40%, transparent);
+  }
+  .eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--brand); margin: 22px 0 8px;
+  }
+  h1 { font-size: clamp(28px, 6vw, 40px); line-height: 1.08; margin: 0 0 12px; letter-spacing: -0.03em; text-wrap: balance; }
+  .lead { font-size: 17px; color: var(--muted); margin: 0; max-width: 56ch; }
+
+  /* ---- Índice ---- */
+  .toc {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px;
+    margin: 22px 0 40px;
+  }
+  .toc a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border-radius: 12px; text-decoration: none;
+    background: var(--surface); border: 1px solid var(--border); color: var(--ink);
+    font-weight: 600; font-size: 14px; transition: border-color .15s, transform .15s;
+  }
+  .toc a:hover { border-color: var(--brand); transform: translateY(-1px); }
+  .toc a .n { color: var(--faint); font-variant-numeric: tabular-nums; font-weight: 700; min-width: 18px; }
+
+  section { margin: 48px 0; scroll-margin-top: 20px; }
+  h2 {
+    font-size: 24px; letter-spacing: -0.02em; margin: 0 0 6px; text-wrap: balance;
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  h2 .h2n {
+    font-size: 13px; font-weight: 700; color: var(--brand);
+    background: var(--brand-soft); border-radius: 8px; padding: 3px 9px;
+    letter-spacing: 0; font-variant-numeric: tabular-nums;
+  }
+  .sub { color: var(--muted); margin: 0 0 22px; font-size: 15.5px; }
+  h3 { font-size: 17px; margin: 26px 0 8px; letter-spacing: -0.01em; }
+  p { margin: 0 0 14px; }
+  a { color: var(--brand-ink); }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow);
+  }
+  .card + .card { margin-top: 12px; }
+
+  /* ---- Áreas do app ---- */
+  .areas { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 12px; }
+  .area { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); }
+  .area .ic { font-size: 22px; line-height: 1; }
+  .area h4 { margin: 10px 0 4px; font-size: 15.5px; }
+  .area p { margin: 0; font-size: 13.5px; color: var(--muted); line-height: 1.5; }
+
+  /* ---- Jornada (passo a passo) ---- */
+  .jornada { display: flex; flex-direction: column; gap: 0; margin-top: 6px; }
+  .passo { display: flex; gap: 16px; position: relative; padding-bottom: 22px; }
+  .passo:not(:last-child)::before {
+    content: ""; position: absolute; left: 17px; top: 40px; bottom: 0;
+    width: 2px; background: var(--border);
+  }
+  .passo .num {
+    width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%;
+    background: var(--step); color: #fff; font-weight: 700; font-size: 15px;
+    display: flex; align-items: center; justify-content: center; z-index: 1;
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--brand) 35%, transparent);
+  }
+  .passo .txt { padding-top: 5px; }
+  .passo h4 { margin: 0 0 3px; font-size: 16px; }
+  .passo p { margin: 0; color: var(--muted); font-size: 14.5px; }
+  .passo .tag {
+    display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 600;
+    color: var(--brand-ink); background: var(--brand-soft); border-radius: 999px; padding: 2px 10px;
+  }
+
+  /* ---- Realces / dicas ---- */
+  .nota { border-left: 3px solid var(--brand); background: var(--brand-soft); border-radius: 0 12px 12px 0; padding: 14px 16px; margin: 16px 0; font-size: 14.5px; }
+  .nota.ok { border-color: var(--ok); background: var(--ok-soft); }
+  .nota.warn { border-color: var(--warn); background: var(--warn-soft); }
+  .nota.crit { border-color: var(--crit); background: var(--crit-soft); }
+  .nota b { color: var(--ink); }
+
+  ol.passos, ul.lista { margin: 8px 0 14px; padding-left: 0; list-style: none; }
+  ol.passos li { counter-increment: p; position: relative; padding: 6px 0 6px 34px; }
+  ol.passos { counter-reset: p; }
+  ol.passos li::before {
+    content: counter(p); position: absolute; left: 0; top: 5px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--surface-2); color: var(--brand-ink); border: 1px solid var(--border);
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  ul.lista li { position: relative; padding: 4px 0 4px 22px; }
+  ul.lista li::before { content: ""; position: absolute; left: 4px; top: 13px; width: 6px; height: 6px; border-radius: 50%; background: var(--brand); }
+
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; border-radius: 999px; padding: 3px 11px; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.crit { background: var(--crit-soft); color: var(--crit); }
+
+  /* ---- FAQ ---- */
+  details.faq {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 2px 18px; margin-bottom: 10px; box-shadow: var(--shadow);
+  }
+  details.faq summary {
+    cursor: pointer; font-weight: 650; font-size: 15.5px; padding: 15px 0; list-style: none;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  }
+  details.faq summary::-webkit-details-marker { display: none; }
+  details.faq summary::after { content: "+"; color: var(--faint); font-size: 22px; font-weight: 400; transition: transform .2s; }
+  details.faq[open] summary::after { transform: rotate(45deg); }
+  details.faq .ans { padding: 0 0 16px; color: var(--muted); font-size: 14.5px; }
+  details.faq .ans p { margin: 0 0 10px; }
+  details.faq .ans p:last-child { margin: 0; }
+
+  .rodape { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--faint); font-size: 13.5px; text-align: center; }
+  .rodape .frase { font-style: italic; color: var(--muted); font-size: 15px; margin-bottom: 10px; }
+
+  kbd { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; font: inherit; font-size: .92em; font-weight: 600; }
+</style>
+
+<div class="wrap">
+
+  <header class="capa">
+    <div class="logo">iF</div>
+    <div class="eyebrow">Manual de uso</div>
+    <h1>Consolidação de Visitantes</h1>
+    <p class="lead">Um guia rápido para acolher, acompanhar e integrar cada pessoa que visita a Igreja Família Extraordinária — do primeiro contato ao batismo. Feito para o celular, no dia a dia da equipe.</p>
+  </header>
+
+  <nav class="toc">
+    <a href="#comecar"><span class="n">1</span> Começando</a>
+    <a href="#areas"><span class="n">2</span> As áreas do app</a>
+    <a href="#jornada"><span class="n">3</span> A jornada do visitante</a>
+    <a href="#cadastrar"><span class="n">4</span> Cadastrar visitante</a>
+    <a href="#registrar"><span class="n">5</span> Registrar um contato</a>
+    <a href="#papeis"><span class="n">6</span> Papéis da equipe</a>
+    <a href="#cuidado"><span class="n">7</span> Cuidado &amp; crise</a>
+    <a href="#faq"><span class="n">8</span> Perguntas frequentes</a>
+  </nav>
+
+  <section id="comecar">
+    <h2><span class="h2n">1</span> Começando</h2>
+    <p class="sub">O sistema abre no navegador — não precisa instalar nada.</p>
+    <div class="card">
+      <h3 style="margin-top:0">Acessar</h3>
+      <p>Abra o link do sistema no navegador do celular ou do computador. Ele já entra conectado e mostra <span class="pill ok">● Sincronizado</span> no topo — sinal de que seus dados estão salvos na nuvem e aparecem em qualquer aparelho da equipe.</p>
+      <h3>Deixar com cara de aplicativo (recomendado)</h3>
+      <ul class="lista">
+        <li><b>iPhone (Safari):</b> toque em Compartilhar → <b>Adicionar à Tela de Início</b>.</li>
+        <li><b>Android (Chrome):</b> menu <kbd>⋮</kbd> → <b>Adicionar à tela inicial</b>.</li>
+      </ul>
+      <p style="margin-bottom:0">Pronto: um ícone na tela inicial abre o sistema em tela cheia, como um app.</p>
+    </div>
+    <div class="nota ok"><b>Seus dados estão seguros na nuvem.</b> Tudo o que você registra é salvo automaticamente. Você pode fechar o app e continuar depois — nada se perde.</div>
+  </section>
+
+  <section id="areas">
+    <h2><span class="h2n">2</span> As áreas do app</h2>
+    <p class="sub">O menu (lateral no computador, barra inferior no celular) leva a cada área.</p>
+    <div class="areas">
+      <div class="area"><div class="ic">📊</div><h4>Painel</h4><p>Visão geral: o que fazer hoje, o funil da consolidação e alertas importantes.</p></div>
+      <div class="area"><div class="ic">🗂️</div><h4>Jornada</h4><p>Quadro visual por etapa. Arraste o cartão da pessoa para avançá-la.</p></div>
+      <div class="area"><div class="ic">👥</div><h4>Visitantes</h4><p>Lista de todos, filtrada por etapa, com a próxima ação de cada um.</p></div>
+      <div class="area"><div class="ic">➕</div><h4>Novo visitante</h4><p>Cadastro manual de quem você aborda no culto.</p></div>
+      <div class="area"><div class="ic">🤝</div><h4>Painel do líder</h4><p>O que cada líder de grupo precisa fazer com quem foi encaminhado a ele.</p></div>
+      <div class="area"><div class="ic">🧑‍🤝‍🧑</div><h4>Equipe</h4><p>Cadastro das pessoas do ministério e suas funções.</p></div>
+      <div class="area"><div class="ic">⚙️</div><h4>Configurações</h4><p>Dados da igreja, grupos, mensagens, QR code do autocadastro e backup.</p></div>
+    </div>
+  </section>
+
+  <section id="jornada">
+    <h2><span class="h2n">3</span> A jornada do visitante</h2>
+    <p class="sub">Todo visitante percorre seis passos — do "chegou" ao "integrado". Na ficha de cada pessoa, o sistema mostra em qual passo ela está e o que fazer agora.</p>
+    <div class="jornada">
+      <div class="passo"><div class="num">1</div><div class="txt"><h4>Cadastro realizado</h4><p>A pessoa chega pelo culto (você cadastra) ou pelo QR code (ela mesma preenche).</p></div></div>
+      <div class="passo"><div class="num">2</div><div class="txt"><h4>Primeira semana de contatos</h4><p>Três mensagens no WhatsApp: <b>segunda</b> (acolhida), <b>quarta</b> (convite ao grupo) e <b>sábado</b> (celebração). O sistema já sugere o texto pronto.</p><span class="tag">Aqui é onde você mais trabalha</span></div></div>
+      <div class="passo"><div class="num">3</div><div class="txt"><h4>Entrega ao líder do grupo</h4><p>Quando a pessoa aceita visitar o grupo, o contato passa ao líder — que fala com ela <b>antes</b> da visita, para ela chegar esperada.</p></div></div>
+      <div class="passo"><div class="num">4</div><div class="txt"><h4>Visita ao grupo</h4><p>A pessoa participa de um encontro do grupo pela primeira vez.</p></div></div>
+      <div class="passo"><div class="num">5</div><div class="txt"><h4>Líder assume o acompanhamento</h4><p>Depois da visita, o líder confirma que assumiu. A consolidação fica de apoio.</p></div></div>
+      <div class="passo"><div class="num">6</div><div class="txt"><h4>Integrado 🎉</h4><p>Frequência firme somada ao batismo ou recepção como membro conclui a jornada.</p></div></div>
+    </div>
+    <div class="nota"><b>Você não precisa decorar isso.</b> Ao registrar cada contato, o sistema move a pessoa para o passo certo sozinho. E o "Passo a passo da jornada" na ficha sempre mostra onde ela está e o que vem a seguir.</div>
+    <div class="nota warn"><b>Marcou uma etapa errada?</b> Na ficha, no fim do "Passo a passo da jornada", use <b>↩ Voltar para a etapa anterior</b>. Para trocar por qualquer outra etapa, abra a aba <b>Acompanhamento → Marcou errado?</b>.</div>
+  </section>
+
+  <section id="cadastrar">
+    <h2><span class="h2n">4</span> Cadastrar um visitante</h2>
+    <p class="sub">Duas formas — as duas caem no mesmo lugar e passam pela triagem automática.</p>
+    <div class="card">
+      <h3 style="margin-top:0">No culto (você cadastra)</h3>
+      <ol class="passos">
+        <li>Abra <b>Novo visitante</b> no menu.</li>
+        <li>Preencha nome e WhatsApp (o resto é opcional, mas ajuda).</li>
+        <li>Se aparecer um aviso amarelo de <b>possível duplicado</b>, é porque já existe alguém com aquele WhatsApp — abra a ficha existente em vez de cadastrar de novo.</li>
+        <li>O sistema já <b>sugere um grupo</b> pela região e perfil. Toque em <b>Cadastrar</b>.</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Pelo QR code (a pessoa cadastra)</h3>
+      <p>Em <b>Configurações → Autocadastro (QR)</b> você imprime o QR code para deixar nas mesas ou no telão. A pessoa aponta a câmera, preenche sozinha, e cai direto no sistema.</p>
+    </div>
+  </section>
+
+  <section id="registrar">
+    <h2><span class="h2n">5</span> Registrar um contato</h2>
+    <p class="sub">Esse é o coração do acompanhamento. Depois de falar com a pessoa, registre — assim ninguém "cai no vão" e o sistema avança a etapa por você.</p>
+    <div class="card">
+      <ol class="passos">
+        <li>Abra a ficha da pessoa e, no passo atual, toque em <b>💬 Enviar mensagem</b> (o texto já vem pronto) e depois em <b>📝 Registrar o contato</b>.</li>
+        <li>Responda a única pergunta: <b>“Como ela respondeu?”</b> — escolha uma das opções:
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
+            <span><span class="pill ok">✅ Quer visitar o grupo</span> &nbsp;vai direto para o líder</span>
+            <span><span class="pill" style="background:var(--brand-soft);color:var(--brand-ink)">💬 Respondeu</span> &nbsp;segue no fluxo da semana</span>
+            <span><span class="pill warn">🔇 Não respondeu</span> &nbsp;registra a tentativa</span>
+            <span><span class="pill crit">🚫 Pediu para parar</span> &nbsp;encerra com gentileza</span>
+            <span><span class="pill crit">🚨 Cuidado/crise</span> &nbsp;aciona a liderança</span>
+          </div>
+        </li>
+        <li>Anote em uma linha <b>o que a pessoa disse</b> e, se quiser, o próximo passo combinado. Toque em <b>Salvar registro</b>.</li>
+      </ol>
+      <div class="nota ok" style="margin-bottom:0"><b>Pronto.</b> O sistema confirma o que aconteceu (ex.: <i>“Maria avançou: Em contato → Encaminhado ao líder”</i>) e a etapa muda sozinha.</div>
+    </div>
+    <div class="nota"><b>Princípio da casa:</b> uma consolidação sem registro gera perda de informações importantes. Registre sempre — é rápido e protege o cuidado com a pessoa.</div>
+  </section>
+
+  <section id="papeis">
+    <h2><span class="h2n">6</span> Papéis da equipe</h2>
+    <p class="sub">Cada pessoa do ministério tem uma função, cadastrada em <b>Equipe</b>.</p>
+    <div class="areas">
+      <div class="area"><div class="ic">🧭</div><h4>Gestão Integração</h4><p>Distribui os visitantes, acompanha o funil e resolve pendências.</p></div>
+      <div class="area"><div class="ic">🤲</div><h4>Integradores pós-culto</h4><p>“Donos” do acompanhamento na primeira fase: fazem os contatos e registram tudo.</p></div>
+      <div class="area"><div class="ic">🏠</div><h4>Líder de grupo</h4><p>Recebe quem aceitou o convite, fala antes da visita e assume depois.</p></div>
+      <div class="area"><div class="ic">✝️</div><h4>Pastores e Gestão Ministerial</h4><p>Acionados nos casos de cuidado/crise e nas decisões que pedem cobertura pastoral.</p></div>
+    </div>
+    <div class="nota"><b>Em breve:</b> cada pessoa terá seu próprio login, e o acesso às conversas será restrito a quem está no acompanhamento — protegendo os dados dos visitantes.</div>
+  </section>
+
+  <section id="cuidado">
+    <h2><span class="h2n">7</span> Cuidado &amp; crise</h2>
+    <p class="sub">Quando uma conversa revela sofrimento ou urgência, o cuidado vem antes do roteiro.</p>
+    <div class="card">
+      <p style="margin-top:0">Na ficha da pessoa, toque no botão vermelho <span class="pill crit">🚨</span> (ou escolha “Cuidado/crise” ao registrar um contato). Isso sinaliza a liderança sem interromper o registro.</p>
+      <h3>O que fazer</h3>
+      <ul class="lista">
+        <li><b>Saia do roteiro</b> de consolidação.</li>
+        <li><b>Acione a liderança / pastor.</b></li>
+        <li><b>Registre</b> o encaminhamento na ficha.</li>
+        <li>Nunca prometa nada em nome da igreja, nem aja sozinho.</li>
+        <li>Havendo risco iminente, oriente também os serviços de emergência.</li>
+      </ul>
+      <div class="nota crit" style="margin-bottom:0">Esses são os registros mais delicados do sistema. Anote com sobriedade e trate com sigilo.</div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <h2><span class="h2n">8</span> Perguntas frequentes</h2>
+    <p class="sub">As dúvidas mais comuns da equipe.</p>
+
+    <details class="faq"><summary>Preciso instalar algum aplicativo?</summary><div class="ans"><p>Não. O sistema abre no navegador. Se quiser um ícone na tela inicial (parecendo um app), use “Adicionar à Tela de Início” no celular — veja a seção <a href="#comecar">Começando</a>.</p></div></details>
+
+    <details class="faq"><summary>Se eu cadastrar no meu celular, aparece no celular de outra pessoa?</summary><div class="ans"><p>Sim. Tudo é salvo na nuvem automaticamente. Qualquer pessoa da equipe que abrir o sistema vê os mesmos dados atualizados. Basta o app mostrar <span class="pill ok">● Sincronizado</span> no topo.</p></div></details>
+
+    <details class="faq"><summary>Meus registros podem se perder?</summary><div class="ans"><p>Não, desde que apareça <span class="pill ok">● Sincronizado</span>. Se aparecer <span class="pill warn">Sincronizando…</span>, espere alguns segundos; se ficar em erro, verifique a conexão com a internet e recarregue a página.</p></div></details>
+
+    <details class="faq"><summary>Marquei a etapa errada. Como corrijo?</summary><div class="ans"><p>Na ficha da pessoa, ao fim do “Passo a passo da jornada”, toque em <b>↩ Voltar para a etapa anterior</b>. Para escolher qualquer outra etapa, use a aba <b>Acompanhamento → “Marcou errado?”</b>. Toda correção fica registrada no histórico.</p></div></details>
+
+    <details class="faq"><summary>Cadastrei alguém duas vezes. E agora?</summary><div class="ans"><p>Ao digitar o WhatsApp de alguém que já existe, o sistema avisa na hora e oferece abrir a ficha existente. Se o duplicado passou, continue usando apenas uma das fichas e encerre a outra pela aba Acompanhamento.</p></div></details>
+
+    <details class="faq"><summary>A pessoa pediu para não ser mais contatada.</summary><div class="ans"><p>Ao registrar o contato, escolha <span class="pill crit">🚫 Pediu para parar</span>. Os contatos se encerram com gentileza. Se um dia ela voltar a responder, é só registrar de novo que o fluxo reabre — a porta segue aberta.</p></div></details>
+
+    <details class="faq"><summary>Quem consegue ver os dados hoje?</summary><div class="ans"><p>Nesta fase, qualquer pessoa com o link acessa o sistema — por isso, compartilhe o link apenas com a equipe. Em breve entra o login individual, e o acesso às conversas será restrito a quem cuida daquela pessoa. Trate os dados dos visitantes com sigilo.</p></div></details>
+  </section>
+
+  <div class="rodape">
+    <p class="frase">“Não estamos falando de um produto, e sim de pessoas.”</p>
+    <p>Consolidação de Visitantes · Igreja Família Extraordinária</p>
+  </div>
+
+</div>
