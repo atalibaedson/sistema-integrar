@@ -1,0 +1,5 @@
+# Configuração de build do Netlify — publicação automática a cada push.
+# O sistema usa rotas por hash (#/rota), então não precisa de redirects de SPA.
+[build]
+  command = "npm run build"
+  publish = "dist"
