@@ -1,5 +1,6 @@
 // Operações de negócio — fluxo principal (seção 7) e exceções (seção 8)
 import type { AppState, Interacao, Origem, Papel, SituacaoCivil, Status, StatusAcesso, Usuario, Visitante } from './types'
+import { PAPEL_LABEL } from './types'
 import { aplicarTransicao } from './machine'
 import { comExclusoes, consolidadoresAtivos, getEstado, interacoesDe, primeiraGestaoIntegracao, setEstado, uid } from './store'
 import { registrarAuditoria } from './auditoria'
@@ -563,18 +564,27 @@ export function marcarEmailConfirmado(usuarioId: string) {
 
 // Aprovação: somente Pastores/Gestão Ministerial e Gestão Integração (a tela
 // de Aprovações já é restrita a esses papéis; aqui fica o registro de quem fez).
-export function aprovarIntegrante(usuarioId: string, aprovadorId?: string) {
+// `papeisFinais` (opcional): funções confirmadas/ajustadas pela liderança no
+// momento da aprovação. Se vier preenchido, substitui o que a pessoa pediu no
+// cadastro — assim ninguém se autoconcede um papel (ex.: Pastor) sem revisão.
+export function aprovarIntegrante(usuarioId: string, aprovadorId?: string, papeisFinais?: Papel[]) {
   const agora = new Date().toISOString()
-  const nome = getEstado().usuarios.find((u) => u.id === usuarioId)?.nome ?? '?'
+  const alvo = getEstado().usuarios.find((u) => u.id === usuarioId)
+  const nome = alvo?.nome ?? '?'
+  const papeis = papeisFinais && papeisFinais.length > 0 ? papeisFinais : undefined
   setEstado((s) => ({
     ...s,
     usuarios: s.usuarios.map((u) =>
       u.id === usuarioId
-        ? { ...u, statusAcesso: 'aprovado', aprovadoPorId: aprovadorId, aprovadoEm: agora, motivoRejeicao: undefined }
+        ? { ...u, statusAcesso: 'aprovado', aprovadoPorId: aprovadorId, aprovadoEm: agora, motivoRejeicao: undefined, ...(papeis ? { papeis } : {}) }
         : u,
     ),
   }))
-  registrarAuditoria('🔓 Aprovou acesso de integrante', { alvoTipo: 'usuario', alvoId: usuarioId, alvoNome: nome })
+  const ajustou = papeis && alvo && JSON.stringify([...papeis].sort()) !== JSON.stringify([...alvo.papeis].sort())
+  registrarAuditoria('🔓 Aprovou acesso de integrante', {
+    alvoTipo: 'usuario', alvoId: usuarioId, alvoNome: nome,
+    detalhe: ajustou ? `Funções ajustadas para: ${papeis.map((p) => PAPEL_LABEL[p]).join(', ')}` : undefined,
+  })
 }
 
 export function rejeitarIntegrante(usuarioId: string, rejeitadorId: string | undefined, motivo: string) {

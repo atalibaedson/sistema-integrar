@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAppState, usuarioPorId } from '../store'
 import { useUsuarioAtualId, usuarioAtual } from '../acesso'
 import { aprovarIntegrante, rejeitarIntegrante } from '../actions'
-import { PAPEL_COR, PAPEL_LABEL, SITUACAO_CIVIL_LABEL, STATUS_ACESSO_LABEL, type Usuario } from '../types'
+import { PAPEL_COR, PAPEL_LABEL, SITUACAO_CIVIL_LABEL, STATUS_ACESSO_LABEL, type Papel, type Usuario } from '../types'
 import { iniciais } from './Equipe'
 import { IcoCheck } from '../icones'
 
@@ -19,6 +19,14 @@ export default function Aprovacoes() {
   const eu = usuarioAtual(s, useUsuarioAtualId())
   const [rejeitando, setRejeitando] = useState('') // id do usuário com o campo de motivo aberto
   const [motivo, setMotivo] = useState('')
+  // Funções ajustadas pela liderança, por usuário (partem do que a pessoa pediu)
+  const [papeisEdit, setPapeisEdit] = useState<Record<string, Papel[]>>({})
+  const papeisDe = (u: Usuario): Papel[] => papeisEdit[u.id] ?? u.papeis
+  function alternarPapel(u: Usuario, p: Papel) {
+    const atual = papeisDe(u)
+    const novo = atual.includes(p) ? atual.filter((x) => x !== p) : [...atual, p]
+    setPapeisEdit((m) => ({ ...m, [u.id]: novo }))
+  }
 
   const pendentes = s.usuarios.filter((u) => u.statusAcesso === 'pendente_aprovacao')
   const aindaSemEmail = s.usuarios.filter((u) => u.statusAcesso === 'pendente_confirmacao_email')
@@ -39,11 +47,27 @@ export default function Aprovacoes() {
           )}
           <div style={{ flex: 1, minWidth: 220 }}>
             <b>{u.nome}</b>{idade(u.dataNascimento)}
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '4px 0' }}>
-              {u.papeis.map((p) => (
-                <span key={p} className="badge" style={{ background: PAPEL_COR[p] + '22', color: PAPEL_COR[p] }}>{PAPEL_LABEL[p]}</span>
-              ))}
-            </div>
+            {acoes ? (
+              <div style={{ margin: '6px 0' }}>
+                <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 4 }}>
+                  Funções (confirme ou ajuste antes de liberar):
+                </div>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  {(Object.keys(PAPEL_LABEL) as Papel[]).map((p) => (
+                    <label key={p} className="check" style={{ fontSize: 13 }}>
+                      <input type="checkbox" checked={papeisDe(u).includes(p)} onChange={() => alternarPapel(u, p)} />
+                      {PAPEL_LABEL[p]}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '4px 0' }}>
+                {u.papeis.map((p) => (
+                  <span key={p} className="badge" style={{ background: PAPEL_COR[p] + '22', color: PAPEL_COR[p] }}>{PAPEL_LABEL[p]}</span>
+                ))}
+              </div>
+            )}
             <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
               📱 {u.whatsapp} · ✉️ {u.email}
               {u.bairro && <> · 📍 {u.bairro}</>}
@@ -60,7 +84,12 @@ export default function Aprovacoes() {
           </div>
           {acoes && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <button className="btn" onClick={() => aprovarIntegrante(u.id, eu?.id)}>
+              <button
+                className="btn"
+                disabled={papeisDe(u).length === 0}
+                title={papeisDe(u).length === 0 ? 'Marque ao menos uma função' : undefined}
+                onClick={() => aprovarIntegrante(u.id, eu?.id, papeisDe(u))}
+              >
                 <IcoCheck size={14} /> Aprovar acesso
               </button>
               {rejeitando === u.id ? (
