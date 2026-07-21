@@ -20,6 +20,7 @@ import Ajuda from './pages/Ajuda'
 import Auditoria from './pages/Auditoria'
 import CadastroIntegrante from './pages/CadastroIntegrante'
 import Entrar from './pages/Entrar'
+import EntrarProvisorio from './pages/EntrarProvisorio'
 import AguardandoAprovacao from './pages/AguardandoAprovacao'
 import Aprovacoes from './pages/Aprovacoes'
 
@@ -108,6 +109,7 @@ function ChipsTopo() {
       </label>
       <span className={`chip-status ${chip.classe}`}><span className="ponto" style={{ background: chip.ponto }} />{chip.rotulo}</span>
       <span className="chip-status">📅 {dataFmt}</span>
+      <a href="#/entrar" className="chip-entrar">🔑 Entrar / Criar conta</a>
     </div>
   )
 }
@@ -147,7 +149,9 @@ export default function App() {
   // Rotas públicas — sem menu/sidebar
   if (rota.startsWith('/autocadastro')) return <Autocadastro />
   if (rota.startsWith('/cadastro-integrante')) return <CadastroIntegrante />
-  if (rota.startsWith('/entrar')) return <Entrar />
+  // Login real (Supabase) — fica em /entrar-senha até o Auth ser ligado; /entrar usa o provisório por nome
+  if (rota.startsWith('/entrar-senha')) return <Entrar />
+  if (rota.startsWith('/entrar')) return <EntrarProvisorio />
 
   // Gate do login real: logado mas ainda não aprovado → tela de espera
   if (sessao && (!usuarioSessao || usuarioSessao.statusAcesso !== 'aprovado')) {
