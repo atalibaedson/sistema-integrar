@@ -439,9 +439,8 @@ export interface NovoIntegranteInput {
   email: string // obrigatório — vira a conta de login
   senha: string
   dataNascimento?: string
-  bairro?: string
   situacaoCivil?: SituacaoCivil
-  comoConheceu?: string
+  conexaoId?: string // de qual Conexão/grupo a pessoa faz parte
   fotoArquivo?: File
   papeis: Papel[]
   loginPreferido: 'email' | 'whatsapp'
@@ -507,9 +506,8 @@ export async function cadastrarIntegrante(input: NovoIntegranteInput): Promise<R
     whatsapp: input.whatsapp.trim(),
     email,
     dataNascimento: input.dataNascimento || undefined,
-    bairro: input.bairro?.trim() || undefined,
     situacaoCivil: input.situacaoCivil,
-    comoConheceu: input.comoConheceu,
+    conexaoId: input.conexaoId || undefined,
     fotoUrl,
     authUserId: data.user?.id,
     statusAcesso: 'pendente_confirmacao_email' as StatusAcesso,

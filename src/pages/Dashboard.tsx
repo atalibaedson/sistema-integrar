@@ -1,30 +1,24 @@
 import { semAtualizacao, useAppState, ultimaRespostaOuCadastro } from '../store'
 import { diasDesde } from '../machine'
-import { estiloStatus, STATUS_LABEL, type Status } from '../types'
+import { estiloStatus, STATUS_COR, STATUS_LABEL, type Status } from '../types'
 import { aplicarTemplate, linkWhatsApp, proximaAcao } from '../actions'
 import { navegar } from '../router'
 import { podeVerCuidado, useUsuarioAtualId, usuarioAtual, visitantesVisiveis } from '../acesso'
+import { funil } from '../relatorios'
+import { IcoUsuarios, IcoWhats, IcoUserCheck, IcoJornada } from '../icones'
 
-// Funil de consolidação (seção 14): cada etapa conta quem chegou ATÉ ela
-const ETAPAS_FUNIL: { rotulo: string; statuses: Status[] }[] = [
-  { rotulo: 'Novos (cadastrados)', statuses: ['novo', 'em_contato', 'aguardando_resposta', 'em_espera', 'encaminhado_lider', 'visitou', 'transferido', 'integrado'] },
-  { rotulo: 'Em contato', statuses: ['em_contato', 'aguardando_resposta', 'em_espera', 'encaminhado_lider', 'visitou', 'transferido', 'integrado'] },
-  { rotulo: 'Encaminhados ao líder', statuses: ['encaminhado_lider', 'visitou', 'transferido', 'integrado'] },
-  { rotulo: 'Visitaram a Conexão', statuses: ['visitou', 'transferido', 'integrado'] },
-  { rotulo: 'Transferidos', statuses: ['transferido', 'integrado'] },
-  { rotulo: 'Integrados', statuses: ['integrado'] },
+// Ordem de exibição da barra empilhada de status (do início do fluxo ao fim)
+const ORDEM_STATUS: Status[] = [
+  'novo', 'em_contato', 'aguardando_resposta', 'encaminhado_lider', 'visitou',
+  'transferido', 'integrado', 'em_espera', 'recusou', 'encerrado',
 ]
 
-const CORES_FUNIL = ['#6366f1', '#0ea5e9', '#8b5cf6', '#14b8a6', '#10b981', '#22c55e']
-
 // Por onde os visitantes chegam: termômetro dos canais de divulgação
-function CardComoConheceu() {
-  const s = useAppState()
-  const total = s.visitantes.length
-
+function CardComoConheceu({ vs }: { vs: import('../types').Visitante[] }) {
+  const total = vs.length
   const contagem = new Map<string, number>()
   let naoInformado = 0
-  for (const v of s.visitantes) {
+  for (const v of vs) {
     if (v.comoConheceu) contagem.set(v.comoConheceu, (contagem.get(v.comoConheceu) ?? 0) + 1)
     else naoInformado++
   }
@@ -33,35 +27,31 @@ function CardComoConheceu() {
 
   return (
     <div className="card">
-      <h3>📣 Como os visitantes conheceram a igreja</h3>
+      <h3>📣 Como conheceram a igreja</h3>
       {linhas.length === 0 ? (
-        <div className="vazio">
-          Ainda sem respostas. O campo "Como conheceu?" do cadastro e do autocadastro alimenta este relatório.
+        <div className="vazio" style={{ padding: 20 }}>
+          O campo "Como conheceu?" do cadastro alimenta este relatório.
         </div>
       ) : (
-        <>
-          {linhas.map(([canal, n]) => {
+        <div className="rel-barlist">
+          {linhas.slice(0, 6).map(([canal, n]) => {
             const pct = total ? Math.round((n / total) * 100) : 0
             return (
-              <div className="funil-etapa" key={canal}>
-                <div className="funil-rotulo">{canal}</div>
-                <div className="funil-barra-area">
-                  <div
-                    className="funil-barra"
-                    style={{ width: `${Math.max((n / maior) * 100, 8)}%`, background: 'var(--primary)' }}
-                  >
-                    {n} ({pct}%)
-                  </div>
+              <div className="rel-bar-row" key={canal}>
+                <div className="rel-bar-rotulo" title={canal}>{canal}</div>
+                <div className="rel-bar-trilho">
+                  <div className="rel-bar-fill" style={{ width: `${Math.max((n / maior) * 100, 3)}%` }} />
                 </div>
+                <div className="rel-bar-num">{n} <span className="rel-bar-pct">· {pct}%</span></div>
               </div>
             )
           })}
           {naoInformado > 0 && (
-            <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>
-              {naoInformado} visitante(s) sem essa informação no cadastro.
+            <p style={{ fontSize: 11.5, color: 'var(--text-3)', margin: '2px 0 0' }}>
+              {naoInformado} sem essa informação.
             </p>
           )}
-        </>
+        </div>
       )}
     </div>
   )
@@ -72,9 +62,11 @@ export default function Dashboard() {
   const eu = usuarioAtual(s, useUsuarioAtualId())
   const vs = visitantesVisiveis(s, eu) // só o que a identidade atual pode ver
 
-  const noFunil = (sts: Status[]) => vs.filter((v) => sts.includes(v.status)).length
-  const total = noFunil(ETAPAS_FUNIL[0].statuses)
   const porStatus = (st: Status) => vs.filter((v) => v.status === st).length
+  const emAcompanhamento = porStatus('novo') + porStatus('em_contato') + porStatus('aguardando_resposta')
+  const comLider = porStatus('encaminhado_lider') + porStatus('visitou')
+  const integrados = porStatus('integrado')
+  const taxaIntegracao = vs.length ? Math.round((integrados / vs.length) * 100) : 0
 
   // Alertas (seção 13) — cuidado respeita a restrição extra do pastor/responsável
   const cuidado = vs.filter((v) => v.flagCuidado && podeVerCuidado(s, eu, v))
@@ -93,103 +85,150 @@ export default function Dashboard() {
   const hoje = new Date().getDay()
   const diaFluxo = hoje === 1 ? 'Segunda — Aproximação' : hoje === 3 ? 'Quarta — Conexão' : hoje === 6 ? 'Sábado — Celebração' : null
 
+  const etapasFunil = funil(vs)
+  const totalStack = vs.length || 1
+  const segmentos = ORDEM_STATUS.map((st) => ({ st, n: porStatus(st) })).filter((x) => x.n > 0)
+
+  const kpis = [
+    { rotulo: 'Total cadastrados', valor: vs.length, cor: '#6366f1', icone: <IcoUsuarios size={15} />, nota: 'visitantes na sua visão' },
+    { rotulo: 'Em acompanhamento', valor: emAcompanhamento, cor: '#0ea5e9', icone: <IcoWhats size={15} />, nota: 'na semana de consolidação' },
+    { rotulo: 'Com o líder', valor: comLider, cor: '#8b5cf6', icone: <IcoUserCheck size={15} />, nota: 'encaminhados ou visitando' },
+    { rotulo: 'Em espera', valor: porStatus('em_espera'), cor: '#94a3b8', icone: <IcoJornada size={15} />, nota: 'silêncio prolongado' },
+    { rotulo: 'Integrados', valor: integrados, cor: '#22c55e', icone: <IcoUserCheck size={15} />, nota: `${taxaIntegracao}% de conversão` },
+  ]
+
   return (
     <div>
-      <h1 className="titulo-pagina">Painel da Consolidação</h1>
-      <p className="subtitulo">
-        Visão geral da jornada — do primeiro contato à integração.
-        {diaFluxo && <> Hoje é dia de contato: <b>{diaFluxo}</b>.</>}
-      </p>
+      <div className="dash-cab">
+        <div>
+          <h1 className="titulo-pagina">Painel da Consolidação</h1>
+          <p className="subtitulo" style={{ marginBottom: 0 }}>Visão geral da jornada — do primeiro contato à integração.</p>
+        </div>
+        {diaFluxo && <div className="dash-hoje">📅 Hoje é dia de contato: {diaFluxo}</div>}
+      </div>
 
-      {cuidado.length > 0 && (
-        <div className="alerta alerta-perigo">
-          🚨 <div><b>Cuidado/Crise ativo:</b> {cuidado.map((v) => v.nome).join(', ')} — acione a liderança/pastor.</div>
+      <div style={{ height: 16 }} />
+
+      {(cuidado.length > 0 || semResponsavel.length > 0 || transferenciaPendente.length > 0 || semAtualizar.length > 0) && (
+        <div className="dash-alertas">
+          {cuidado.length > 0 && (
+            <div className="alerta alerta-perigo">
+              🚨 <div><b>Cuidado/Crise ativo:</b> {cuidado.map((v) => v.nome).join(', ')} — acione a liderança/pastor.</div>
+            </div>
+          )}
+          {semResponsavel.length > 0 && (
+            <div className="alerta alerta-warn">
+              ⚠️ <div><b>Sem responsável:</b> {semResponsavel.map((v) => v.nome).join(', ')} — atribua um consolidador na ficha.</div>
+            </div>
+          )}
+          {transferenciaPendente.length > 0 && (
+            <div className="alerta alerta-warn">
+              ⏳ <div><b>Aguardando confirmação do líder:</b> {transferenciaPendente.map((v) => v.nome).join(', ')}.</div>
+            </div>
+          )}
+          {semAtualizar.length > 0 && (
+            <div className="alerta alerta-warn">
+              🕐 <div>
+                <b>Sem atualização há 7+ dias:</b> {semAtualizar.map((v) => v.nome).join(', ')} —{' '}
+                <a href="#/visitantes" style={{ color: 'inherit', fontWeight: 700 }}>ver na lista</a>.
+              </div>
+            </div>
+          )}
         </div>
       )}
-      {semResponsavel.length > 0 && (
-        <div className="alerta alerta-warn">
-          ⚠️ <div><b>Sem responsável:</b> {semResponsavel.map((v) => v.nome).join(', ')} — atribua um consolidador na ficha.</div>
-        </div>
-      )}
-      {transferenciaPendente.length > 0 && (
-        <div className="alerta alerta-warn">
-          ⏳ <div><b>Aguardando confirmação do líder:</b> {transferenciaPendente.map((v) => v.nome).join(', ')}.</div>
-        </div>
-      )}
-      {semAtualizar.length > 0 && (
-        <div className="alerta alerta-warn">
-          🕐 <div>
-            <b>Sem atualização há 7+ dias:</b> {semAtualizar.map((v) => v.nome).join(', ')} —
-            abra a ficha e peça a atualização ao consolidador responsável.{' '}
-            <a href="#/visitantes" style={{ color: 'inherit', fontWeight: 700 }}>Ver na lista</a>
+
+      {/* KPIs */}
+      <div className="dash-kpis">
+        {kpis.map((k) => (
+          <div className="dash-kpi" key={k.rotulo}>
+            <div className="dash-kpi-top">
+              <span className="dash-kpi-icone" style={{ background: k.cor }}>{k.icone}</span>
+              {k.rotulo}
+            </div>
+            <div className="dash-kpi-valor" style={{ color: k.cor }}>{k.valor}</div>
+            <div className="dash-kpi-nota">{k.nota}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Distribuição por status (barra empilhada) */}
+      {vs.length > 0 && (
+        <div className="card">
+          <h3>Distribuição por status</h3>
+          <div className="dash-stack">
+            {segmentos.map(({ st, n }) => (
+              <div key={st} className="dash-stack-seg" style={{ width: `${(n / totalStack) * 100}%`, background: STATUS_COR[st] }} title={`${STATUS_LABEL[st]}: ${n}`} />
+            ))}
+          </div>
+          <div className="dash-stack-legenda">
+            {segmentos.map(({ st, n }) => (
+              <span key={st}><i style={{ background: STATUS_COR[st] }} />{STATUS_LABEL[st]} <b>{n}</b></span>
+            ))}
           </div>
         </div>
       )}
 
-      <div className="grid-cards">
-        <div className="kpi"><div className="valor">{vs.length}</div><div className="rotulo">Total cadastrados</div></div>
-        <div className="kpi"><div className="valor">{porStatus('em_contato') + porStatus('aguardando_resposta') + porStatus('novo')}</div><div className="rotulo">Em acompanhamento</div></div>
-        <div className="kpi"><div className="valor">{porStatus('encaminhado_lider') + porStatus('visitou')}</div><div className="rotulo">Com o líder</div></div>
-        <div className="kpi"><div className="valor">{porStatus('em_espera')}</div><div className="rotulo">Em espera</div></div>
-        <div className="kpi"><div className="valor" style={{ color: 'var(--ok)' }}>{porStatus('integrado')}</div><div className="rotulo">Integrados</div></div>
-      </div>
+      {/* Duas colunas: ações de hoje + funil/canais */}
+      <div className="dash-grid">
+        <div className="card" style={{ padding: 0 }}>
+          <div style={{ padding: '16px 18px 0' }}><h3 style={{ marginBottom: 0 }}>✅ Ações de hoje ({ativos.length})</h3></div>
+          {ativos.length === 0 ? (
+            <div className="vazio">Nenhuma ação pendente. 🎉</div>
+          ) : (
+            <div className="table-wrap" style={{ overflowX: 'auto' }}>
+              <table>
+                <thead><tr><th>Visitante</th><th>Status</th><th>O que fazer</th><th></th></tr></thead>
+                <tbody>
+                  {ativos.slice(0, 12).map(({ v, acao }) => {
+                    const template = acao.gatilhoTemplate ? s.templates.find((t) => t.gatilho === acao.gatilhoTemplate) : undefined
+                    return (
+                      <tr key={v.id}>
+                        <td className="clicavel cell-title" onClick={() => navegar(`/visitante/${v.id}`)}>
+                          {v.nome}{v.flagCuidado && ' 🚨'}
+                        </td>
+                        <td><span className="badge" style={estiloStatus(v.status)}>{STATUS_LABEL[v.status]}</span></td>
+                        <td style={{ fontSize: 13 }}>{acao.urgente ? <b>{acao.titulo}</b> : acao.titulo}</td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {template && (
+                            <a
+                              className="btn btn-whats btn-mini"
+                              href={linkWhatsApp(v.whatsapp, aplicarTemplate(template.texto, v.nome))}
+                              target="_blank" rel="noreferrer"
+                              style={{ marginRight: 6 }}
+                            >💬 Enviar</a>
+                          )}
+                          <button className="btn btn-sec btn-mini" onClick={() => navegar(`/visitante/${v.id}`)}>Abrir</button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
-      <div className="card">
-        <h3>✅ Ações de hoje ({ativos.length})</h3>
-        {ativos.length === 0 ? (
-          <div className="vazio">Nenhuma ação pendente. 🎉</div>
-        ) : (
-          <table>
-            <thead><tr><th>Visitante</th><th>Status</th><th>O que fazer</th><th></th></tr></thead>
-            <tbody>
-              {ativos.map(({ v, acao }) => {
-                const template = acao.gatilhoTemplate ? s.templates.find((t) => t.gatilho === acao.gatilhoTemplate) : undefined
-                return (
-                  <tr key={v.id}>
-                    <td className="clicavel" onClick={() => navegar(`/visitante/${v.id}`)}>
-                      <b>{v.nome}</b>{v.flagCuidado && ' 🚨'}
-                    </td>
-                    <td><span className="badge" style={estiloStatus(v.status)}>{STATUS_LABEL[v.status]}</span></td>
-                    <td style={{ fontSize: 13 }}>{acao.urgente ? <b>{acao.titulo}</b> : acao.titulo}</td>
-                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      {template && (
-                        <a
-                          className="btn btn-whats btn-mini"
-                          href={linkWhatsApp(v.whatsapp, aplicarTemplate(template.texto, v.nome))}
-                          target="_blank" rel="noreferrer"
-                          style={{ marginRight: 6 }}
-                        >💬 Enviar</a>
-                      )}
-                      <button className="btn btn-sec btn-mini" onClick={() => navegar(`/visitante/${v.id}`)}>Abrir</button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <CardComoConheceu />
-
-      <div className="card">
-        <h3>Funil de consolidação</h3>
-        {total === 0 ? (
-          <div className="vazio">Nenhum visitante no funil ainda. Cadastre o primeiro em <a href="#/novo">Novo visitante</a>.</div>
-        ) : (
-          ETAPAS_FUNIL.map((etapa, i) => {
-            const n = noFunil(etapa.statuses)
-            const pct = total ? Math.max((n / total) * 100, 4) : 0
-            return (
-              <div className="funil-etapa" key={etapa.rotulo}>
-                <div className="funil-rotulo">{etapa.rotulo}</div>
-                <div className="funil-barra-area">
-                  <div className="funil-barra" style={{ width: `${pct}%`, background: CORES_FUNIL[i] }}>{n}</div>
-                </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="card">
+            <h3>Funil de consolidação</h3>
+            {vs.length === 0 ? (
+              <div className="vazio">Nenhum visitante ainda. Cadastre em <a href="#/novo">Novo visitante</a>.</div>
+            ) : (
+              <div className="rel-barlist">
+                {etapasFunil.map((e) => (
+                  <div className="rel-bar-row" key={e.chave}>
+                    <div className="rel-bar-rotulo" title={e.rotulo}>{e.rotulo}</div>
+                    <div className="rel-bar-trilho">
+                      <div className="rel-bar-fill" style={{ width: `${Math.max(e.taxaDoTopo, 3)}%`, background: e.cor }} />
+                    </div>
+                    <div className="rel-bar-num">{e.total} <span className="rel-bar-pct">· {e.taxaDoTopo}%</span></div>
+                  </div>
+                ))}
               </div>
-            )
-          })
-        )}
+            )}
+          </div>
+          <CardComoConheceu vs={vs} />
+        </div>
       </div>
     </div>
   )

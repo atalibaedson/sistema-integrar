@@ -43,3 +43,4 @@ export const IcoNuvem = (p: IcoProps) => <Ico {...p}><path d="M18 10h-1.26A8 8 0
 export const IcoDesfazer = (p: IcoProps) => <Ico {...p}><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></Ico>
 export const IcoAjuda = (p: IcoProps) => <Ico {...p}><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></Ico>
 export const IcoAuditoria = (p: IcoProps) => <Ico {...p}><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></Ico>
+export const IcoRelatorios = (p: IcoProps) => <Ico {...p}><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></Ico>

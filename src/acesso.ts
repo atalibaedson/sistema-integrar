@@ -70,6 +70,7 @@ export function papelVeTudo(u?: Usuario): boolean {
 // "Vendo como"). Este mapa governa o menu E o bloqueio de rota, juntos.
 export const ACESSO_ROTA: { prefixo: string; papeis: Papel[] }[] = [
   { prefixo: '/aprovacoes', papeis: ['pastor', 'coordenacao'] },
+  { prefixo: '/relatorios', papeis: ['pastor', 'coordenacao'] },
   { prefixo: '/auditoria', papeis: ['pastor', 'coordenacao'] },
   { prefixo: '/config', papeis: ['pastor', 'coordenacao'] },
   { prefixo: '/equipe', papeis: ['pastor', 'coordenacao'] },

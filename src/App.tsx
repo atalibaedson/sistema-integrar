@@ -5,7 +5,7 @@ import { getUsuarioAtualId, setUsuarioAtualId, useUsuarioAtualId, usuarioAtual, 
 import { marcarEmailConfirmado } from './actions'
 import { garantirSessao } from './supabaseClient'
 import { PAPEL_LABEL } from './types'
-import { IcoAjuda, IcoAuditoria, IcoConfig, IcoJornada, IcoMenu, IcoPainel, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
+import { IcoAjuda, IcoAuditoria, IcoConfig, IcoJornada, IcoMenu, IcoPainel, IcoRelatorios, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
 import Dashboard from './pages/Dashboard'
 import Jornada from './pages/Jornada'
 import Visitantes from './pages/Visitantes'
@@ -22,6 +22,7 @@ import Entrar from './pages/Entrar'
 import EntrarProvisorio from './pages/EntrarProvisorio'
 import AguardandoAprovacao from './pages/AguardandoAprovacao'
 import Aprovacoes from './pages/Aprovacoes'
+import Relatorios from './pages/Relatorios'
 
 type ItemMenu = { rota: string; icone: (p: { size?: number }) => JSX.Element; rotulo: string }
 
@@ -39,6 +40,7 @@ const MENU: { secao: string; itens: ItemMenu[] }[] = [
     secao: 'Gestão',
     itens: [
       { rota: '/lideres', icone: IcoUserCheck, rotulo: 'Painel do líder' },
+      { rota: '/relatorios', icone: IcoRelatorios, rotulo: 'Relatórios' },
       { rota: '/equipe', icone: IcoUsuarios, rotulo: 'Equipe' },
       { rota: '/aprovacoes', icone: IcoUserCheck, rotulo: 'Aprovações' },
       { rota: '/auditoria', icone: IcoAuditoria, rotulo: 'Auditoria' },
@@ -57,6 +59,7 @@ const NAV_PRINCIPAL: (ItemMenu & { destaque?: boolean })[] = [
 ]
 const NAV_MAIS: ItemMenu[] = [
   { rota: '/lideres', icone: IcoUserCheck, rotulo: 'Painel do líder' },
+  { rota: '/relatorios', icone: IcoRelatorios, rotulo: 'Relatórios' },
   { rota: '/equipe', icone: IcoUsuarios, rotulo: 'Equipe' },
   { rota: '/aprovacoes', icone: IcoUserCheck, rotulo: 'Aprovações' },
   { rota: '/auditoria', icone: IcoAuditoria, rotulo: 'Auditoria' },
@@ -170,6 +173,7 @@ export default function App() {
   else if (rota === '/lideres') pagina = <PainelLider />
   else if (rota === '/equipe') pagina = <Equipe />
   else if (rota === '/aprovacoes') pagina = <Aprovacoes />
+  else if (rota === '/relatorios') pagina = <Relatorios />
   else if (rota === '/auditoria') pagina = <Auditoria />
   else if (rota === '/config') pagina = <Configuracoes />
   else if (rota === '/ajuda') pagina = <Ajuda />

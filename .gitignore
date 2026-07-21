@@ -8,6 +8,13 @@ tsconfig.tsbuildinfo
 # Vercel
 .vercel/
 
+# Backups da nuvem — contêm dados pessoais reais (nomes, telefones).
+# NUNCA versionar num repositório white-label.
+backups/
+
+# Documentação gerada (PDF do fluxo, HTML fonte) — fica só localmente.
+Fluxo Sistema/
+
 # Sistema operacional
 .DS_Store
 

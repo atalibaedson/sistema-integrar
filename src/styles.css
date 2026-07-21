@@ -726,3 +726,117 @@ details summary:hover { color: var(--primary); }
   .cab-detalhe { flex-direction: column; }
   .kanban-col { min-width: 190px; width: 190px; }
 }
+
+/* =====================================================================
+   Relatórios de gestão + Painel profissional
+   ===================================================================== */
+
+.rel-acoes-topo { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Barra de período */
+.rel-periodo {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; margin: 4px 0 14px;
+}
+.rel-periodo-datas { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Abas de relatório roláveis */
+.rel-abas { flex-wrap: nowrap; }
+
+/* Faixa de estatísticas (KPIs grandes) */
+.rel-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px; margin-bottom: 16px;
+}
+.rel-stat {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px 18px; position: relative; overflow: hidden;
+}
+.rel-stat::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary); opacity: .8; }
+.rel-stat-valor { font-size: 28px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+.rel-stat-sufixo { font-size: 15px; font-weight: 700; margin-left: 2px; color: var(--text-2); }
+.rel-stat-rotulo { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+
+/* Grade de 2 colunas para cards de distribuição */
+.rel-2col { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+
+/* Lista de barras horizontais (distribuições) */
+.rel-barlist { display: flex; flex-direction: column; gap: 10px; }
+.rel-bar-row { display: grid; grid-template-columns: 130px 1fr auto; align-items: center; gap: 10px; }
+.rel-bar-rotulo { font-size: 12.5px; color: var(--text-2); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rel-bar-trilho { background: var(--surface2); border-radius: 6px; height: 20px; overflow: hidden; }
+.rel-bar-fill { height: 100%; border-radius: 6px; min-width: 4px; transition: width .3s; }
+.rel-bar-num { font-size: 12.5px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rel-bar-pct { color: var(--text-3); font-weight: 500; }
+
+/* Funil de conversão detalhado */
+.rel-funil { display: flex; flex-direction: column; gap: 12px; }
+.rel-funil-linha { display: grid; grid-template-columns: 170px 1fr; align-items: center; gap: 12px; }
+.rel-funil-rotulo { font-size: 13px; color: var(--text-2); text-align: right; }
+.rel-funil-barra-area { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rel-funil-barra {
+  height: 30px; border-radius: 7px; display: flex; align-items: center; padding: 0 12px;
+  color: #fff; font-size: 14px; min-width: 40px; transition: width .3s;
+}
+.rel-funil-tag { font-size: 12px; color: var(--text-3); }
+
+/* Mini gráfico de barras (atividade por dia) */
+.rel-chart { display: flex; align-items: flex-end; gap: 6px; height: 150px; padding-top: 6px; }
+.rel-chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
+.rel-chart-bars { flex: 1; display: flex; align-items: flex-end; justify-content: center; gap: 3px; width: 100%; }
+.rel-chart-bar { width: 8px; border-radius: 3px 3px 0 0; min-height: 2px; transition: height .3s; }
+.rel-chart-x { font-size: 10px; color: var(--text-3); margin-top: 6px; }
+.rel-legenda { display: flex; gap: 16px; margin-top: 12px; font-size: 12px; color: var(--text-2); }
+.rel-legenda span { display: flex; align-items: center; gap: 6px; }
+.rel-legenda i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* Mini barra de progresso dentro das tabelas (taxa %) */
+.rel-mini-barra {
+  display: inline-block; width: 70px; height: 6px; border-radius: 999px;
+  background: var(--surface2); vertical-align: middle; margin-right: 8px; overflow: hidden;
+}
+.rel-mini-barra span { display: block; height: 100%; border-radius: 999px; background: var(--ok); }
+
+/* ---- Painel profissional (Dashboard) ---- */
+.dash-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.dash-hoje {
+  display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+  color: var(--primary); background: var(--primary-soft); border: 1px solid var(--border);
+  padding: 8px 14px; border-radius: 999px; white-space: nowrap;
+}
+.dash-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.dash-kpi {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 15px 16px; display: flex; flex-direction: column; gap: 2px; position: relative;
+}
+.dash-kpi .dash-kpi-top { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 12px; font-weight: 600; }
+.dash-kpi .dash-kpi-icone { display: inline-flex; width: 26px; height: 26px; border-radius: 8px; align-items: center; justify-content: center; color: #fff; }
+.dash-kpi .dash-kpi-valor { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+.dash-kpi .dash-kpi-nota { font-size: 11.5px; color: var(--text-3); }
+
+/* Barra empilhada de distribuição por status */
+.dash-stack { display: flex; height: 26px; border-radius: 7px; overflow: hidden; background: var(--surface2); }
+.dash-stack-seg { height: 100%; min-width: 2px; }
+.dash-stack-legenda { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 12px; }
+.dash-stack-legenda span { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); }
+.dash-stack-legenda i { width: 10px; height: 10px; border-radius: 3px; }
+.dash-stack-legenda b { color: var(--text); font-variant-numeric: tabular-nums; }
+
+.dash-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; }
+
+.dash-alertas { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+
+@media print {
+  .sidebar, .bottomnav, .cab-chips, .rel-acoes-topo, .rel-abas, .rel-periodo { display: none !important; }
+  .conteudo { padding: 0 !important; }
+  .card, .rel-stat { break-inside: avoid; }
+}
+
+@media (max-width: 720px) {
+  .rel-bar-row { grid-template-columns: 96px 1fr auto; }
+  .rel-bar-rotulo { width: auto; }
+  .rel-funil-linha { grid-template-columns: 1fr; }
+  .rel-funil-rotulo { text-align: left; }
+  .dash-grid { grid-template-columns: 1fr; }
+  .rel-chart-bar { width: 6px; }
+}

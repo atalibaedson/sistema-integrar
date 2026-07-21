@@ -17,14 +17,14 @@ const ETAPAS = ['Seus dados', 'Funções e foto', 'Seu acesso'] as const
 // Fluxo: preencher → confirmar e-mail → aguardar aprovação da liderança.
 export default function CadastroIntegrante() {
   const s = useAppState()
+  const termoGrupo = s.config.termoGrupo?.trim() || 'Conexão'
   const [etapa, setEtapa] = useState(1) // 1, 2, 3
   const [nome, setNome] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
   const [email, setEmail] = useState('')
   const [dataNascimento, setDataNascimento] = useState('')
-  const [bairro, setBairro] = useState('')
   const [situacao, setSituacao] = useState<SituacaoCivil | ''>('')
-  const [comoConheceu, setComoConheceu] = useState('')
+  const [conexaoId, setConexaoId] = useState('')
   const [papeis, setPapeis] = useState<Papel[]>([])
   const [loginPreferido, setLoginPreferido] = useState<'email' | 'whatsapp'>('email')
   const [senha, setSenha] = useState('')
@@ -85,9 +85,8 @@ export default function CadastroIntegrante() {
     const r = await cadastrarIntegrante({
       nome, whatsapp, email, senha,
       dataNascimento: dataNascimento || undefined,
-      bairro: bairro || undefined,
       situacaoCivil: situacao || undefined,
-      comoConheceu: comoConheceu || undefined,
+      conexaoId: conexaoId || undefined,
       fotoArquivo: foto,
       papeis,
       loginPreferido,
@@ -158,22 +157,19 @@ export default function CadastroIntegrante() {
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@exemplo.com" />
               </label>
               <div className="ac-grupo">
-                <label className="campo"><span>Bairro</span>
-                  <input type="text" value={bairro} onChange={(e) => setBairro(e.target.value)} placeholder="Seu bairro" />
-                </label>
                 <label className="campo"><span>Situação civil</span>
                   <select value={situacao} onChange={(e) => setSituacao(e.target.value as SituacaoCivil | '')}>
                     <option value="">— selecionar —</option>
                     {Object.entries(SITUACAO_CIVIL_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                   </select>
                 </label>
+                <label className="campo"><span>De qual {termoGrupo} você faz parte?</span>
+                  <select value={conexaoId} onChange={(e) => setConexaoId(e.target.value)}>
+                    <option value="">— selecionar —</option>
+                    {s.conexoes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                </label>
               </div>
-              <label className="campo"><span>Como você chegou ao ministério?</span>
-                <select value={comoConheceu} onChange={(e) => setComoConheceu(e.target.value)}>
-                  <option value="">— selecionar —</option>
-                  {s.config.comoConheceuOpcoes.map((o) => <option key={o} value={o}>{o}</option>)}
-                </select>
-              </label>
             </div>
           )}
 
