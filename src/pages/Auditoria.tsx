@@ -1,47 +1,43 @@
 import { useState } from 'react'
 import { useAppState } from '../store'
-import { papelVeTudo, useUsuarioAtualId, usuarioAtual } from '../acesso'
 import { IcoBusca } from '../icones'
 import { navegar } from '../router'
 
+// O acesso a esta página é controlado centralmente no App (mapa de permissões).
 const LIMITE_TELA = 200
 
 export default function Auditoria() {
   const s = useAppState()
-  const eu = usuarioAtual(s, useUsuarioAtualId())
   const [busca, setBusca] = useState('')
-
-  // Restrito a coordenação/pastor — em modo aberto (fase de teste), qualquer um vê.
-  if (eu && !papelVeTudo(eu)) {
-    return (
-      <div className="vazio" style={{ maxWidth: 460, margin: '40px auto' }}>
-        <div style={{ fontSize: 32 }}>🔒</div>
-        <p style={{ marginTop: 8 }}>A auditoria é restrita à coordenação e à liderança.</p>
-        <a href="#/" style={{ color: 'var(--primary)' }}>← Voltar ao painel</a>
-      </div>
-    )
-  }
+  const [de, setDe] = useState('')   // AAAA-MM-DD
+  const [ate, setAte] = useState('') // AAAA-MM-DD
 
   const b = busca.trim().toLowerCase()
-  const registros = s.auditoria
-    .filter((r) => !b || `${r.usuarioNome} ${r.acao} ${r.detalhe ?? ''} ${r.alvoNome ?? ''}`.toLowerCase().includes(b))
-    .slice(0, LIMITE_TELA)
+  const filtrados = s.auditoria.filter((r) => {
+    const dia = r.data.slice(0, 10)
+    if (de && dia < de) return false
+    if (ate && dia > ate) return false
+    if (b && !`${r.usuarioNome} ${r.acao} ${r.detalhe ?? ''} ${r.alvoNome ?? ''}`.toLowerCase().includes(b)) return false
+    return true
+  })
+  const registros = filtrados.slice(0, LIMITE_TELA)
+  const temFiltro = !!(b || de || ate)
+
+  function limpar() { setBusca(''); setDe(''); setAte('') }
 
   return (
     <div>
       <h1 className="titulo-pagina">Auditoria</h1>
       <p className="subtitulo">Quem fez o quê, e quando — registro automático das ações sensíveis do sistema.</p>
 
-      <div className="alerta alerta-info" style={{ marginBottom: 16 }}>
-        ℹ️ <div><b>Fase de teste:</b> a identidade vem do seletor "Vendo como" (sem senha ainda). Quando o login chegar,
-        estes mesmos registros passam a valer com identidade verificada.</div>
-      </div>
-
-      <div className="filter-bar">
-        <div className="search-box" style={{ flex: 1, maxWidth: 360 }}>
+      <div className="filter-bar" style={{ gap: 12, flexWrap: 'wrap' }}>
+        <div className="search-box" style={{ flex: 1, minWidth: 220, maxWidth: 360 }}>
           <span className="search-icon"><IcoBusca /></span>
           <input type="text" placeholder="Buscar por pessoa, ação ou visitante…" value={busca} onChange={(e) => setBusca(e.target.value)} />
         </div>
+        <label className="aud-periodo">De <input type="date" value={de} max={ate || undefined} onChange={(e) => setDe(e.target.value)} /></label>
+        <label className="aud-periodo">Até <input type="date" value={ate} min={de || undefined} onChange={(e) => setAte(e.target.value)} /></label>
+        {temFiltro && <button className="btn btn-sec" onClick={limpar}>Limpar filtros</button>}
       </div>
 
       <div className="card" style={{ padding: 0 }}>
@@ -53,7 +49,9 @@ export default function Auditoria() {
             <tbody>
               {registros.length === 0 ? (
                 <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-2)', padding: 32 }}>
-                  {s.auditoria.length === 0 ? 'Nenhum registro ainda — as ações sensíveis vão aparecer aqui.' : 'Nada encontrado.'}
+                  {s.auditoria.length === 0
+                    ? 'Nenhum registro ainda — as ações sensíveis vão aparecer aqui.'
+                    : 'Nada encontrado para os filtros selecionados.'}
                 </td></tr>
               ) : (
                 registros.map((r) => (
@@ -76,11 +74,14 @@ export default function Auditoria() {
           </table>
         </div>
       </div>
-      {s.auditoria.length > LIMITE_TELA && (
-        <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>
-          Mostrando os {LIMITE_TELA} registros mais recentes de {s.auditoria.length}.
-        </p>
-      )}
+
+      <p style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 8 }}>
+        {temFiltro
+          ? `${filtrados.length} registro(s) no filtro${filtrados.length > LIMITE_TELA ? ` — mostrando os ${LIMITE_TELA} mais recentes` : ''}.`
+          : filtrados.length > LIMITE_TELA
+            ? `Mostrando os ${LIMITE_TELA} registros mais recentes de ${s.auditoria.length}.`
+            : `${s.auditoria.length} registro(s).`}
+      </p>
     </div>
   )
 }

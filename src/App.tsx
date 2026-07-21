@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRota } from './router'
 import { useAppState, useNuvem } from './store'
-import { getUsuarioAtualId, setUsuarioAtualId, useUsuarioAtualId, usuarioAtual, podeVerCuidado, temPapel, useSessaoReal, usuarioDaSessao } from './acesso'
-import { registrarAuditoria } from './auditoria'
+import { getUsuarioAtualId, setUsuarioAtualId, useUsuarioAtualId, usuarioAtual, podeVerCuidado, podeAcessarRota, useSessaoReal, usuarioDaSessao } from './acesso'
 import { marcarEmailConfirmado } from './actions'
 import { garantirSessao } from './supabaseClient'
 import { PAPEL_LABEL } from './types'
@@ -41,6 +40,7 @@ const MENU: { secao: string; itens: ItemMenu[] }[] = [
     itens: [
       { rota: '/lideres', icone: IcoUserCheck, rotulo: 'Painel do líder' },
       { rota: '/equipe', icone: IcoUsuarios, rotulo: 'Equipe' },
+      { rota: '/aprovacoes', icone: IcoUserCheck, rotulo: 'Aprovações' },
       { rota: '/auditoria', icone: IcoAuditoria, rotulo: 'Auditoria' },
       { rota: '/config', icone: IcoConfig, rotulo: 'Configurações' },
       { rota: '/ajuda', icone: IcoAjuda, rotulo: 'Ajuda' },
@@ -58,6 +58,7 @@ const NAV_PRINCIPAL: (ItemMenu & { destaque?: boolean })[] = [
 const NAV_MAIS: ItemMenu[] = [
   { rota: '/lideres', icone: IcoUserCheck, rotulo: 'Painel do líder' },
   { rota: '/equipe', icone: IcoUsuarios, rotulo: 'Equipe' },
+  { rota: '/aprovacoes', icone: IcoUserCheck, rotulo: 'Aprovações' },
   { rota: '/auditoria', icone: IcoAuditoria, rotulo: 'Auditoria' },
   { rota: '/config', icone: IcoConfig, rotulo: 'Configurações' },
   { rota: '/ajuda', icone: IcoAjuda, rotulo: 'Ajuda' },
@@ -94,10 +95,9 @@ function ChipsTopo() {
         <select
           value={atualId ?? ''}
           onChange={(e) => {
-            const novoId = e.target.value || null
-            const novo = estado.usuarios.find((u) => u.id === novoId)
-            registrarAuditoria('🔄 Trocou identidade (Vendo como)', { detalhe: `Passou a ver como: ${novo ? novo.nome : 'Todos (aberto)'}` })
-            setUsuarioAtualId(novoId)
+            // "Vendo como" é um atalho de visualização (não registra na Auditoria —
+            // o rastro é só de ações reais de pessoas usando o sistema).
+            setUsuarioAtualId(e.target.value || null)
           }}
           style={{ width: 'auto', border: 'none', background: 'none', padding: 0, fontWeight: 700, fontSize: 12, color: 'var(--primary)', cursor: 'pointer' }}
         >
@@ -158,9 +158,8 @@ export default function App() {
     return <AguardandoAprovacao usuario={usuarioSessao} />
   }
 
-  // Contador de cuidado no menu respeita a visibilidade da identidade atual
-  const eu = usuarioAtual(estado, getUsuarioAtualId())
-  const souAprovador = temPapel(eu, 'pastor', 'coordenacao')
+  // Reativo: trocar de identidade ("Vendo como" ou login) recalcula menu e permissões na hora
+  const eu = usuarioAtual(estado, useUsuarioAtualId())
 
   let pagina: JSX.Element
   if (rota === '/') pagina = <Dashboard />
@@ -170,26 +169,23 @@ export default function App() {
   else if (rota === '/novo') pagina = <NovoVisitante />
   else if (rota === '/lideres') pagina = <PainelLider />
   else if (rota === '/equipe') pagina = <Equipe />
-  else if (rota === '/aprovacoes') pagina = souAprovador ? <Aprovacoes /> : <Dashboard />
+  else if (rota === '/aprovacoes') pagina = <Aprovacoes />
   else if (rota === '/auditoria') pagina = <Auditoria />
   else if (rota === '/config') pagina = <Configuracoes />
   else if (rota === '/ajuda') pagina = <Ajuda />
   else pagina = <Dashboard />
 
+  // Bloqueio central de rota: sem permissão para a página → volta ao Painel
+  if (!podeAcessarRota(rota, eu)) pagina = <Dashboard />
+
   const cuidados = estado.visitantes.filter((v) => v.flagCuidado && podeVerCuidado(estado, eu, v)).length
   const aprovacoesPendentes = estado.usuarios.filter((u) => u.statusAcesso === 'pendente_aprovacao').length
 
-  // "Aprovações" só aparece para Pastores/Gestão Ministerial e Gestão Integração
-  const itemAprovacoes: ItemMenu = { rota: '/aprovacoes', icone: IcoUserCheck, rotulo: 'Aprovações' }
-  const mostrarAprovacoes = souAprovador
-  const menu = MENU.map((g) =>
-    g.secao === 'Gestão' && mostrarAprovacoes
-      ? { ...g, itens: [...g.itens.slice(0, 2), itemAprovacoes, ...g.itens.slice(2)] }
-      : g,
-  )
-  const navMais = mostrarAprovacoes
-    ? [...NAV_MAIS.slice(0, 2), itemAprovacoes, ...NAV_MAIS.slice(2)]
-    : NAV_MAIS
+  // Menu e navegação filtrados pelo mapa de permissões (esconde o que a pessoa não acessa)
+  const menu = MENU
+    .map((g) => ({ ...g, itens: g.itens.filter((m) => podeAcessarRota(m.rota, eu)) }))
+    .filter((g) => g.itens.length > 0)
+  const navMais = NAV_MAIS.filter((m) => podeAcessarRota(m.rota, eu))
   const emMais = navMais.some((m) => rotaAtiva(m.rota, rota))
 
   return (

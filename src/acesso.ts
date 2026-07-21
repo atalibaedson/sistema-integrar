@@ -63,6 +63,25 @@ export function papelVeTudo(u?: Usuario): boolean {
   return temPapel(u, 'coordenacao', 'pastor')
 }
 
+// ---- Acesso a PÁGINAS (fonte única da verdade) ----
+// Rotas NÃO listadas são livres para toda a equipe. As listadas exigem um dos
+// papéis indicados. No modo aberto (sem identidade escolhida) as restritas ficam
+// ocultas — para acessá-las, entre como Pastor/Gestão Integração (login ou
+// "Vendo como"). Este mapa governa o menu E o bloqueio de rota, juntos.
+export const ACESSO_ROTA: { prefixo: string; papeis: Papel[] }[] = [
+  { prefixo: '/aprovacoes', papeis: ['pastor', 'coordenacao'] },
+  { prefixo: '/auditoria', papeis: ['pastor', 'coordenacao'] },
+  { prefixo: '/config', papeis: ['pastor', 'coordenacao'] },
+  { prefixo: '/equipe', papeis: ['pastor', 'coordenacao'] },
+  { prefixo: '/lideres', papeis: ['pastor', 'coordenacao', 'lider'] },
+]
+
+export function podeAcessarRota(rota: string, u: Usuario | undefined): boolean {
+  const regra = ACESSO_ROTA.find((r) => rota === r.prefixo || rota.startsWith(r.prefixo + '/'))
+  if (!regra) return true // rota livre para a equipe
+  return temPapel(u, ...regra.papeis)
+}
+
 // Regra central: quem pode ver a ficha (e as conversas) de um visitante.
 // Sem identidade escolhida = modo aberto (fase de teste não bloqueia ninguém).
 export function podeVerVisitante(s: AppState, u: Usuario | undefined, v: Visitante): boolean {
