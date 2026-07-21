@@ -166,7 +166,7 @@ export default function App() {
   else if (rota === '/novo') pagina = <NovoVisitante />
   else if (rota === '/lideres') pagina = <PainelLider />
   else if (rota === '/equipe') pagina = <Equipe />
-  else if (rota === '/aprovacoes') pagina = souAprovador || !eu ? <Aprovacoes /> : <Dashboard />
+  else if (rota === '/aprovacoes') pagina = souAprovador ? <Aprovacoes /> : <Dashboard />
   else if (rota === '/auditoria') pagina = <Auditoria />
   else if (rota === '/config') pagina = <Configuracoes />
   else if (rota === '/ajuda') pagina = <Ajuda />
@@ -175,9 +175,9 @@ export default function App() {
   const cuidados = estado.visitantes.filter((v) => v.flagCuidado && podeVerCuidado(estado, eu, v)).length
   const aprovacoesPendentes = estado.usuarios.filter((u) => u.statusAcesso === 'pendente_aprovacao').length
 
-  // "Aprovações" só aparece para quem pode aprovar (ou no modo aberto)
+  // "Aprovações" só aparece para Pastores/Gestão Ministerial e Gestão Integração
   const itemAprovacoes: ItemMenu = { rota: '/aprovacoes', icone: IcoUserCheck, rotulo: 'Aprovações' }
-  const mostrarAprovacoes = souAprovador || !eu
+  const mostrarAprovacoes = souAprovador
   const menu = MENU.map((g) =>
     g.secao === 'Gestão' && mostrarAprovacoes
       ? { ...g, itens: [...g.itens.slice(0, 2), itemAprovacoes, ...g.itens.slice(2)] }
