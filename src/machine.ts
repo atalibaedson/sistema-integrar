@@ -7,8 +7,10 @@ const TRANSICOES: Record<Status, Status[]> = {
   em_contato: ['aguardando_resposta', 'encaminhado_lider', 'em_espera', 'encerrado'],
   aguardando_resposta: ['em_contato', 'encaminhado_lider', 'em_espera', 'encerrado'],
   encaminhado_lider: ['visitou', 'em_contato', 'em_espera'],
-  visitou: ['transferido', 'encaminhado_lider'],
-  transferido: ['integrado'],
+  // 'em_espera': visitou mas ainda não engajou (líder sinaliza "aguardando")
+  visitou: ['transferido', 'encaminhado_lider', 'em_espera'],
+  // 'em_contato': parou de frequentar depois de transferido — o time retoma o contato
+  transferido: ['integrado', 'em_contato'],
   integrado: [],
   em_espera: ['em_contato'],
   recusou: ['em_contato'], // porta segue aberta se a pessoa retornar (8.4)
@@ -39,7 +41,10 @@ export function aplicarTransicao(
   return {
     ...v,
     status: para,
-    transferenciaConfirmada: para === 'transferido' ? true : v.transferenciaConfirmada,
+    // Confirmada só enquanto está "transferido"; ao integrar, preserva; ao voltar
+    // para etapas do time (ex.: "parou de frequentar"), zera para não deixar rastro.
+    transferenciaConfirmada:
+      para === 'transferido' ? true : para === 'integrado' ? v.transferenciaConfirmada : false,
     historicoStatus: [
       ...v.historicoStatus,
       { de: v.status, para, data: agora, motivo, automatica },

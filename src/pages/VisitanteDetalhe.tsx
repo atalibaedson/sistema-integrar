@@ -209,6 +209,10 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
   const [dataBatismo, setDataBatismo] = useState(new Date().toISOString().slice(0, 10))
   const [msgIdx, setMsgIdx] = useState(0)
   const [avisoIdx, setAvisoIdx] = useState(0)
+  const [aguardando, setAguardando] = useState(false)   // líder: visitou mas ainda não assumiu
+  const [motivoEspera, setMotivoEspera] = useState('')
+  const [parou, setParou] = useState(false)             // pessoa parou de frequentar após transferida
+  const [motivoParou, setMotivoParou] = useState('')
   const lider = usuarioPorId(s, v.liderConexaoId)
   const primeiroNome = v.nome.split(' ')[0]
   const ints = interacoesDe(s, v.id)
@@ -305,21 +309,54 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
     )
   }
 
-  // Passo 4 — visita feita; falta o líder confirmar (o passo 4 em si já aconteceu)
+  // Passo 4 — visita feita; o líder confirma que assumiu OU sinaliza que ainda
+  // não assumiu (pessoa visitou mas não engajou/não respondeu) com o motivo.
   if (passo === 4) {
     return (
       <div className="rot-caixa">
         <p className="rot-sub" style={{ marginBottom: 10 }}>
-          {primeiroNome} já visitou o grupo ✔ — agora falta o líder confirmar que assumiu o acompanhamento.
+          {primeiroNome} já visitou o grupo ✔ — o líder confirma que assumiu o acompanhamento,
+          ou sinaliza que ainda está aguardando.
         </p>
-        <button className="btn" onClick={() => mudarStatus(v.id, 'transferido', 'Líder confirmou que assumiu o acompanhamento')}>
-          <IcoCheck size={14} /> O líder confirmou que assumiu
-        </button>
+        {!aguardando && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn" onClick={() => mudarStatus(v.id, 'transferido', 'Líder confirmou que assumiu o acompanhamento')}>
+              <IcoCheck size={14} /> O líder confirmou que assumiu
+            </button>
+            <button className="btn btn-sec" onClick={() => setAguardando(true)}>
+              ⏸️ Ainda não assumiu — aguardando
+            </button>
+          </div>
+        )}
+        {aguardando && (
+          <div>
+            <label className="campo" style={{ marginBottom: 8 }}>
+              <span>Por que ainda está aguardando? *</span>
+              <textarea
+                rows={2} value={motivoEspera} onChange={(e) => setMotivoEspera(e.target.value)}
+                placeholder="Ex.: visitou mas foi convidada para outras conexões, não retornou e não respondeu às mensagens."
+                autoFocus
+              />
+            </label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                className="btn" disabled={!motivoEspera.trim()}
+                onClick={() => mudarStatus(v.id, 'em_espera', `Aguardando (líder): ${motivoEspera.trim()}`)}
+              >
+                <IcoCheck size={14} /> Marcar como aguardando
+              </button>
+              <button className="btn btn-sec" onClick={() => { setAguardando(false); setMotivoEspera('') }}>Cancelar</button>
+            </div>
+            <p className="rot-sub" style={{ marginTop: 8 }}>
+              A pessoa fica <b>Em espera</b> e volta para o acompanhamento leve do time, com esse motivo salvo no histórico.
+            </p>
+          </div>
+        )}
       </div>
     )
   }
 
-  // Passo 5 — acompanhamento até a integração
+  // Passo 5 — acompanhamento até a integração (ou volta ao time se parou de frequentar)
   if (passo === 5) {
     return (
       <div className="rot-caixa">
@@ -333,6 +370,40 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
           </label>
           <button className="btn" onClick={() => marcarIntegracao(v.id, dataBatismo)}>🕊️ Concluir: integrado!</button>
         </div>
+
+        <div className="rot-ou">ou</div>
+
+        {!parou ? (
+          <button className="btn btn-sec" onClick={() => setParou(true)}>
+            <IcoDesfazer size={14} /> {primeiroNome} parou de frequentar
+          </button>
+        ) : (
+          <div>
+            <label className="campo" style={{ marginBottom: 8 }}>
+              <span>O que aconteceu? <em className="campo-dica">(opcional — ajuda o time a retomar)</em></span>
+              <textarea
+                rows={2} value={motivoParou} onChange={(e) => setMotivoParou(e.target.value)}
+                placeholder="Ex.: deixou de aparecer nos encontros e não respondeu aos contatos do líder."
+                autoFocus
+              />
+            </label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                className="btn"
+                onClick={() => mudarStatus(
+                  v.id, 'em_contato',
+                  motivoParou.trim() ? `Parou de frequentar: ${motivoParou.trim()}` : 'Parou de frequentar — o time retoma o contato',
+                )}
+              >
+                <IcoCheck size={14} /> Voltar ao time para retomar o contato
+              </button>
+              <button className="btn btn-sec" onClick={() => { setParou(false); setMotivoParou('') }}>Cancelar</button>
+            </div>
+            <p className="rot-sub" style={{ marginTop: 8 }}>
+              A pessoa volta para <b>Em contato</b> e reaparece nas ações do time, que retoma a conversa para entender o que aconteceu.
+            </p>
+          </div>
+        )}
       </div>
     )
   }
