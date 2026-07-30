@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRota } from './router'
 import { useAppState, useNuvem } from './store'
-import { getUsuarioAtualId, setUsuarioAtualId, useUsuarioAtualId, usuarioAtual, podeVerCuidado, podeAcessarRota, useSessaoReal, usuarioDaSessao } from './acesso'
+import { getUsuarioAtualId, setUsuarioAtualId, useUsuarioAtualId, usuarioAtual, podeVerCuidado, podeAcessarRota, soAcolhedor, useSessaoReal, usuarioDaSessao } from './acesso'
 import { marcarEmailConfirmado } from './actions'
 import { garantirSessao } from './supabaseClient'
 import { PAPEL_LABEL } from './types'
@@ -163,9 +163,11 @@ export default function App() {
 
   // Reativo: trocar de identidade ("Vendo como" ou login) recalcula menu e permissões na hora
   const eu = usuarioAtual(estado, useUsuarioAtualId())
+  // Página inicial: acolhedor "puro" cai direto no cadastro; os demais, no Painel.
+  const paginaInicial = soAcolhedor(eu) ? <NovoVisitante /> : <Dashboard />
 
   let pagina: JSX.Element
-  if (rota === '/') pagina = <Dashboard />
+  if (rota === '/') pagina = paginaInicial
   else if (rota === '/jornada') pagina = <Jornada />
   else if (rota === '/visitantes') pagina = <Visitantes />
   else if (rota.startsWith('/visitante/')) pagina = <VisitanteDetalhe id={rota.split('/')[2]} />
@@ -177,10 +179,10 @@ export default function App() {
   else if (rota === '/auditoria') pagina = <Auditoria />
   else if (rota === '/config') pagina = <Configuracoes />
   else if (rota === '/ajuda') pagina = <Ajuda />
-  else pagina = <Dashboard />
+  else pagina = paginaInicial
 
-  // Bloqueio central de rota: sem permissão para a página → volta ao Painel
-  if (!podeAcessarRota(rota, eu)) pagina = <Dashboard />
+  // Bloqueio central de rota: sem permissão → volta à página inicial da pessoa
+  if (!podeAcessarRota(rota, eu)) pagina = paginaInicial
 
   const cuidados = estado.visitantes.filter((v) => v.flagCuidado && podeVerCuidado(estado, eu, v)).length
   const aprovacoesPendentes = estado.usuarios.filter((u) => u.statusAcesso === 'pendente_aprovacao').length
@@ -189,6 +191,7 @@ export default function App() {
   const menu = MENU
     .map((g) => ({ ...g, itens: g.itens.filter((m) => podeAcessarRota(m.rota, eu)) }))
     .filter((g) => g.itens.length > 0)
+  const navPrincipal = NAV_PRINCIPAL.filter((m) => podeAcessarRota(m.rota, eu))
   const navMais = NAV_MAIS.filter((m) => podeAcessarRota(m.rota, eu))
   const emMais = navMais.some((m) => rotaAtiva(m.rota, rota))
 
@@ -229,7 +232,7 @@ export default function App() {
 
       {/* Navegação inferior — aparece só no celular */}
       <nav className="bottomnav">
-        {NAV_PRINCIPAL.map((m) => (
+        {navPrincipal.map((m) => (
           <a
             key={m.rota}
             href={`#${m.rota}`}

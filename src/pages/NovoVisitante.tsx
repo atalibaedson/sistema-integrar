@@ -3,10 +3,12 @@ import { buscarDuplicado, cadastrarVisitante, sugerirConexao } from '../actions'
 import { useAppState } from '../store'
 import { ocorrenciasRecentes } from '../cultos'
 import { SITUACAO_CIVIL_LABEL, STATUS_LABEL, type SituacaoCivil } from '../types'
+import { soAcolhedor, useUsuarioAtualId, usuarioAtual } from '../acesso'
 import { navegar } from '../router'
 
 export default function NovoVisitante() {
   const s = useAppState()
+  const eu = usuarioAtual(s, useUsuarioAtualId())
   const [nome, setNome] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
   const [email, setEmail] = useState('')
@@ -22,6 +24,13 @@ export default function NovoVisitante() {
   const [obs, setObs] = useState('')
   const [consentimento, setConsentimento] = useState(false)
   const [avisos, setAvisos] = useState<string[]>([])
+  const [sucesso, setSucesso] = useState<string | null>(null) // nome do último cadastrado (acolhedor)
+
+  function limparForm() {
+    setNome(''); setWhatsapp(''); setEmail(''); setCultoSel(''); setDataManual('')
+    setComoConheceu(''); setSituacao(''); setBairro(''); setMenor(false)
+    setOutraCidade(false); setObs(''); setConsentimento(false); setAvisos([])
+  }
 
   const conexaoSugerida = sugerirConexao(s, bairro, situacao || undefined, menor)
   // Alerta de duplicado em tempo real, enquanto digita (WhatsApp ou e-mail)
@@ -56,7 +65,31 @@ export default function NovoVisitante() {
       observacoes: obs || undefined,
       consentimentoLgpd: consentimento,
     })
+    // Acolhedor não abre a ficha (não tem acesso): mostra confirmação e limpa o
+    // formulário para o próximo cadastro. Os demais vão direto para a ficha.
+    if (soAcolhedor(eu)) {
+      const nomeCad = r.visitante.nome
+      limparForm()
+      setSucesso(nomeCad)
+      return
+    }
     navegar(`/visitante/${r.visitante.id}`)
+  }
+
+  if (sucesso) {
+    return (
+      <div>
+        <h1 className="titulo-pagina">Novo visitante</h1>
+        <div className="card" style={{ maxWidth: 640, textAlign: 'center', padding: '32px 24px' }}>
+          <div style={{ fontSize: 44, marginBottom: 8 }}>✅</div>
+          <h3 style={{ fontSize: 18 }}>{sucesso} foi cadastrado(a)!</h3>
+          <p style={{ color: 'var(--text-2)', maxWidth: 380, margin: '6px auto 20px' }}>
+            Prontinho — a equipe de consolidação assume daqui e faz o primeiro contato. Obrigado por acolher! 🙏
+          </p>
+          <button className="btn" onClick={() => setSucesso(null)}>Cadastrar outro visitante</button>
+        </div>
+      </div>
+    )
   }
 
 

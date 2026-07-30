@@ -77,7 +77,20 @@ export const ACESSO_ROTA: { prefixo: string; papeis: Papel[] }[] = [
   { prefixo: '/lideres', papeis: ['pastor', 'coordenacao', 'lider'] },
 ]
 
+// Acolhedor "puro" (só cadastra visitantes no culto): em vez do modelo de
+// deny-list acima, ele tem uma allow-list — só o formulário de cadastro e a
+// ajuda. Como uma pessoa pode ter vários papéis, quem for acolhedor + algo mais
+// segue as regras normais (a união das permissões dos seus papéis).
+const ROTAS_ACOLHEDOR = ['/novo', '/ajuda']
+
+export function soAcolhedor(u: Usuario | undefined): boolean {
+  return !!u && u.papeis.includes('acolhedor') && u.papeis.every((p) => p === 'acolhedor')
+}
+
 export function podeAcessarRota(rota: string, u: Usuario | undefined): boolean {
+  if (soAcolhedor(u)) {
+    return ROTAS_ACOLHEDOR.some((r) => rota === r || rota.startsWith(r + '/'))
+  }
   const regra = ACESSO_ROTA.find((r) => rota === r.prefixo || rota.startsWith(r.prefixo + '/'))
   if (!regra) return true // rota livre para a equipe
   return temPapel(u, ...regra.papeis)

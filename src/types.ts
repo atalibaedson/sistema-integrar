@@ -123,7 +123,7 @@ export interface Conexao {
 }
 
 // Usuários do sistema, por categoria (papel) — seção 3 da especificação
-export type Papel = 'coordenacao' | 'consolidador' | 'lider' | 'pastor'
+export type Papel = 'coordenacao' | 'consolidador' | 'lider' | 'pastor' | 'acolhedor'
 
 // Situação da conta de acesso (login real). Os integrantes cadastrados pela
 // equipe antes do login existir ficam como 'sem_login' e seguem usando o
@@ -295,6 +295,7 @@ export const PAPEL_LABEL: Record<Papel, string> = {
   consolidador: 'Integradores pós-culto',
   lider: 'Líder de Conexão',
   pastor: 'Pastores e Gestão Ministerial',
+  acolhedor: 'Acolhedores',
 }
 
 export const PAPEL_COR: Record<Papel, string> = {
@@ -302,6 +303,7 @@ export const PAPEL_COR: Record<Papel, string> = {
   consolidador: '#0ea5e9',
   lider: '#10b981',
   pastor: '#f59e0b',
+  acolhedor: '#ec4899',
 }
 
 export const SITUACAO_CIVIL_LABEL: Record<SituacaoCivil, string> = {
