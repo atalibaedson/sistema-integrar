@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { normalizarWhats } from '../actions'
 import { useAppState } from '../store'
 import { supabase } from '../supabaseClient'
+import { navegar } from '../router'
 import type { Usuario } from '../types'
 
 // Mascara o e-mail para a desambiguação de WhatsApp compartilhado
@@ -78,10 +79,8 @@ export default function Entrar() {
       }
       return
     }
-    // Recarrega na raiz para o app subir já com a sessão restaurada — evita a
-    // tela em branco por corrida entre o roteador (hash) e o estado de login.
-    window.location.hash = '/'
-    window.location.reload()
+    // O App.tsx assume a identidade automaticamente quando a sessão aparecer
+    navegar('/')
   }
 
   async function reenviarConfirmacao() {

@@ -27,16 +27,11 @@ export interface SessaoReal {
   email?: string
 }
 let sessaoReal: SessaoReal | null = null
-// Já sabemos se há (ou não) uma sessão restaurada? Começa falso e vira true na
-// 1ª notificação do Supabase. Sem nuvem, não há nada a restaurar → já "pronto".
-// Evita piscar a tela de login enquanto a sessão persistida ainda carrega.
-let sessaoCarregada = !supabase
 const ouvintes = new Set<() => void>()
 
 supabase?.auth.onAuthStateChange((_evento, sessao) => {
   // O token (anônimo ou real) é injetado no nuvem.ts, que o usa em cada
   // requisição de sync para satisfazer o RLS "somente autenticado".
-  sessaoCarregada = true
   setTokenSessao(sessao?.access_token ?? null)
   const anonima = (sessao?.user as { is_anonymous?: boolean } | undefined)?.is_anonymous
   sessaoReal = sessao && !anonima
@@ -47,11 +42,6 @@ supabase?.auth.onAuthStateChange((_evento, sessao) => {
 
 export function getSessaoReal(): SessaoReal | null {
   return sessaoReal
-}
-
-// A verificação inicial de sessão (restaurar a persistida) já terminou?
-export function getSessaoCarregada(): boolean {
-  return sessaoCarregada
 }
 
 export function assinarSessao(cb: () => void): () => void {
@@ -69,11 +59,6 @@ export async function garantirSessao(): Promise<void> {
     if (!data.session) await supabase.auth.signInAnonymously()
   } catch {
     // sem rede ou anônimo desabilitado: o app continua funcionando offline
-  } finally {
-    // Garante que o app saia do "carregando" mesmo se o onAuthStateChange
-    // não disparar (ex.: anônimo desabilitado e sem sessão a restaurar).
-    sessaoCarregada = true
-    ouvintes.forEach((f) => f())
   }
 }
 
