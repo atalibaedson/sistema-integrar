@@ -850,3 +850,82 @@ details summary:hover { color: var(--primary); }
   .dash-grid { grid-template-columns: 1fr; }
   .rel-chart-bar { width: 6px; }
 }
+
+/* ================= Tema SiteiFE — autocadastro público do visitante =================
+   Espelha a identidade do site (ifamiliaextraordinaria.com.br): azul royal +
+   dourado + creme, títulos em serif (Fraunces) e corpo em Manrope. Escopado em
+   .ife-site para não mudar as outras telas públicas (login, cadastro de integrante). */
+.ife-site {
+  --ife-azul: #0042AA;
+  --ife-azul-2: #1A55B3;
+  --ife-ouro: #E5A13C;
+  --ife-creme: #F7F3EA;
+  --ife-tinta: #16233f;
+  --ife-tinta-2: #51607d;
+}
+.ife-site.ac-tela {
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(229, 161, 60, .16), rgba(0, 0, 0, 0) 62%),
+    linear-gradient(160deg, #0042AA 0%, #1A55B3 100%);
+  padding: 40px 18px;
+}
+.ife-site .ac-cartao {
+  max-width: 480px;
+  background: #FCFAF4;
+  border: 1px solid rgba(0, 66, 170, .10);
+  border-radius: 22px;
+  box-shadow: 0 34px 80px -34px rgba(0, 26, 80, .55);
+}
+.ife-site .ac-selo {
+  background: linear-gradient(160deg, var(--ife-azul), var(--ife-azul-2));
+  color: var(--ife-creme);
+  border: 2px solid rgba(229, 161, 60, .55);
+  box-shadow: 0 10px 24px -10px rgba(0, 66, 170, .7);
+}
+.ife-site .ac-eyebrow {
+  font-family: 'Manrope', system-ui, sans-serif;
+  text-transform: uppercase; letter-spacing: .16em;
+  font-size: 11.5px; font-weight: 700; color: var(--ife-ouro);
+  margin: 10px 0 8px;
+}
+.ife-site .ac-boas-vindas,
+.ife-site .ac-titulo-ok {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600; color: var(--ife-azul);
+  font-size: clamp(23px, 5.6vw, 33px); line-height: 1.14;
+  letter-spacing: -.01em; margin: 0 0 10px;
+}
+.ife-site .ac-faisca { color: var(--ife-ouro); font-style: normal; }
+.ife-site .ac-sub,
+.ife-site .ac-texto-ok {
+  font-family: 'Manrope', system-ui, sans-serif;
+  color: var(--ife-tinta-2); font-size: 14px; line-height: 1.6;
+}
+.ife-site .campo span,
+.ife-site .check {
+  font-family: 'Manrope', system-ui, sans-serif; color: var(--ife-tinta);
+}
+.ife-site .campo input,
+.ife-site .campo select {
+  background: #fff; color: var(--ife-tinta);
+  border: 1px solid rgba(0, 66, 170, .18);
+  font-family: 'Manrope', system-ui, sans-serif;
+}
+.ife-site .campo input:focus,
+.ife-site .campo select:focus {
+  border-color: var(--ife-azul);
+  box-shadow: 0 0 0 3px rgba(0, 66, 170, .14);
+}
+.ife-site .campo input::placeholder { color: #9aa6bd; }
+.ife-site .ac-lgpd {
+  background: rgba(0, 66, 170, .05);
+  border: 1px solid rgba(0, 66, 170, .12);
+  color: var(--ife-tinta-2);
+}
+.ife-site .ac-btn-enviar {
+  background: linear-gradient(160deg, var(--ife-azul), var(--ife-azul-2));
+  color: var(--ife-creme); border: none;
+  font-family: 'Manrope', system-ui, sans-serif; font-weight: 700;
+  box-shadow: 0 14px 30px -14px rgba(0, 66, 170, .85);
+}
+.ife-site .ac-btn-enviar:hover { filter: brightness(1.07); }

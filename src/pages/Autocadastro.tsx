@@ -50,10 +50,11 @@ export default function Autocadastro() {
 
   if (enviado) {
     return (
-      <div className="ac-tela">
+      <div className="ac-tela ife-site">
         <div className="ac-cartao ac-cartao-ok">
           <div className="ac-check">🎉</div>
-          <h1 className="ac-titulo-ok">{s.config.nomeIgreja}</h1>
+          <div className="ac-eyebrow">Família Extraordinária</div>
+          <h1 className="ac-titulo-ok">Recebemos você! <span className="ac-faisca">✦</span></h1>
           <p className="ac-texto-ok">{s.config.autocadastroMensagemFinal}</p>
         </div>
       </div>
@@ -61,12 +62,12 @@ export default function Autocadastro() {
   }
 
   return (
-    <div className="ac-tela">
+    <div className="ac-tela ife-site">
       <div className="ac-cartao">
         <div className="ac-cab">
           <div className="ac-selo">{s.config.nomeIgreja.trim().slice(0, 1).toUpperCase() || '🙏'}</div>
-          <h1>{s.config.nomeIgreja}</h1>
-          <p className="ac-boas-vindas">{s.config.autocadastroTitulo}</p>
+          <div className="ac-eyebrow">{s.config.nomeIgreja}</div>
+          <p className="ac-boas-vindas">{s.config.autocadastroTitulo} <span className="ac-faisca">✦</span></p>
           <p className="ac-sub">{s.config.autocadastroMensagem}</p>
         </div>
 

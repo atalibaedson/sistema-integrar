@@ -150,7 +150,11 @@ export default function App() {
   }, [sessao, usuarioSessao])
 
   // Rotas públicas — sem menu/sidebar
-  if (rota.startsWith('/autocadastro')) return <Autocadastro />
+  // Subdomínio público do visitante (ex.: visitante.suaigreja.com.br): a raiz já
+  // abre o formulário de autocadastro — URL limpa para divulgar/colocar no site.
+  const hostAutocadastro = typeof window !== 'undefined' &&
+    (window.location.hostname.startsWith('visitante.') || window.location.hostname.startsWith('cadastro.'))
+  if (rota.startsWith('/autocadastro') || (hostAutocadastro && rota === '/')) return <Autocadastro />
   if (rota.startsWith('/cadastro-integrante')) return <CadastroIntegrante />
   // Login real (Supabase) — fica em /entrar-senha até o Auth ser ligado; /entrar usa o provisório por nome
   if (rota.startsWith('/entrar-senha')) return <Entrar />

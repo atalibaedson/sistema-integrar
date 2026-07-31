@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { useAppState } from '../store'
 import { setUsuarioAtualId } from '../acesso'
 import { registrarAuditoria } from '../auditoria'
-import { navegar } from '../router'
 import { PAPEL_LABEL, type Usuario } from '../types'
 import { iniciais } from './Equipe'
 
@@ -27,7 +26,10 @@ export default function EntrarProvisorio() {
       alvoTipo: 'usuario', alvoId: u.id, alvoNome: u.nome,
     })
     setUsuarioAtualId(u.id)
-    navegar('/')
+    // Recarrega na raiz para o app subir já com a identidade aplicada — evita a
+    // tela em branco por corrida entre o roteador (hash) e o estado.
+    window.location.hash = '/'
+    window.location.reload()
   }
 
   return (
