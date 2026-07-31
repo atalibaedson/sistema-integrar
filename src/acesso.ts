@@ -6,7 +6,7 @@
 // As regras de visibilidade abaixo valem igualmente para as duas origens.
 import { useSyncExternalStore } from 'react'
 import type { AppState, Papel, Usuario, Visitante } from './types'
-import { assinarSessao, getSessaoReal, type SessaoReal } from './supabaseClient'
+import { assinarSessao, getSessaoCarregada, getSessaoReal, type SessaoReal } from './supabaseClient'
 
 const CHAVE = 'ife-usuario-atual'
 let atualId: string | null = localStorage.getItem(CHAVE)
@@ -130,6 +130,12 @@ export function visitantesVisiveis(s: AppState, u: Usuario | undefined): Visitan
 // Sessões anônimas (criadas só para o RLS do sync) NÃO contam como login.
 export function useSessaoReal(): SessaoReal | null {
   return useSyncExternalStore(assinarSessao, getSessaoReal)
+}
+
+// A verificação inicial da sessão (restaurar a persistida) já terminou?
+// Enquanto false, o app mostra um "carregando" em vez de piscar a tela de login.
+export function useSessaoCarregada(): boolean {
+  return useSyncExternalStore(assinarSessao, getSessaoCarregada)
 }
 
 // Encontra o Usuario ligado a uma sessão real (por authUserId ou e-mail)

@@ -560,6 +560,35 @@ export function marcarEmailConfirmado(usuarioId: string) {
   registrarAuditoria('✅ Integrante confirmou o e-mail', { alvoTipo: 'usuario', alvoId: usuarioId, alvoNome: u0.nome })
 }
 
+// ---- Bootstrap do primeiro administrador ----
+// Sem o modo aberto ("Vendo como"), aprovar a 1ª conta seria um ovo-e-galinha:
+// para aprovar alguém é preciso já ser Pastor/Gestão aprovado. Enquanto NÃO
+// existir nenhum administrador aprovado, a própria pessoa pode ativar seu acesso
+// como Gestão Integração — a partir daí, todo mundo entra pelo fluxo normal.
+export function existeAdminAprovado(s: AppState): boolean {
+  return s.usuarios.some(
+    (u) => u.ativo && u.statusAcesso === 'aprovado' && (u.papeis.includes('pastor') || u.papeis.includes('coordenacao')),
+  )
+}
+
+export function ativarPrimeiroAdmin(usuarioId: string): boolean {
+  const s = getEstado()
+  if (existeAdminAprovado(s)) return false // já há admin — não é mais bootstrap
+  const alvo = s.usuarios.find((u) => u.id === usuarioId)
+  if (!alvo) return false
+  const agora = new Date().toISOString()
+  setEstado((st) => ({
+    ...st,
+    usuarios: st.usuarios.map((u) =>
+      u.id === usuarioId
+        ? { ...u, ativo: true, statusAcesso: 'aprovado' as StatusAcesso, papeis: [...new Set<Papel>([...u.papeis, 'coordenacao'])], aprovadoPorId: u.id, aprovadoEm: agora, motivoRejeicao: undefined }
+        : u,
+    ),
+  }))
+  registrarAuditoria('🔓 Ativou a 1ª conta de administrador (bootstrap)', { alvoTipo: 'usuario', alvoId: usuarioId, alvoNome: alvo.nome })
+  return true
+}
+
 // Aprovação: somente Pastores/Gestão Ministerial e Gestão Integração (a tela
 // de Aprovações já é restrita a esses papéis; aqui fica o registro de quem fez).
 // `papeisFinais` (opcional): funções confirmadas/ajustadas pela liderança no

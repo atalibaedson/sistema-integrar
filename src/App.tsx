@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useRota } from './router'
 import { useAppState, useNuvem } from './store'
-import { getUsuarioAtualId, setUsuarioAtualId, useUsuarioAtualId, usuarioAtual, podeVerCuidado, podeAcessarRota, soAcolhedor, useSessaoReal, usuarioDaSessao } from './acesso'
+import { getUsuarioAtualId, setUsuarioAtualId, useUsuarioAtualId, usuarioAtual, podeVerCuidado, podeAcessarRota, soAcolhedor, useSessaoReal, useSessaoCarregada, usuarioDaSessao } from './acesso'
 import { marcarEmailConfirmado } from './actions'
-import { garantirSessao } from './supabaseClient'
-import { PAPEL_LABEL } from './types'
+import { garantirSessao, sairDaConta } from './supabaseClient'
+import { PAPEL_LABEL, type Usuario } from './types'
 import { IcoAjuda, IcoAuditoria, IcoConfig, IcoJornada, IcoMenu, IcoPainel, IcoRelatorios, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
 import Dashboard from './pages/Dashboard'
 import Jornada from './pages/Jornada'
@@ -19,9 +19,9 @@ import Ajuda from './pages/Ajuda'
 import Auditoria from './pages/Auditoria'
 import CadastroIntegrante from './pages/CadastroIntegrante'
 import Entrar from './pages/Entrar'
-import EntrarProvisorio from './pages/EntrarProvisorio'
 import AguardandoAprovacao from './pages/AguardandoAprovacao'
 import Aprovacoes from './pages/Aprovacoes'
+// EntrarProvisorio (login por nome, sem senha) foi aposentado com o login obrigatório.
 import Relatorios from './pages/Relatorios'
 
 type ItemMenu = { rota: string; icone: (p: { size?: number }) => JSX.Element; rotulo: string }
@@ -77,12 +77,22 @@ function sigla(nome: string): string {
   return ((p[0]?.[0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase() || 'IG'
 }
 
-// Chips do topo: identidade atual + status da nuvem + data
-function ChipsTopo() {
+// Splash rápido enquanto a sessão persistida é restaurada no boot
+function TelaCarregando({ nome }: { nome: string }) {
+  return (
+    <div className="ac-tela">
+      <div className="carregando">
+        <div className="ac-selo">{nome.trim().slice(0, 1).toUpperCase() || '🙏'}</div>
+        <div className="carregando-spin" />
+        <p>Carregando…</p>
+      </div>
+    </div>
+  )
+}
+
+// Chips do topo: quem está logado + status da nuvem + data + sair
+function ChipsTopo({ eu }: { eu?: Usuario }) {
   const nuvem = useNuvem()
-  const estado = useAppState()
-  const atualId = useUsuarioAtualId()
-  const eu = usuarioAtual(estado, atualId)
   const data = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const dataFmt = data.charAt(0).toUpperCase() + data.slice(1)
   const chip = {
@@ -91,28 +101,20 @@ function ChipsTopo() {
     ok: { classe: 'st-ok', ponto: '#22c55e', rotulo: 'Sincronizado' },
     erro: { classe: 'st-erro', ponto: '#ef4444', rotulo: 'Erro de sincronização' },
   }[nuvem.status]
+  function sair() {
+    if (!confirm('Sair da sua conta?')) return
+    setUsuarioAtualId(null)
+    void sairDaConta()
+  }
   return (
     <div className="cab-chips">
-      <label className="chip-status" style={{ gap: 6, cursor: 'pointer' }} title="Escolha quem está usando (fase de teste, sem senha)">
-        👤 Vendo como:
-        <select
-          value={atualId ?? ''}
-          onChange={(e) => {
-            // "Vendo como" é um atalho de visualização (não registra na Auditoria —
-            // o rastro é só de ações reais de pessoas usando o sistema).
-            setUsuarioAtualId(e.target.value || null)
-          }}
-          style={{ width: 'auto', border: 'none', background: 'none', padding: 0, fontWeight: 700, fontSize: 12, color: 'var(--primary)', cursor: 'pointer' }}
-        >
-          <option value="">Todos (aberto)</option>
-          {estado.usuarios.filter((u) => u.ativo).map((u) => (
-            <option key={u.id} value={u.id}>{u.nome} · {u.papeis.map((p) => PAPEL_LABEL[p]).join(', ')}</option>
-          ))}
-        </select>
-      </label>
+      <span className="chip-status" style={{ gap: 6 }}>
+        👤 <b style={{ color: 'var(--primary)' }}>{eu?.nome ?? 'Você'}</b>
+        {eu && <span style={{ color: 'var(--text-3)', fontWeight: 500 }}>· {eu.papeis.map((p) => PAPEL_LABEL[p]).join(', ')}</span>}
+      </span>
       <span className={`chip-status ${chip.classe}`}><span className="ponto" style={{ background: chip.ponto }} />{chip.rotulo}</span>
       <span className="chip-status">📅 {dataFmt}</span>
-      <a href="#/entrar" className="chip-entrar">🔑 Entrar / Criar conta</a>
+      <button type="button" className="chip-sair" onClick={sair}>🚪 Sair</button>
     </div>
   )
 }
@@ -121,6 +123,7 @@ export default function App() {
   const rota = useRota()
   const estado = useAppState()
   const sessao = useSessaoReal()
+  const sessaoCarregada = useSessaoCarregada()
   const [maisAberto, setMaisAberto] = useState(false)
 
   // Garante uma sessão Supabase (anônima serve) para o sync passar no RLS
@@ -149,24 +152,28 @@ export default function App() {
     }
   }, [sessao, usuarioSessao])
 
-  // Rotas públicas — sem menu/sidebar
+  // Rotas públicas — sem menu/sidebar (não exigem login)
   // Subdomínio público do visitante (ex.: visitante.suaigreja.com.br): a raiz já
   // abre o formulário de autocadastro — URL limpa para divulgar/colocar no site.
   const hostAutocadastro = typeof window !== 'undefined' &&
     (window.location.hostname.startsWith('visitante.') || window.location.hostname.startsWith('cadastro.'))
   if (rota.startsWith('/autocadastro') || (hostAutocadastro && rota === '/')) return <Autocadastro />
   if (rota.startsWith('/cadastro-integrante')) return <CadastroIntegrante />
-  // Login real (Supabase) — fica em /entrar-senha até o Auth ser ligado; /entrar usa o provisório por nome
-  if (rota.startsWith('/entrar-senha')) return <Entrar />
-  if (rota.startsWith('/entrar')) return <EntrarProvisorio />
+  // Login real (Supabase) — e-mail/WhatsApp + senha
+  if (rota.startsWith('/entrar')) return <Entrar />
 
-  // Gate do login real: logado mas ainda não aprovado → tela de espera
-  if (sessao && (!usuarioSessao || usuarioSessao.statusAcesso !== 'aprovado')) {
+  // Enquanto a sessão persistida ainda está sendo restaurada, mostra um
+  // "carregando" — evita piscar a tela de login para quem já está logado.
+  if (!sessaoCarregada) return <TelaCarregando nome={estado.config.nomeIgreja} />
+  // Login obrigatório: sem sessão real (anônima não conta), vai para a tela de entrar.
+  if (!sessao) return <Entrar />
+  // Logado, mas a conta ainda não pode usar → tela de espera (com bootstrap do 1º admin)
+  if (!usuarioSessao || usuarioSessao.statusAcesso !== 'aprovado') {
     return <AguardandoAprovacao usuario={usuarioSessao} />
   }
 
-  // Reativo: trocar de identidade ("Vendo como" ou login) recalcula menu e permissões na hora
-  const eu = usuarioAtual(estado, useUsuarioAtualId())
+  // Identidade = a pessoa logada (sessão real aprovada)
+  const eu = usuarioSessao
   // Página inicial: acolhedor "puro" cai direto no cadastro; os demais, no Painel.
   const paginaInicial = soAcolhedor(eu) ? <NovoVisitante /> : <Dashboard />
 
@@ -230,7 +237,7 @@ export default function App() {
       </nav>
 
       <main className="conteudo">
-        <ChipsTopo />
+        <ChipsTopo eu={eu} />
         {pagina}
       </main>
 
