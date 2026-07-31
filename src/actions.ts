@@ -1,5 +1,5 @@
 // Operações de negócio — fluxo principal (seção 7) e exceções (seção 8)
-import type { AppState, Interacao, Origem, Papel, SituacaoCivil, Status, StatusAcesso, Usuario, Visitante } from './types'
+import type { AppState, HorarioContato, Interacao, Origem, Papel, SituacaoCivil, Status, StatusAcesso, Usuario, Visitante } from './types'
 import { PAPEL_LABEL } from './types'
 import { aplicarTransicao } from './machine'
 import { comExclusoes, consolidadoresAtivos, getEstado, interacoesDe, primeiraGestaoIntegracao, setEstado, uid } from './store'
@@ -16,7 +16,16 @@ export interface NovoVisitanteInput {
   dataPrimeiraVisita?: string // yyyy-mm-dd
   comoConheceu?: string
   situacaoCivil?: SituacaoCivil
+  dataNascimento?: string
+  endereco?: string
   bairro?: string
+  cidade?: string
+  primeiraVez?: boolean
+  membroOutraIgreja?: boolean
+  desejaConexao?: string
+  desejaContato?: boolean
+  melhorHorarioContato?: HorarioContato
+  pedidoOracao?: string
   flagMenorIdade: boolean
   flagOutraCidade: boolean
   observacoes?: string
@@ -142,7 +151,16 @@ export function cadastrarVisitante(input: NovoVisitanteInput): ResultadoTriagem 
     conexaoId: encerrar ? undefined : conexao?.id,
     liderConexaoId: encerrar ? undefined : conexao?.liderId,
     situacaoCivil: input.situacaoCivil,
+    dataNascimento: input.dataNascimento || undefined,
+    endereco: input.endereco?.trim() || undefined,
     bairro: input.bairro?.trim() || undefined,
+    cidade: input.cidade?.trim() || undefined,
+    primeiraVez: input.primeiraVez,
+    membroOutraIgreja: input.membroOutraIgreja,
+    desejaConexao: input.desejaConexao || undefined,
+    desejaContato: input.desejaContato,
+    melhorHorarioContato: input.melhorHorarioContato,
+    pedidoOracao: input.pedidoOracao?.trim() || undefined,
     flagMenorIdade: input.flagMenorIdade,
     flagOutraCidade: input.flagOutraCidade,
     flagCuidado: false,

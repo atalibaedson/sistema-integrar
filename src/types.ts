@@ -16,6 +16,16 @@ export type Origem = 'culto' | 'qr_code'
 
 export type SituacaoCivil = 'solteiro' | 'casado' | 'divorciado' | 'viuvo' | 'outro'
 
+export type HorarioContato = 'manha' | 'tarde' | 'noite'
+
+// Opções da pergunta "quer fazer parte de uma Conexão?" (formulário de acolhimento)
+export const OPCOES_DESEJA_CONEXAO = [
+  'Sim, claro!',
+  'Por enquanto não',
+  'Ainda preciso entender melhor o que é uma Conexão',
+  'Já estou visitando uma',
+] as const
+
 export type PerfilAbordagem =
   | 'pouca_interacao'
   | 'abriu_nao_visitou'
@@ -82,7 +92,17 @@ export interface Visitante {
   liderConexaoId?: string
   conexaoId?: string
   situacaoCivil?: SituacaoCivil
+  dataNascimento?: string // yyyy-mm-dd
+  endereco?: string // rua / logradouro (opcional)
   bairro?: string
+  cidade?: string
+  // Campos do formulário de acolhimento (autocadastro) — seção "sobre a caminhada"
+  primeiraVez?: boolean          // é a 1ª vez na igreja?
+  membroOutraIgreja?: boolean    // já é membro de outra igreja?
+  desejaConexao?: string         // interesse em participar de uma Conexão (resposta livre/opção)
+  desejaContato?: boolean        // quer que a equipe entre em contato?
+  melhorHorarioContato?: HorarioContato
+  pedidoOracao?: string          // "pelo que podemos orar por você?"
   flagMenorIdade: boolean
   flagOutraCidade: boolean
   flagCuidado: boolean // flag transversal Cuidado/Crise (seção 6)
@@ -312,4 +332,10 @@ export const SITUACAO_CIVIL_LABEL: Record<SituacaoCivil, string> = {
   divorciado: 'Divorciado(a)',
   viuvo: 'Viúvo(a)',
   outro: 'Outro',
+}
+
+export const HORARIO_CONTATO_LABEL: Record<HorarioContato, string> = {
+  manha: 'Manhã',
+  tarde: 'Tarde',
+  noite: 'Noite',
 }

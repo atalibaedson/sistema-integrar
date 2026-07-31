@@ -891,6 +891,9 @@ details summary:hover { color: var(--primary); }
   --ife-tinta-2: #51607d;
 }
 .ife-site.ac-tela {
+  /* Formulário longo: alinha ao topo (o padrão "center" corta o topo de cartões
+     mais altos que a tela) e rola normalmente. */
+  align-items: flex-start;
   background:
     radial-gradient(120% 80% at 50% 0%, rgba(229, 161, 60, .16), rgba(0, 0, 0, 0) 62%),
     linear-gradient(160deg, #0042AA 0%, #1A55B3 100%);
@@ -956,3 +959,32 @@ details summary:hover { color: var(--primary); }
   box-shadow: 0 14px 30px -14px rgba(0, 66, 170, .85);
 }
 .ife-site .ac-btn-enviar:hover { filter: brightness(1.07); }
+.ife-site .ac-cartao-lg { max-width: 560px; }
+/* Seções da tela de acolhimento — respiro e título por bloco */
+.ife-site .ac-secao { padding: 18px 0; border-top: 1px solid rgba(0, 66, 170, .10); }
+.ife-site .ac-secao:first-of-type { border-top: none; padding-top: 6px; }
+.ife-site .ac-secao .campo { margin-bottom: 12px; }
+.ife-site .ac-secao .campo:last-child { margin-bottom: 0; }
+.ife-site .ac-secao-titulo {
+  font-family: 'Fraunces', Georgia, serif; font-weight: 600;
+  color: var(--ife-azul); font-size: 17px; margin-bottom: 12px;
+}
+/* Escolhas em pílula (Sim/Não, opções de Conexão, horário) */
+.ife-site .ac-opcoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.ife-site .ac-opcao {
+  font-family: 'Manrope', system-ui, sans-serif; font-size: 13.5px; font-weight: 600;
+  color: var(--ife-tinta); background: #fff; cursor: pointer;
+  border: 1px solid rgba(0, 66, 170, .22); border-radius: 999px; padding: 8px 14px;
+}
+.ife-site .ac-opcao:hover { border-color: var(--ife-azul); }
+.ife-site .ac-opcao.sel { background: var(--ife-azul); color: var(--ife-creme); border-color: var(--ife-azul); }
+.ife-site .campo textarea {
+  background: #fff; color: var(--ife-tinta); border: 1px solid rgba(0, 66, 170, .18);
+  font-family: 'Manrope', system-ui, sans-serif;
+}
+.ife-site .campo textarea:focus { border-color: var(--ife-azul); box-shadow: 0 0 0 3px rgba(0, 66, 170, .14); }
+.ife-site .ac-fim {
+  text-align: center; font-family: 'Manrope', system-ui, sans-serif;
+  color: var(--ife-tinta-2); font-size: 13px; margin: 14px 0 0;
+}
+@media (max-width: 520px) { .ife-site .ac-grupo { grid-template-columns: 1fr; } }

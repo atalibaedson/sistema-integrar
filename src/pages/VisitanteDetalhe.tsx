@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { consolidadoresAtivos, getEstado, interacoesDe, templatesPorEtapa, useAppState, usuarioPorId } from '../store'
 import {
-  estiloStatus, GRAU_LABEL, ORIGEM_LABEL, PERFIL_LABEL, SITUACAO_CIVIL_LABEL,
+  estiloStatus, GRAU_LABEL, HORARIO_CONTATO_LABEL, OPCOES_DESEJA_CONEXAO, ORIGEM_LABEL, PERFIL_LABEL, SITUACAO_CIVIL_LABEL,
   STATUS_COR, STATUS_LABEL, TIPO_INTERACAO_LABEL,
-  type EtapaFluxo, type GrauAbertura, type PerfilAbordagem, type SituacaoCivil, type Status, type TipoInteracao, type Visitante,
+  type EtapaFluxo, type GrauAbertura, type HorarioContato, type PerfilAbordagem, type SituacaoCivil, type Status, type TipoInteracao, type Visitante,
 } from '../types'
 import {
   aplicarTemplate, atualizarVisitante, corrigirStatus, desfazerUltimaMudanca,
@@ -606,11 +606,22 @@ function AbaDados({ v }: { v: Visitante }) {
         <label className="campo"><span>E-mail</span>
           <input type="email" value={v.email ?? ''} onChange={(e) => m({ email: e.target.value || undefined })} />
         </label>
-        <label className="campo"><span>Bairro / região</span>
+        <label className="campo"><span>Data de nascimento</span>
+          <input type="date" value={v.dataNascimento ?? ''} onChange={(e) => m({ dataNascimento: e.target.value || undefined })} />
+        </label>
+      </div>
+      <div className="linha-campos">
+        <label className="campo"><span>Endereço</span>
+          <input type="text" value={v.endereco ?? ''} onChange={(e) => m({ endereco: e.target.value || undefined })} placeholder="Rua e número" />
+        </label>
+        <label className="campo"><span>Bairro</span>
           <input type="text" value={v.bairro ?? ''} onChange={(e) => m({ bairro: e.target.value || undefined })} />
         </label>
       </div>
       <div className="linha-campos">
+        <label className="campo"><span>Cidade</span>
+          <input type="text" value={v.cidade ?? ''} onChange={(e) => m({ cidade: e.target.value || undefined })} />
+        </label>
         <label className="campo"><span>Situação civil</span>
           <select value={v.situacaoCivil ?? ''} onChange={(e) => m({ situacaoCivil: (e.target.value || undefined) as SituacaoCivil | undefined })}>
             <option value="">—</option>
@@ -641,7 +652,44 @@ function AbaDados({ v }: { v: Visitante }) {
           <input type="text" value={`${ORIGEM_LABEL[v.origem]} · ${fmt(v.dataCadastro)}`} readOnly style={{ background: 'var(--surface2)' }} />
         </label>
       </div>
-      <label className="campo"><span>Observações</span>
+      <div className="linha-campos">
+        <label className="campo"><span>Primeira vez na igreja?</span>
+          <select value={v.primeiraVez === undefined ? '' : v.primeiraVez ? 'sim' : 'nao'} onChange={(e) => m({ primeiraVez: e.target.value === '' ? undefined : e.target.value === 'sim' })}>
+            <option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option>
+          </select>
+        </label>
+        <label className="campo"><span>Membro de outra igreja?</span>
+          <select value={v.membroOutraIgreja === undefined ? '' : v.membroOutraIgreja ? 'sim' : 'nao'} onChange={(e) => m({ membroOutraIgreja: e.target.value === '' ? undefined : e.target.value === 'sim' })}>
+            <option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option>
+          </select>
+        </label>
+      </div>
+      <div className="linha-campos">
+        <label className="campo"><span>Quer participar de uma {s.config.termoGrupo || 'Conexão'}?</span>
+          <select value={v.desejaConexao ?? ''} onChange={(e) => m({ desejaConexao: e.target.value || undefined })}>
+            <option value="">—</option>
+            {OPCOES_DESEJA_CONEXAO.map((o) => <option key={o} value={o}>{o}</option>)}
+            {v.desejaConexao && !(OPCOES_DESEJA_CONEXAO as readonly string[]).includes(v.desejaConexao) && (
+              <option value={v.desejaConexao}>{v.desejaConexao}</option>
+            )}
+          </select>
+        </label>
+        <label className="campo"><span>Deseja contato? · melhor horário</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select value={v.desejaContato === undefined ? '' : v.desejaContato ? 'sim' : 'nao'} onChange={(e) => m({ desejaContato: e.target.value === '' ? undefined : e.target.value === 'sim' })}>
+              <option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option>
+            </select>
+            <select value={v.melhorHorarioContato ?? ''} onChange={(e) => m({ melhorHorarioContato: (e.target.value || undefined) as HorarioContato | undefined })}>
+              <option value="">horário</option>
+              {(Object.keys(HORARIO_CONTATO_LABEL) as HorarioContato[]).map((h) => <option key={h} value={h}>{HORARIO_CONTATO_LABEL[h]}</option>)}
+            </select>
+          </div>
+        </label>
+      </div>
+      <label className="campo"><span>🙏 Pedido de oração</span>
+        <textarea value={v.pedidoOracao ?? ''} onChange={(e) => m({ pedidoOracao: e.target.value || undefined })} placeholder="O que a pessoa pediu para orarmos." />
+      </label>
+      <label className="campo"><span>Observações (equipe)</span>
         <textarea value={v.observacoes ?? ''} onChange={(e) => m({ observacoes: e.target.value || undefined })} />
       </label>
       <label className="check">
