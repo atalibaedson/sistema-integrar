@@ -2,7 +2,36 @@
 // Substitui o modelo "última gravação vence", que perdia cadastros quando
 // dois computadores usavam o sistema ao mesmo tempo: agora os dados se somam,
 // e as exclusões se propagam pelas lápides (AppState.excluidos).
-import type { AppState, Exclusao, RegistroAuditoria } from './types'
+import type { AppState, Exclusao, RegistroAuditoria, StatusAcesso, Usuario } from './types'
+
+// Quão "decidido/avançado" está o acesso da conta — quanto maior, mais forte.
+// Usado para não deixar uma ficha antiga (sem login) sobrescrever uma conta já
+// aprovada quando dois aparelhos sincronizam.
+const RANK_ACESSO: Record<StatusAcesso, number> = {
+  rejeitado: 4,
+  aprovado: 4,
+  pendente_aprovacao: 3,
+  pendente_confirmacao_email: 2,
+  sem_login: 1,
+}
+
+// Mescla duas versões do MESMO usuário sem perder o progresso de login/aprovação.
+// A base é a versão mais avançada no acesso (empate fica com a local, de quem
+// edita agora); por cima, os campos de vínculo de conta nunca se perdem — venham
+// de qual lado vierem. Isso conserta o bug em que ~aparelhos sem login sobrescreviam
+// a conta aprovada na nuvem (regra antiga era "a versão local vence", cega).
+function mesclarUsuario(l: Usuario, r: Usuario): Usuario {
+  const base = RANK_ACESSO[r.statusAcesso] > RANK_ACESSO[l.statusAcesso] ? r : l
+  return {
+    ...base,
+    authUserId: l.authUserId ?? r.authUserId ?? base.authUserId,
+    email: base.email || l.email || r.email || undefined,
+    cadastroCompletoEm: base.cadastroCompletoEm ?? l.cadastroCompletoEm ?? r.cadastroCompletoEm,
+    emailConfirmadoEm: base.emailConfirmadoEm ?? l.emailConfirmadoEm ?? r.emailConfirmadoEm,
+    aprovadoPorId: base.aprovadoPorId ?? l.aprovadoPorId ?? r.aprovadoPorId,
+    aprovadoEm: base.aprovadoEm ?? l.aprovadoEm ?? r.aprovadoEm,
+  }
+}
 
 const LIMITE_LAPIDES = 800
 const LIMITE_AUDITORIA = 2000
@@ -43,7 +72,7 @@ export function mesclarEstados(local: AppState, remoto: AppState): AppState {
     .filter((i) => idsVisitantes.has(i.visitanteId))
     .sort((a, b) => b.data.localeCompare(a.data))
 
-  const usuarios = unir(local.usuarios, remoto.usuarios, 'usuario')
+  const usuarios = unir(local.usuarios, remoto.usuarios, 'usuario', mesclarUsuario)
   const conexoes = unir(local.conexoes, remoto.conexoes, 'conexao')
   const templates = unir(local.templates, remoto.templates, 'template')
 
