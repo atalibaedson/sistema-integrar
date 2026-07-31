@@ -1,4 +1,5 @@
 import { useAppState } from '../store'
+import { ativarPrimeiroAdmin, existeAdminAprovado } from '../actions'
 import { sairDaConta } from '../supabaseClient'
 import type { Usuario } from '../types'
 
@@ -7,6 +8,9 @@ import type { Usuario } from '../types'
 // ou cadastro ainda não sincronizado neste aparelho).
 export default function AguardandoAprovacao({ usuario }: { usuario?: Usuario }) {
   const s = useAppState()
+  // Bootstrap: enquanto não há NENHUM administrador aprovado, a 1ª pessoa que
+  // confirmou o e-mail pode ativar o próprio acesso (senão não há quem aprove).
+  const podeSerPrimeiroAdmin = usuario?.statusAcesso === 'pendente_aprovacao' && !existeAdminAprovado(s)
 
   let icone = '⏳'
   let titulo = 'Aguardando liberação'
@@ -39,6 +43,27 @@ export default function AguardandoAprovacao({ usuario }: { usuario?: Usuario }) 
         <div className="ac-check">{icone}</div>
         <h1 className="ac-titulo-ok">{titulo}</h1>
         <p className="ac-texto-ok">{texto}</p>
+
+        {podeSerPrimeiroAdmin && usuario && (
+          <div className="ac-bootstrap">
+            <p>
+              🔑 <b>Você é o primeiro a acessar.</b> Como ainda não há nenhum administrador
+              aprovado, ative o seu acesso como <b>Gestão Integração</b> para começar a usar o
+              sistema e aprovar o restante da equipe.
+            </p>
+            <button
+              className="btn"
+              onClick={() => {
+                if (confirm('Ativar a SUA conta como administrador (Gestão Integração)? Faça isso apenas se você é o responsável pela configuração do sistema.')) {
+                  ativarPrimeiroAdmin(usuario.id)
+                }
+              }}
+            >
+              Ativar meu acesso como administrador
+            </button>
+          </div>
+        )}
+
         <p style={{ fontSize: 13, textAlign: 'center', marginTop: 16 }}>
           {s.config.nomeIgreja} ·{' '}
           <a href="#/" onClick={(e) => { e.preventDefault(); void sairDaConta() }}>Sair da conta</a>

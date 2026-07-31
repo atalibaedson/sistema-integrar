@@ -538,6 +538,33 @@ details summary:hover { color: var(--primary); }
 }
 .chip-entrar:hover { filter: brightness(1.06); }
 
+/* Splash de carregamento (restaurando a sessão no boot) */
+.carregando { display: flex; flex-direction: column; align-items: center; gap: 16px; color: var(--text-2); }
+.carregando p { margin: 0; font-size: 13.5px; font-weight: 600; }
+.carregando-spin {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 3px solid var(--border); border-top-color: var(--primary);
+  animation: girar .7s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* Botão "Sair" no topo (login obrigatório) */
+.chip-sair {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font);
+  color: var(--text-2); background: var(--surface);
+  border: 1px solid var(--border-strong); padding: 6px 12px; border-radius: 999px;
+}
+.chip-sair:hover { background: var(--surface2); color: var(--text); }
+
+/* Bootstrap do 1º administrador (tela de aguardando aprovação) */
+.ac-bootstrap {
+  margin: 18px 0 4px; padding: 16px; text-align: left;
+  background: var(--primary-soft); border: 1px solid #c7d2fe; border-radius: 12px;
+}
+.ac-bootstrap p { font-size: 13.5px; color: var(--text-2); margin: 0 0 12px; line-height: 1.55; }
+.ac-bootstrap .btn { width: 100%; }
+
 /* Login provisório (por nome) */
 .ac-aviso-prov {
   display: flex; gap: 8px; align-items: flex-start;
