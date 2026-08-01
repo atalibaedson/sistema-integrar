@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { consolidadoresAtivos, getEstado, interacoesDe, templatesPorEtapa, useAppState, usuarioPorId } from '../store'
 import {
-  estiloStatus, GRAU_LABEL, HORARIO_CONTATO_LABEL, OPCOES_DESEJA_CONEXAO, ORIGEM_LABEL, PERFIL_LABEL, SITUACAO_CIVIL_LABEL,
-  STATUS_COR, STATUS_LABEL, TIPO_INTERACAO_LABEL,
-  type EtapaFluxo, type GrauAbertura, type HorarioContato, type PerfilAbordagem, type SituacaoCivil, type Status, type TipoInteracao, type Visitante,
+  estiloStatus, GRAU_LABEL, HORARIO_CONTATO_LABEL, OPCOES_DESEJA_CONEXAO, ORIGEM_LABEL, PERFIL_LABEL,
+  SITUACAO_BATISMO_LABEL, SITUACAO_CIVIL_LABEL,
+  rotuloStatus, STATUS_COR, STATUS_LABEL, TIPO_INTERACAO_LABEL,
+  type EtapaFluxo, type GrauAbertura, type HorarioContato, type PerfilAbordagem, type SituacaoBatismo, type SituacaoCivil, type Status, type TipoInteracao, type Visitante,
 } from '../types'
 import {
   aplicarTemplate, atualizarVisitante, corrigirStatus, desfazerUltimaMudanca,
-  excluirVisitante, linkWhatsApp, marcarIntegracao, mudarStatus, proximoTipoContato,
-  registrarInteracao, resolverCuidado, sinalizarCuidado, type Classificacao,
+  encaminharParaBatismo, excluirVisitante, linkWhatsApp, marcarMembresia, mudarStatus, proximoTipoContato,
+  prontidaoMembro, registrarBatismo, registrarBatismoRealizado, registrarInteracao, resolverCuidado, sinalizarCuidado,
+  type Classificacao,
 } from '../actions'
 import { transicoesDisponiveis } from '../machine'
 import { fmtDataVisita } from '../cultos'
@@ -22,7 +24,184 @@ function fmt(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 }
 function fmtDia(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR')
+  // "2026-08-01" (só data) é interpretado como meia-noite UTC pelo Date — no
+  // fuso do Brasil isso vira o dia ANTERIOR. Datas de batismo, membresia e 1ª
+  // visita são salvas nesse formato, então precisam ser lidas como data local.
+  const soData = /^\d{4}-\d{2}-\d{2}$/.test(iso)
+  const d = soData ? new Date(`${iso}T00:00:00`) : new Date(iso)
+  return d.toLocaleDateString('pt-BR')
+}
+
+/**
+ * Escolha de data a partir do calendário cadastrado em Configurações.
+ *
+ * Batismo e recepção de membros não acontecem em qualquer dia: são eventos com
+ * data marcada. Escolher numa lista evita o erro de digitação na pressa. Mas a
+ * vida não cabe sempre no calendário — por isso sempre existe a saída "outra
+ * data", que abre o campo livre. Sem datas cadastradas, cai direto no campo livre.
+ */
+function SeletorData({ datas, valor, onMudar, rotulo }: {
+  datas: string[]
+  valor: string
+  onMudar: (d: string) => void
+  rotulo: string
+}) {
+  const cadastradas = [...new Set(datas)].filter(Boolean).sort()
+  const [livre, setLivre] = useState(cadastradas.length === 0)
+  const semCalendario = cadastradas.length === 0 || livre
+
+  // Mantém o valor coerente com o modo, senão o botão salva uma data que a
+  // pessoa não escolheu: no modo lista, um valor fora da lista não está
+  // realmente selecionado (o select mostra "escolher a data") e precisa ser
+  // zerado; no modo livre, começar em hoje é o atalho útil.
+  useEffect(() => {
+    const hoje = new Date().toISOString().slice(0, 10)
+    if (semCalendario && !valor) onMudar(hoje)
+    if (!semCalendario && valor && !cadastradas.includes(valor)) onMudar('')
+  }, [semCalendario, valor])
+
+  if (semCalendario) {
+    return (
+      <label className="campo" style={{ marginBottom: 0, maxWidth: 210 }}>
+        <span>{rotulo}</span>
+        <input type="date" value={valor} onChange={(e) => onMudar(e.target.value)} />
+        {cadastradas.length > 0 && (
+          <a href="#/" onClick={(e) => { e.preventDefault(); setLivre(false) }} style={{ fontSize: 11.5, marginTop: 4 }}>
+            ← escolher uma data do calendário
+          </a>
+        )}
+      </label>
+    )
+  }
+
+  return (
+    <label className="campo" style={{ marginBottom: 0, maxWidth: 230 }}>
+      <span>{rotulo}</span>
+      <select
+        value={cadastradas.includes(valor) ? valor : ''}
+        onChange={(e) => {
+          if (e.target.value === '__outra__') { setLivre(true); return }
+          onMudar(e.target.value)
+        }}
+      >
+        <option value="">— escolher a data —</option>
+        {cadastradas.map((d) => <option key={d} value={d}>{fmtDia(d)}</option>)}
+        <option value="__outra__">Outra data…</option>
+      </select>
+    </label>
+  )
+}
+
+/**
+ * Data em que a pessoa começou a frequentar o grupo — preenchida pelo líder.
+ * É a base do requisito de tempo mínimo para virar membro.
+ */
+function CampoInicioConexao({ v }: { v: Visitante }) {
+  const s = useAppState()
+  const grupo = s.config.termoGrupo || 'Conexão'
+  return (
+    <label className="campo" style={{ marginBottom: 0, maxWidth: 230 }}>
+      <span>Começou a frequentar a {grupo} em</span>
+      <input
+        type="date"
+        value={v.dataInicioConexao ?? ''}
+        max={new Date().toISOString().slice(0, 10)}
+        onChange={(e) => atualizarVisitante(v.id, { dataInicioConexao: e.target.value || undefined })}
+      />
+    </label>
+  )
+}
+
+/**
+ * Botão de concluir a jornada (virar membro), com a checagem de prontidão que a
+ * liderança do grupo faz antes: tempo mínimo frequentando o grupo (calculado da
+ * data de início) e confirmação de frequência. O tempo pode ser liberado como
+ * exceção — a vida nem sempre cabe na regra —, e tudo o que foi confirmado fica
+ * registrado no histórico. As exigências são configuráveis (0 desliga cada uma).
+ *
+ * `primaria` controla só o destaque visual do botão: nos passos onde virar
+ * membro é o próximo marco natural ele vem como ação principal; senão, secundária.
+ */
+function BotaoVirarMembro({ v, primaria }: { v: Visitante; primaria: boolean }) {
+  const s = useAppState()
+  const [dataMembresia, setDataMembresia] = useState('')
+  const [freqOk, setFreqOk] = useState(false)
+  const [excecao, setExcecao] = useState(false)
+  const pr = prontidaoMembro(s, v)
+  const primeiroNome = v.nome.split(' ')[0]
+  const grupo = s.config.termoGrupo || 'Conexão'
+
+  const tempoLiberado = pr.tempoOk || excecao
+  const freqLiberado = !pr.exigeFrequencia || freqOk
+  const podeConcluir = !!dataMembresia && tempoLiberado && freqLiberado
+
+  // O que a liderança confirmou na hora — vai para o histórico da membresia.
+  const obs = [
+    pr.exigeFrequencia && freqOk ? `frequência acima de ${pr.frequenciaMinima}% confirmada` : '',
+    pr.exigeTempo && !pr.tempoOk && excecao ? `exceção ao tempo mínimo (${pr.meses ?? 0}/${pr.mesesMinimos} meses no grupo)` : '',
+  ].filter(Boolean).join('; ')
+
+  const plural = (n: number) => (n === 1 ? 'mês' : 'meses')
+
+  return (
+    <div>
+      {pr.regraAtiva && (
+        <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 12, marginBottom: 10, background: 'var(--bg)' }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>
+            Antes de receber {primeiroNome} como membro:
+          </div>
+
+          {pr.exigeTempo && (
+            <div style={{ marginBottom: pr.exigeFrequencia ? 10 : 0 }}>
+              {!pr.temDataInicio ? (
+                <>
+                  <p className="rot-sub" style={{ margin: '0 0 6px' }}>
+                    ⏳ Informe quando {primeiroNome} começou a frequentar a {grupo} — o mínimo é {pr.mesesMinimos} {plural(pr.mesesMinimos)}.
+                  </p>
+                  <CampoInicioConexao v={v} />
+                </>
+              ) : pr.tempoOk ? (
+                <p className="rot-sub" style={{ margin: 0 }}>
+                  ✅ Frequenta a {grupo} há <b>{pr.meses} {plural(pr.meses!)}</b> (mínimo {pr.mesesMinimos}).
+                </p>
+              ) : (
+                <>
+                  <p className="rot-sub" style={{ margin: '0 0 4px' }}>
+                    ⚠️ Frequenta a {grupo} há <b>{pr.meses} {plural(pr.meses!)}</b> — o mínimo é {pr.mesesMinimos} {plural(pr.mesesMinimos)}.
+                  </p>
+                  <label className="check" style={{ marginBottom: 0 }}>
+                    <input type="checkbox" checked={excecao} onChange={(e) => setExcecao(e.target.checked)} />
+                    Receber mesmo assim, como exceção
+                  </label>
+                </>
+              )}
+            </div>
+          )}
+
+          {pr.exigeFrequencia && (
+            <label className="check" style={{ marginBottom: 0 }}>
+              <input type="checkbox" checked={freqOk} onChange={(e) => setFreqOk(e.target.checked)} />
+              Confirmo que {primeiroNome} teve mais de {pr.frequenciaMinima}% de frequência na {grupo} nesse período.
+            </label>
+          )}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'end', flexWrap: 'wrap' }}>
+        <SeletorData
+          datas={s.config.datasMembresia} valor={dataMembresia} onMudar={setDataMembresia}
+          rotulo="Data da recepção como membro"
+        />
+        <button
+          className={primaria ? 'btn' : 'btn btn-sec'}
+          disabled={!podeConcluir}
+          onClick={() => marcarMembresia(v.id, dataMembresia, obs || undefined)}
+        >
+          🎉 Concluir: virou membro!
+        </button>
+      </div>
+    </div>
+  )
 }
 
 type AbaFicha = 'atividade' | 'dados' | 'acompanhamento'
@@ -75,7 +254,7 @@ export default function VisitanteDetalhe({ id }: { id: string }) {
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 19, fontWeight: 700 }}>{v.nome}</span>
-              <span className="badge" style={estiloStatus(v.status)}>{STATUS_LABEL[v.status]}</span>
+              <span className="badge" style={estiloStatus(v.status)}>{rotuloStatus(v.status)}</span>
               {v.flagCuidado && verCuidado && <span className="badge-flag">🚨 cuidado</span>}
               {v.flagMenorIdade && <span className="badge-flag">menor</span>}
             </div>
@@ -135,10 +314,10 @@ export default function VisitanteDetalhe({ id }: { id: string }) {
 
 /* ================= Roteiro da jornada ================= */
 
-// Em qual passo (1-6) cada status se encontra
+// Em qual passo (1-7) cada status se encontra
 const PASSO_DO_STATUS: Record<Status, number> = {
   novo: 2, em_contato: 2, aguardando_resposta: 2, em_espera: 2, recusou: 2, encerrado: 2,
-  encaminhado_lider: 3, visitou: 4, transferido: 5, integrado: 6,
+  encaminhado_lider: 3, visitou: 4, transferido: 5, batismo: 6, integrado: 7,
 }
 
 function Roteiro({ v }: { v: Visitante }) {
@@ -155,7 +334,22 @@ function Roteiro({ v }: { v: Visitante }) {
     { n: 3, titulo: 'Entrega ao líder do grupo', quandoFeito: dataDe('visitou'), explicacao: 'Acontece quando a pessoa aceita visitar o grupo — o líder fala com ela ANTES da visita.' },
     { n: 4, titulo: 'Visita ao grupo', quandoFeito: dataDe('visitou'), explicacao: 'A pessoa participa de um encontro do grupo, já esperada pelo líder.' },
     { n: 5, titulo: 'Líder assume o acompanhamento', quandoFeito: dataDe('transferido'), explicacao: 'Depois da visita, o líder confirma que assumiu. A consolidação fica de apoio.' },
-    { n: 6, titulo: 'Integrado 🎉', quandoFeito: dataDe('integrado'), explicacao: 'Frequência firme + batismo ou recepção como membro concluem a jornada.' },
+    // Nestes dois passos vale a data do EVENTO (o batismo, a recepção como
+    // membro), não a do clique que moveu a ficha: alguém batizado dia 13 pode
+    // só ter sido registrado dia 20, e é o dia 13 que a igreja quer ver.
+    {
+      n: 6,
+      // Sem isto, um passo "Batismo" marcado e sem data fica ambíguo: pulou de
+      // propósito, ou esqueceram de registrar? O texto diz qual dos dois é.
+      titulo: v.situacaoBatismo === 'ja_batizado' ? 'Batismo · dispensado' : 'Batismo',
+      quandoFeito: v.dataBatismo ?? dataDe('batismo'),
+      explicacao: v.situacaoBatismo === 'ja_batizado'
+        ? 'Não precisou: já era batizado(a) quando chegou à igreja.'
+        : v.situacaoBatismo === 'batizado_aqui'
+          ? 'Batizado(a) aqui na igreja.'
+          : 'Etapa de quem ainda não é batizado. Quem já chegou batizado pula direto para o passo 7.',
+    },
+    { n: 7, titulo: 'Membro 🎉', quandoFeito: v.dataMembresia ?? dataDe('integrado'), explicacao: 'Recebida como membro da igreja — é isso que conclui a jornada, com ou sem batismo pelo caminho.' },
   ]
 
   // "Voltar etapa" = desfazer a última mudança de status. Só faz sentido depois
@@ -169,6 +363,16 @@ function Roteiro({ v }: { v: Visitante }) {
         <h3>Passo a passo da jornada</h3>
         {concluido && <span className="badge" style={estiloStatus('integrado')}>Jornada concluída</span>}
       </div>
+      {/* Chegar a "Membro" pelo quadro da Jornada ou por correção de status não
+          pede a data. Sem este aviso, o buraco só apareceria no relatório. */}
+      {concluido && !v.dataMembresia && (
+        <div className="alerta alerta-warn">
+          ⚠️ <div>
+            Falta registrar <b>a data em que {v.nome.split(' ')[0]} virou membro</b>.
+            Preencha na aba <b>Dados</b> — sem ela, a conclusão não entra nos relatórios por período.
+          </div>
+        </div>
+      )}
       {passos.map((p) => {
         const feito = concluido || p.n < passoAtual
         const atual = !concluido && p.n === passoAtual
@@ -190,12 +394,12 @@ function Roteiro({ v }: { v: Visitante }) {
         <button
           className="rot-voltar"
           onClick={() => {
-            if (confirm(`Voltar ${v.nome.split(' ')[0]} para a etapa anterior ("${STATUS_LABEL[statusAnterior]}")?`)) {
+            if (confirm(`Voltar ${v.nome.split(' ')[0]} para a etapa anterior ("${rotuloStatus(statusAnterior)}")?`)) {
               desfazerUltimaMudanca(v.id)
             }
           }}
         >
-          <IcoDesfazer size={13} /> Voltar para a etapa anterior ({STATUS_LABEL[statusAnterior]})
+          <IcoDesfazer size={13} /> Voltar para a etapa anterior ({rotuloStatus(statusAnterior)})
         </button>
       )}
     </div>
@@ -206,7 +410,10 @@ function Roteiro({ v }: { v: Visitante }) {
 function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
   const s = useAppState()
   const [registrando, setRegistrando] = useState(false)
-  const [dataBatismo, setDataBatismo] = useState(new Date().toISOString().slice(0, 10))
+  // Vazias de propósito: quem preenche é o SeletorData, que sabe se a igreja tem
+  // calendário cadastrado (aí a data é escolhida) ou não (aí hoje é o padrão).
+  // A data da membresia mora dentro de BotaoVirarMembro (junto da checagem).
+  const [dataBatismo, setDataBatismo] = useState('')
   const [msgIdx, setMsgIdx] = useState(0)
   const [avisoIdx, setAvisoIdx] = useState(0)
   const [aguardando, setAguardando] = useState(false)   // líder: visitou mas ainda não assumiu
@@ -356,20 +563,39 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
     )
   }
 
-  // Passo 5 — acompanhamento até a integração (ou volta ao time se parou de frequentar)
+  // Passo 5 — o líder acompanha até o próximo marco. Qual marco é esse depende
+  // da situação de batismo: quem já é batizado não passa pelo batismo de novo,
+  // vai direto a membro. Por isso a ordem dos botões muda conforme o caso.
   if (passo === 5) {
+    const jaBatizado = v.situacaoBatismo === 'ja_batizado' || v.situacaoBatismo === 'batizado_aqui'
+    const receberComoMembro = <BotaoVirarMembro v={v} primaria={jaBatizado} />
+    const encaminharBatismo = (
+      <button className={jaBatizado ? 'btn btn-sec' : 'btn'} onClick={() => encaminharParaBatismo(v.id)}>
+        💧 Encaminhar {primeiroNome} para o batismo
+      </button>
+    )
+
     return (
       <div className="rot-caixa">
         <p className="rot-sub" style={{ marginBottom: 10 }}>
-          O líder cuida de {primeiroNome}; a consolidação fica de apoio. Quando houver batismo ou recepção como membro, conclua a jornada.
+          O líder cuida de {primeiroNome}; a consolidação fica de apoio.{' '}
+          {jaBatizado
+            ? <>Como {primeiroNome} <b>já é batizado(a)</b>, o próximo marco é ser recebido(a) como membro.</>
+            : v.situacaoBatismo === 'nao_batizado'
+              ? <>{primeiroNome} <b>ainda não é batizado(a)</b> — o próximo marco costuma ser o batismo.</>
+              : <>Ainda <b>não sabemos</b> se {primeiroNome} é batizado(a). Vale perguntar: é isso que define o próximo passo.</>}
         </p>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'end', flexWrap: 'wrap' }}>
-          <label className="campo" style={{ marginBottom: 0, maxWidth: 210 }}>
-            <span>Data do batismo / membresia</span>
-            <input type="date" value={dataBatismo} onChange={(e) => setDataBatismo(e.target.value)} />
-          </label>
-          <button className="btn" onClick={() => marcarIntegracao(v.id, dataBatismo)}>🕊️ Concluir: integrado!</button>
+
+        {/* Preenchido pelo líder: base do tempo mínimo para virar membro. */}
+        <div style={{ marginBottom: 12 }}>
+          <CampoInicioConexao v={v} />
         </div>
+
+        {jaBatizado ? receberComoMembro : encaminharBatismo}
+
+        <div className="rot-ou">ou</div>
+
+        {jaBatizado ? encaminharBatismo : receberComoMembro}
 
         <div className="rot-ou">ou</div>
 
@@ -408,6 +634,55 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
     )
   }
 
+  // Passo 6 — batismo: primeiro registra que aconteceu, depois recebe como
+  // membro (é a membresia que fecha a jornada, não o batismo).
+  if (passo === 6) {
+    const batizado = v.situacaoBatismo === 'batizado_aqui' || v.situacaoBatismo === 'ja_batizado'
+    return (
+      <div className="rot-caixa">
+        {!batizado ? (
+          <>
+            <p className="rot-sub" style={{ marginBottom: 10 }}>
+              {primeiroNome} está encaminhado(a) para o batismo. Quando acontecer, registre a data aqui.
+            </p>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'end', flexWrap: 'wrap' }}>
+              <SeletorData
+                datas={s.config.datasBatismo} valor={dataBatismo} onMudar={setDataBatismo}
+                rotulo="Data do batismo"
+              />
+              <button className="btn" disabled={!dataBatismo} onClick={() => registrarBatismoRealizado(v.id, dataBatismo)}>
+                💧 Batizado(a)!
+              </button>
+            </div>
+            <div className="rot-ou">ou</div>
+          </>
+        ) : (
+          <p className="rot-sub" style={{ marginBottom: 10 }}>
+            ✅ Batismo registrado{v.dataBatismo ? ` em ${fmtDia(v.dataBatismo)}` : ''}. Falta receber
+            {' '}{primeiroNome} como membro — é isso que conclui a jornada.
+          </p>
+        )}
+
+        <BotaoVirarMembro v={v} primaria={batizado} />
+
+        <div className="rot-ou">ou</div>
+
+        {/* Depois de batizada não faz sentido oferecer "adiou o batismo" — o que
+            pode acontecer é a membresia demorar e a pessoa seguir com o líder. */}
+        <button
+          className="btn btn-sec"
+          onClick={() => mudarStatus(
+            v.id, 'transferido',
+            batizado ? 'Membresia adiada — segue com o líder' : 'Batismo adiado — segue com o líder',
+          )}
+        >
+          <IcoDesfazer size={14} />{' '}
+          {batizado ? 'Membresia vai demorar — volta ao acompanhamento do líder' : 'Adiou o batismo — volta ao acompanhamento do líder'}
+        </button>
+      </div>
+    )
+  }
+
   return null
 }
 
@@ -436,7 +711,7 @@ function RegistroGuiado({ v, onFechar }: { v: Visitante; onFechar: () => void })
     const depois = getEstado().visitantes.find((x) => x.id === v.id)!.status
     setResultado(
       antes !== depois
-        ? `Registrado! ${primeiroNome} avançou: ${STATUS_LABEL[antes]} → ${STATUS_LABEL[depois]}.`
+        ? `Registrado! ${primeiroNome} avançou: ${rotuloStatus(antes)} → ${rotuloStatus(depois)}.`
         : cl === 'cuidado'
           ? 'Registrado. Sinal de cuidado ativado — acione a liderança.'
           : 'Contato registrado no histórico.',
@@ -572,8 +847,8 @@ function AbaAtividade({ v }: { v: Visitante }) {
           ) : (
             <div className="interacao-corpo">
               <p>
-                {e.mudanca!.de && <><span className="badge" style={estiloStatus(e.mudanca!.de)}>{STATUS_LABEL[e.mudanca!.de]}</span>{' → '}</>}
-                <span className="badge" style={estiloStatus(e.mudanca!.para)}>{STATUS_LABEL[e.mudanca!.para]}</span>
+                {e.mudanca!.de && <><span className="badge" style={estiloStatus(e.mudanca!.de)}>{rotuloStatus(e.mudanca!.de)}</span>{' → '}</>}
+                <span className="badge" style={estiloStatus(e.mudanca!.para)}>{rotuloStatus(e.mudanca!.para)}</span>
                 <span style={{ color: 'var(--text-3)', fontSize: 12.5, marginLeft: 8 }}>{e.mudanca!.motivo}</span>
               </p>
             </div>
@@ -664,6 +939,62 @@ function AbaDados({ v }: { v: Visitante }) {
           </select>
         </label>
       </div>
+
+      {/* Batismo: fato da pessoa, não etapa do funil. Fica aqui (e não no roteiro)
+          justamente porque pode ser preenchido em qualquer momento da jornada. */}
+      <div className="bloco-destaque">
+        <div className="bloco-destaque-titulo">💧 Situação de batismo</div>
+        <p className="descricao-secao" style={{ marginTop: 0 }}>
+          Não é etapa da jornada — quem já chega batizado não precisa de batismo para virar membro.
+          Serve para não convidar ao batismo quem já é batizado, e para saber quem ainda pode ser convidado.
+        </p>
+        <div className="linha-campos">
+          <label className="campo"><span>Situação</span>
+            <select
+              value={v.situacaoBatismo ?? ''}
+              onChange={(e) => registrarBatismo(v.id, (e.target.value || undefined) as SituacaoBatismo | undefined, v.dataBatismo)}
+            >
+              <option value="">— ainda não sabemos —</option>
+              {Object.entries(SITUACAO_BATISMO_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </label>
+          {v.situacaoBatismo && v.situacaoBatismo !== 'nao_batizado' && (
+            <label className="campo"><span>Data do batismo <em className="campo-dica">(se souber)</em></span>
+              <input
+                type="date" value={v.dataBatismo ?? ''}
+                onChange={(e) => registrarBatismo(v.id, v.situacaoBatismo, e.target.value || undefined)}
+              />
+            </label>
+          )}
+        </div>
+      </div>
+
+      {/* Data da membresia editável aqui, e não só no momento de concluir a
+          jornada: quem chega a "Membro" pelo quadro da Jornada ou por uma
+          correção manual de status entra sem data, e sem este campo não haveria
+          como preencher depois — só desfazendo o status. */}
+      {(v.status === 'integrado' || v.dataMembresia) && (
+        <div className="bloco-destaque">
+          <div className="bloco-destaque-titulo">🎉 Membresia</div>
+          <p className="descricao-secao" style={{ marginTop: 0 }}>
+            O dia em que a pessoa foi recebida como membro — é o que conclui a jornada.
+          </p>
+          <div className="linha-campos">
+            <label className="campo"><span>Data em que virou membro</span>
+              <input
+                type="date" value={v.dataMembresia ?? ''}
+                onChange={(e) => m({ dataMembresia: e.target.value || undefined })}
+              />
+            </label>
+            <div className="campo" />
+          </div>
+          {v.status === 'integrado' && !v.dataMembresia && (
+            <div className="alerta alerta-warn" style={{ marginBottom: 0 }}>
+              ⚠️ <div>Está como membro, mas <b>sem a data</b> registrada. Preencha acima — sem ela, a pessoa não aparece nos relatórios por período.</div>
+            </div>
+          )}
+        </div>
+      )}
       <div className="linha-campos">
         <label className="campo"><span>Quer participar de uma {s.config.termoGrupo || 'Conexão'}?</span>
           <select value={v.desejaConexao ?? ''} onChange={(e) => m({ desejaConexao: e.target.value || undefined })}>
@@ -744,7 +1075,7 @@ function AbaAcompanhamento({ v }: { v: Visitante }) {
   const MOTIVO: Partial<Record<Status, string>> = {
     em_contato: 'Contato retomado', aguardando_resposta: 'Contato enviado, sem retorno',
     encaminhado_lider: 'Aceitou o convite — handoff ao líder', visitou: 'Compareceu ao grupo',
-    transferido: 'Líder confirmou que assumiu', integrado: 'Batismo/membresia',
+    transferido: 'Líder confirmou que assumiu', batismo: 'Encaminhado(a) para o batismo', integrado: 'Recebido(a) como membro',
     em_espera: 'Movido para acompanhamento leve', recusou: 'Pediu para não ser contatado',
     encerrado: 'Encerrado na triagem',
   }
@@ -772,6 +1103,14 @@ function AbaAcompanhamento({ v }: { v: Visitante }) {
           </select>
         </label>
       </div>
+      <div className="linha-campos">
+        <CampoInicioConexao v={v} />
+        <div className="campo" />
+      </div>
+      <p className="descricao-secao" style={{ marginTop: 0 }}>
+        Data em que a pessoa passou a frequentar a {s.config.termoGrupo} — preenchida pelo líder.
+        É a base do tempo mínimo exigido para receber como membro.
+      </p>
       {responsavel && (
         <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span>Integrador(a) pós-culto: <b>{responsavel.nome}</b> · {responsavel.whatsapp}</span>
@@ -797,7 +1136,7 @@ function AbaAcompanhamento({ v }: { v: Visitante }) {
           {transicoes.map((t) => (
             <button key={t} className="btn btn-sec btn-mini" style={{ justifyContent: 'flex-start' }}
               onClick={() => mudarStatus(v.id, t, MOTIVO[t] ?? 'Mudança manual')}>
-              → {STATUS_LABEL[t]}
+              → {rotuloStatus(t)}
             </button>
           ))}
           {transicoes.length === 0 && <span style={{ color: 'var(--text-3)', fontSize: 13 }}>Estado final — sem transições normais.</span>}
@@ -809,7 +1148,7 @@ function AbaAcompanhamento({ v }: { v: Visitante }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
           {v.historicoStatus.length > 1 && (
             <button className="btn btn-sec btn-mini" style={{ justifyContent: 'flex-start' }} onClick={() => desfazerUltimaMudanca(v.id)}>
-              <IcoDesfazer size={13} /> Desfazer última mudança (voltar para "{STATUS_LABEL[v.historicoStatus[v.historicoStatus.length - 2].para]}")
+              <IcoDesfazer size={13} /> Desfazer última mudança (voltar para "{rotuloStatus(v.historicoStatus[v.historicoStatus.length - 2].para)}")
             </button>
           )}
           <button className="btn btn-sec btn-mini" style={{ justifyContent: 'flex-start' }} onClick={() => setMostrarCorrecao(!mostrarCorrecao)}>
@@ -831,7 +1170,7 @@ function FormCorrecao({ visitanteId, statusAtual, onFechar }: { visitanteId: str
       <label className="campo"><span>Status correto</span>
         <select value={para} onChange={(e) => setPara(e.target.value as Status)}>
           {(Object.keys(STATUS_LABEL) as Status[]).filter((st) => st !== statusAtual).map((st) => (
-            <option key={st} value={st}>{STATUS_LABEL[st]}</option>
+            <option key={st} value={st}>{rotuloStatus(st)}</option>
           ))}
         </select>
       </label>

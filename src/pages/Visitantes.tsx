@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { consolidadoresAtivos, diasSemAtualizacao, semAtualizacao, useAppState, ultimaRespostaOuCadastro } from '../store'
 import { diasDesde } from '../machine'
-import { estiloStatus, STATUS_LABEL, type Status, type Visitante } from '../types'
+import { estiloStatus, rotuloStatus, type Status, type Visitante } from '../types'
 import { linkWhatsApp, proximaAcao } from '../actions'
 import { navegar } from '../router'
 import { IcoBusca, IcoMais, IcoWhats } from '../icones'
@@ -13,7 +13,8 @@ const GRUPOS: { id: string; rotulo: string; statuses?: Status[]; soCuidado?: boo
   { id: 'consolidacao', rotulo: '🤝 Em consolidação', statuses: ['novo', 'em_contato', 'aguardando_resposta'] },
   { id: 'lider', rotulo: '👥 Com o líder', statuses: ['encaminhado_lider', 'visitou'] },
   { id: 'acompanhando', rotulo: '🌱 Acompanhando', statuses: ['transferido'] },
-  { id: 'integrados', rotulo: '🎉 Integrados', statuses: ['integrado'] },
+  { id: 'batismo', rotulo: '💧 Batismo', statuses: ['batismo'] },
+  { id: 'integrados', rotulo: '🎉 Membros', statuses: ['integrado'] },
   { id: 'parados', rotulo: '💤 Parados', statuses: ['em_espera', 'recusou', 'encerrado'] },
   { id: 'sem_atualizacao', rotulo: '🕐 Sem atualização 7d+', soParados: true },
   { id: 'cuidado', rotulo: '🚨 Cuidado', soCuidado: true },
@@ -124,7 +125,7 @@ export default function Visitantes() {
                         </div>
                         <div className="cell-sub">{v.whatsapp}</div>
                       </td>
-                      <td><span className="badge" style={estiloStatus(v.status)}>{STATUS_LABEL[v.status]}</span></td>
+                      <td><span className="badge" style={estiloStatus(v.status)}>{rotuloStatus(v.status)}</span></td>
                       <td style={{ fontSize: 12.5, color: acao.urgente ? 'var(--danger)' : 'var(--text-2)', fontWeight: acao.urgente ? 700 : 400, maxWidth: 260 }}>
                         {parado && (
                           <div style={{ color: 'var(--warn)', fontWeight: 700, marginBottom: 2 }}>

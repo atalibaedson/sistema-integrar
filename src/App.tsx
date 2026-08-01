@@ -4,7 +4,8 @@ import { useAppState, useNuvem } from './store'
 import { getUsuarioAtualId, setUsuarioAtualId, useUsuarioAtualId, usuarioAtual, podeVerCuidado, podeAcessarRota, soAcolhedor, useSessaoReal, useSessaoCarregada, usuarioDaSessao } from './acesso'
 import { marcarEmailConfirmado } from './actions'
 import { garantirSessao, sairDaConta } from './supabaseClient'
-import { PAPEL_LABEL, type Usuario } from './types'
+import { aplicarRotulos, rotuloPapel, type Usuario } from './types'
+import { corDeContraste } from './tema'
 import { IcoAjuda, IcoAuditoria, IcoConfig, IcoJornada, IcoMenu, IcoPainel, IcoRelatorios, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
 import Dashboard from './pages/Dashboard'
 import Jornada from './pages/Jornada'
@@ -110,7 +111,7 @@ function ChipsTopo({ eu }: { eu?: Usuario }) {
     <div className="cab-chips">
       <span className="chip-status" style={{ gap: 6 }}>
         👤 <b style={{ color: 'var(--primary)' }}>{eu?.nome ?? 'Você'}</b>
-        {eu && <span style={{ color: 'var(--text-3)', fontWeight: 500 }}>· {eu.papeis.map((p) => PAPEL_LABEL[p]).join(', ')}</span>}
+        {eu && <span style={{ color: 'var(--text-3)', fontWeight: 500 }}>· {eu.papeis.map((p) => rotuloPapel(p)).join(', ')}</span>}
       </span>
       <span className={`chip-status ${chip.classe}`}><span className="ponto" style={{ background: chip.ponto }} />{chip.rotulo}</span>
       <span className="chip-status">📅 {dataFmt}</span>
@@ -129,11 +130,29 @@ export default function App() {
   // Garante uma sessão Supabase (anônima serve) para o sync passar no RLS
   useEffect(() => { void garantirSessao() }, [])
 
-  // Aplica a identidade configurável da igreja (white-label)
+  // Aplica a identidade configurável da igreja (white-label). As três cores são
+  // as mesmas da área de configuração do site: papel, escura e primária — todos
+  // os tons derivados saem delas por color-mix, no CSS.
   useEffect(() => {
-    document.documentElement.style.setProperty('--primary', estado.config.corPrimaria)
+    const raiz = document.documentElement.style
+    raiz.setProperty('--primary', estado.config.corPrimaria)
+    raiz.setProperty('--papel', estado.config.corFundo)
+    raiz.setProperty('--escura', estado.config.corEscura)
+    // O texto que fica EM CIMA da cor primária não pode ser fixo: branco sobre
+    // um dourado claro fica ilegível. Decide pela luminância da própria cor.
+    raiz.setProperty('--primary-contraste', corDeContraste(estado.config.corPrimaria))
+    raiz.setProperty('--escura-contraste', corDeContraste(estado.config.corEscura))
     document.title = `${estado.config.subtitulo} — ${estado.config.nomeIgreja}`
-  }, [estado.config.corPrimaria, estado.config.nomeIgreja, estado.config.subtitulo])
+  }, [
+    estado.config.corPrimaria, estado.config.corFundo, estado.config.corEscura,
+    estado.config.nomeIgreja, estado.config.subtitulo,
+  ])
+
+  // Nomes das etapas e funções, do jeito que a igreja fala (Configurações).
+  // Aplicado DURANTE o render, não em useEffect: os rótulos são lidos pelos
+  // componentes filhos nesta mesma passada, e um efeito rodaria tarde demais
+  // (sem mudar estado, nada re-renderizaria para corrigir).
+  aplicarRotulos(estado.config)
 
   // Fecha a folha "Mais" ao navegar
   useEffect(() => { setMaisAberto(false) }, [rota])

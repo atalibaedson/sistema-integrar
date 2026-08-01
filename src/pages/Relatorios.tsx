@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useAppState } from '../store'
 import { useUsuarioAtualId, usuarioAtual, visitantesVisiveis } from '../acesso'
-import { estiloStatus, ORIGEM_LABEL, SITUACAO_CIVIL_LABEL, STATUS_LABEL, type Status } from '../types'
+import { estiloStatus, ORIGEM_LABEL, rotuloStatus, SITUACAO_CIVIL_LABEL, STATUS_LABEL, type Status } from '../types'
 import { IcoDownload, IcoImpressora } from '../icones'
 import {
   atividadePorDia, desempenhoConexoes, desempenhoEquipe, distribuicao, engajamento,
-  funil, interacoesDoPeriodo, velocidade, visitantesDoPeriodo, type Fatia, type Periodo,
+  funil, interacoesDoPeriodo, resumoBatismo, velocidade, visitantesDoPeriodo, type Fatia, type Periodo,
 } from '../relatorios'
 
 // Área de relatórios de gestão — restrita a Gestão Integração e Pastores
@@ -99,7 +99,7 @@ export default function Relatorios() {
     const conexao = (id?: string) => s.conexoes.find((c) => c.id === id)?.nome ?? ''
     for (const v of vs) {
       linhas.push([
-        v.nome, STATUS_LABEL[v.status], ORIGEM_LABEL[v.origem], v.comoConheceu ?? '',
+        v.nome, rotuloStatus(v.status), ORIGEM_LABEL[v.origem], v.comoConheceu ?? '',
         conexao(v.conexaoId), nome(v.responsavelId), v.dataCadastro.slice(0, 10),
       ])
     }
@@ -166,6 +166,37 @@ export default function Relatorios() {
 
 // ======================= ABAS =======================
 
+// Batismo é atributo da pessoa, não etapa do funil — por isso fica num bloco
+// próprio, fora do funil. Separa o que a igreja fez (batizou) do que a pessoa
+// já trazia (chegou batizada), duas coisas que o campo antigo não distinguia.
+function Batismos({ vs }: { vs: import('../types').Visitante[] }) {
+  const b = resumoBatismo(vs)
+  if (vs.length === 0) return null
+
+  return (
+    <div className="card">
+      <div className="card-cab">
+        <h3>💧 Batismo</h3>
+        {b.naoBatizados > 0 && (
+          <span className="badge" style={{ background: '#0ea5e922', color: '#0ea5e9' }}>
+            {b.naoBatizados} {b.naoBatizados === 1 ? 'candidato' : 'candidatos'} ao batismo
+          </span>
+        )}
+      </div>
+      <p className="descricao-secao">
+        O batismo é etapa só de quem ainda não é batizado — quem já chegou batizado vai direto
+        a membro. Por isso ele fica fora do funil, aqui.
+      </p>
+      <div className="rel-stats">
+        <Stat valor={b.batizadosAqui} rotulo="Batizados aqui" cor="var(--ok)" />
+        <Stat valor={b.jaBatizados} rotulo="Já chegaram batizados" />
+        <Stat valor={b.naoBatizados} rotulo="Ainda não batizados" />
+        <Stat valor={b.naoInformado} rotulo="Não perguntamos ainda" />
+      </div>
+    </div>
+  )
+}
+
 function AbaVisao({ vs, is }: { vs: import('../types').Visitante[]; is: import('../types').Interacao[] }) {
   const etapas = funil(vs)
   const vel = velocidade(vs)
@@ -179,10 +210,12 @@ function AbaVisao({ vs, is }: { vs: import('../types').Visitante[]; is: import('
       <div className="rel-stats">
         <Stat valor={vs.length} rotulo="Visitantes no período" />
         <Stat valor={taxaGeral} sufixo="%" rotulo="Taxa de integração" cor="var(--ok)" />
-        <Stat valor={integrados} rotulo="Integrados" cor="var(--ok)" />
+        <Stat valor={integrados} rotulo="Viraram membros" cor="var(--ok)" />
         <Stat valor={vel.ateIntegracao} sufixo=" dias" rotulo="Tempo médio até integrar" />
         <Stat valor={vel.ateEncaminhado} sufixo=" dias" rotulo="Tempo médio até o líder" />
       </div>
+
+      <Batismos vs={vs} />
 
       <div className="card">
         <h3>Funil de conversão</h3>
@@ -332,9 +365,9 @@ function AbaRetencao({ vs }: { vs: import('../types').Visitante[] }) {
   const recusou = conta('recusou')
   const encerrado = conta('encerrado')
   const perdidos = emEspera + recusou + encerrado
-  const porStatus = distribuicao(vs, (v) => STATUS_LABEL[v.status]).map((f) => ({
+  const porStatus = distribuicao(vs, (v) => rotuloStatus(v.status)).map((f) => ({
     ...f,
-    cor: estiloStatus((Object.keys(STATUS_LABEL) as Status[]).find((k) => STATUS_LABEL[k] === f.rotulo) ?? 'novo').color,
+    cor: estiloStatus((Object.keys(STATUS_LABEL) as Status[]).find((k) => rotuloStatus(k) === f.rotulo) ?? 'novo').color,
   }))
   return (
     <>

@@ -4,15 +4,20 @@ import {
   substituirEstado, testarNuvem, uid, useAppState, useNuvem, zerarDados,
 } from '../store'
 import { getConfigNuvem } from '../nuvem'
-import { ETAPA_LABEL, type ConfigIgreja, type CultoDef, type EtapaFluxo, type Template } from '../types'
+import {
+  ETAPA_LABEL, PAPEL_LABEL, rotuloStatusPadrao,
+  type ConfigIgreja, type CultoDef, type EtapaFluxo, type Papel, type Status, type Template,
+} from '../types'
 import { DIA_SEMANA_LABEL, ocorrenciasRecentes } from '../cultos'
+import { PALETAS } from '../tema'
 import { registrarAuditoria } from '../auditoria'
 import { IcoCheck, IcoCopiar, IcoDownload, IcoEditar, IcoImpressora, IcoLixeira, IcoMais, IcoOlho, IcoX } from '../icones'
 
-type Aba = 'igreja' | 'cultos' | 'grupos' | 'mensagens' | 'autocadastro' | 'dados'
+type Aba = 'igreja' | 'jornada' | 'cultos' | 'grupos' | 'mensagens' | 'autocadastro' | 'dados'
 
 const ABAS: { id: Aba; rotulo: string }[] = [
   { id: 'igreja', rotulo: '⛪ Minha igreja' },
+  { id: 'jornada', rotulo: '🗺️ Jornada' },
   { id: 'cultos', rotulo: '📅 Cultos' },
   { id: 'grupos', rotulo: '🏠 Grupos' },
   { id: 'mensagens', rotulo: '💬 Mensagens' },
@@ -37,11 +42,271 @@ export default function Configuracoes() {
       </div>
 
       {aba === 'igreja' && <AbaIgreja />}
+      {aba === 'jornada' && <AbaJornada />}
       {aba === 'cultos' && <AbaCultos />}
       {aba === 'grupos' && <AbaGrupos />}
       {aba === 'mensagens' && <AbaMensagens />}
       {aba === 'autocadastro' && <AbaAutocadastro />}
       {aba === 'dados' && <AbaDados />}
+    </div>
+  )
+}
+
+/* ---------------- Cores: as três que mandam no sistema inteiro ----------------
+   Mesmo vocabulário da área de configuração do site da igreja (papel, escura,
+   primária). Os tons derivados — bordas, superfícies, texto — são calculados
+   sozinhos, então basta acertar estas três. */
+
+function Cores() {
+  const cfg = useAppState().config
+
+  function mudar(patch: Partial<ConfigIgreja>) {
+    setEstado((st) => ({ ...st, config: { ...st.config, ...patch } }))
+  }
+
+  const campos: { chave: 'corFundo' | 'corEscura' | 'corPrimaria'; rotulo: string; dica: string }[] = [
+    { chave: 'corFundo', rotulo: 'Cor de fundo (papel)', dica: 'O fundo das telas' },
+    { chave: 'corEscura', rotulo: 'Cor escura (fundos, títulos)', dica: 'Títulos e o fundo das telas públicas' },
+    { chave: 'corPrimaria', rotulo: 'Cor primária (destaques, botões)', dica: 'Botões e destaques' },
+  ]
+
+  const paletaAtiva = PALETAS.find(
+    (p) => p.corFundo.toLowerCase() === cfg.corFundo.toLowerCase() &&
+      p.corEscura.toLowerCase() === cfg.corEscura.toLowerCase() &&
+      p.corPrimaria.toLowerCase() === cfg.corPrimaria.toLowerCase(),
+  )
+
+  return (
+    <div className="card">
+      <h3>Cores</h3>
+      <p className="descricao-secao">
+        As cores do sistema inteiro. Os tons derivados (mais claros/escuros) são calculados sozinhos —
+        inclusive a cor do texto em cima dos botões, para nunca ficar ilegível.
+      </p>
+
+      <div className="ac-secao" style={{ paddingTop: 0, borderTop: 'none' }}>
+        <div className="ac-secao-titulo">Paletas prontas</div>
+        <div className="ac-opcoes">
+          {PALETAS.map((p) => (
+            <button
+              type="button" key={p.nome} title={p.descricao}
+              className={`ac-opcao ${paletaAtiva?.nome === p.nome ? 'sel' : ''}`}
+              onClick={() => mudar({ corFundo: p.corFundo, corEscura: p.corEscura, corPrimaria: p.corPrimaria })}
+            >
+              <span style={{ display: 'inline-flex', gap: 3, marginRight: 7, verticalAlign: '-2px' }}>
+                {[p.corFundo, p.corEscura, p.corPrimaria].map((c) => (
+                  <i key={c} style={{ width: 10, height: 10, borderRadius: 3, background: c, border: '1px solid rgba(0,0,0,.15)' }} />
+                ))}
+              </span>
+              {p.nome}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="ac-secao">
+        <div className="ac-secao-titulo">Ajuste fino</div>
+        {campos.map((c) => (
+          <label className="campo" key={c.chave}>
+            <span>{c.rotulo} <em className="campo-dica">({c.dica})</em></span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="color" value={cfg[c.chave]}
+                onChange={(e) => mudar({ [c.chave]: e.target.value })}
+                style={{ width: 46, height: 38, padding: 2, border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}
+              />
+              <code style={{ fontSize: 13 }}>{cfg[c.chave]}</code>
+            </div>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ---------------- Aba: Jornada (nomes das etapas + datas marcadas) ----------
+   Duas coisas que mudam de igreja para igreja e não deveriam exigir programador:
+   como cada etapa se chama, e em que datas acontecem batismo e recepção de
+   membros. */
+
+// Ordem de exibição: primeiro o caminho, depois as saídas do caminho.
+const STATUS_DA_JORNADA: Status[] = [
+  'novo', 'em_contato', 'aguardando_resposta', 'encaminhado_lider',
+  'visitou', 'transferido', 'batismo', 'integrado',
+]
+const STATUS_DE_PAUSA: Status[] = ['em_espera', 'recusou', 'encerrado']
+
+function AbaJornada() {
+  const cfg = useAppState().config
+
+  function mudar(patch: Partial<ConfigIgreja>) {
+    setEstado((st) => ({ ...st, config: { ...st.config, ...patch } }))
+  }
+  function renomearStatus(st: Status, nome: string) {
+    mudar({ rotulosStatus: { ...cfg.rotulosStatus, [st]: nome } })
+  }
+  function renomearPapel(p: Papel, nome: string) {
+    mudar({ rotulosPapel: { ...cfg.rotulosPapel, [p]: nome } })
+  }
+
+  const algumRenomeado =
+    Object.values(cfg.rotulosStatus ?? {}).some((x) => x?.trim()) ||
+    Object.values(cfg.rotulosPapel ?? {}).some((x) => x?.trim())
+
+  const linhaNome = (chave: string, padrao: string, valor: string, onMudar: (v: string) => void) => (
+    <label className="campo" key={chave}>
+      <span>{padrao}</span>
+      <input
+        type="text" value={valor} placeholder={padrao}
+        onChange={(e) => onMudar(e.target.value)}
+      />
+    </label>
+  )
+
+  return (
+    <>
+      <div className="card">
+        <div className="card-cab">
+          <h3>Nomes das etapas</h3>
+          {algumRenomeado && (
+            <button
+              className="btn btn-sec btn-mini"
+              onClick={() => {
+                if (!confirm('Voltar todos os nomes para o padrão do sistema?')) return
+                mudar({ rotulosStatus: {}, rotulosPapel: {} })
+              }}
+            >
+              Restaurar padrão
+            </button>
+          )}
+        </div>
+        <p className="descricao-secao">
+          Cada igreja fala do seu jeito. Troque aqui e o nome muda no sistema inteiro —
+          filtros, painel, relatórios e histórico. Deixe em branco para usar o padrão
+          (mostrado em cinza dentro do campo).
+        </p>
+
+        <div className="ac-secao" style={{ paddingTop: 0, borderTop: 'none' }}>
+          <div className="ac-secao-titulo">🗺️ O caminho do visitante</div>
+          <div className="ac-grupo">
+            {STATUS_DA_JORNADA.map((st) =>
+              linhaNome(st, rotuloStatusPadrao(st), cfg.rotulosStatus?.[st] ?? '', (v) => renomearStatus(st, v)))}
+          </div>
+        </div>
+
+        <div className="ac-secao">
+          <div className="ac-secao-titulo">💤 Quando o caminho para</div>
+          <div className="ac-grupo">
+            {STATUS_DE_PAUSA.map((st) =>
+              linhaNome(st, rotuloStatusPadrao(st), cfg.rotulosStatus?.[st] ?? '', (v) => renomearStatus(st, v)))}
+          </div>
+        </div>
+
+        <div className="ac-secao">
+          <div className="ac-secao-titulo">👥 Funções da equipe</div>
+          <div className="ac-grupo">
+            {(Object.keys(PAPEL_LABEL) as Papel[]).map((p) =>
+              linhaNome(p, PAPEL_LABEL[p], cfg.rotulosPapel?.[p] ?? '', (v) => renomearPapel(p, v)))}
+          </div>
+        </div>
+      </div>
+
+      <ListaDatas
+        titulo="💧 Datas de batismo"
+        descricao="As datas em que a igreja batiza. Na ficha do visitante a equipe escolhe uma delas, em vez de digitar — menos erro na pressa."
+        datas={cfg.datasBatismo}
+        onMudar={(datasBatismo) => mudar({ datasBatismo })}
+      />
+
+      <ListaDatas
+        titulo="🎉 Datas de recepção de membros"
+        descricao="Os dias em que a igreja recebe novos membros. É a data que conclui a jornada do visitante."
+        datas={cfg.datasMembresia}
+        onMudar={(datasMembresia) => mudar({ datasMembresia })}
+      />
+
+      <div className="card">
+        <h3>✅ Requisitos para receber como membro</h3>
+        <p className="descricao-secao">
+          Antes de concluir a jornada, o líder de {cfg.termoGrupo || 'Conexão'} confirma que a pessoa
+          já frequenta o grupo há tempo suficiente e com boa presença. O tempo é calculado a partir da
+          data em que ela começou a frequentar; a frequência é uma confirmação do líder. Deixe em <b>0</b>
+          para não exigir aquele item.
+        </p>
+        <div className="linha-campos">
+          <label className="campo" style={{ maxWidth: 300 }}>
+            <span>Tempo mínimo na {cfg.termoGrupo || 'Conexão'} (meses)</span>
+            <input
+              type="number" min={0} max={36} value={cfg.mesesMinimosConexao}
+              onChange={(e) => mudar({ mesesMinimosConexao: Math.max(0, Math.floor(Number(e.target.value) || 0)) })}
+            />
+          </label>
+          <label className="campo" style={{ maxWidth: 300 }}>
+            <span>Frequência mínima esperada (%)</span>
+            <input
+              type="number" min={0} max={100} value={cfg.frequenciaMinimaConexao}
+              onChange={(e) => mudar({ frequenciaMinimaConexao: Math.min(100, Math.max(0, Math.floor(Number(e.target.value) || 0))) })}
+            />
+          </label>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// Calendário simples de datas marcadas (batismo / recepção de membros)
+function ListaDatas({ titulo, descricao, datas, onMudar }: {
+  titulo: string
+  descricao: string
+  datas: string[]
+  onMudar: (datas: string[]) => void
+}) {
+  const [nova, setNova] = useState('')
+  const hoje = new Date().toISOString().slice(0, 10)
+  const ordenadas = [...new Set(datas)].filter(Boolean).sort()
+
+  function adicionar() {
+    if (!nova) return
+    onMudar([...new Set([...datas, nova])].sort())
+    setNova('')
+  }
+
+  return (
+    <div className="card">
+      <h3>{titulo}</h3>
+      <p className="descricao-secao">{descricao}</p>
+
+      {ordenadas.length === 0 ? (
+        <div className="alerta alerta-info" style={{ marginBottom: 12 }}>
+          💡 <div>
+            Nenhuma data cadastrada ainda — enquanto isso, a equipe digita a data à mão na ficha.
+            Cadastrando aqui, ela passa a escolher numa lista.
+          </div>
+        </div>
+      ) : (
+        <div className="ac-opcoes" style={{ marginBottom: 14 }}>
+          {ordenadas.map((d) => (
+            <span key={d} className={`tag ${d < hoje ? 'tag-passada' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {d.split('-').reverse().join('/')}
+              {d < hoje && <em style={{ fontStyle: 'normal', color: 'var(--text-3)' }}>· já passou</em>}
+              <button
+                className="btn-icone btn-icone-mini" title="Remover esta data"
+                onClick={() => onMudar(datas.filter((x) => x !== d))}
+              >
+                <IcoX size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'end', flexWrap: 'wrap' }}>
+        <label className="campo" style={{ marginBottom: 0, maxWidth: 200 }}>
+          <span>Nova data</span>
+          <input type="date" value={nova} onChange={(e) => setNova(e.target.value)} />
+        </label>
+        <button className="btn" onClick={adicionar} disabled={!nova}><IcoMais size={15} /> Adicionar</button>
+      </div>
     </div>
   )
 }
@@ -69,22 +334,12 @@ function AbaIgreja() {
             <input type="text" value={cfg.subtitulo} onChange={(e) => mudar({ subtitulo: e.target.value })} />
           </label>
         </div>
-        <div className="linha-campos">
-          <label className="campo"><span>Cor principal do sistema</span>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input
-                type="color" value={cfg.corPrimaria}
-                onChange={(e) => mudar({ corPrimaria: e.target.value })}
-                style={{ width: 46, height: 38, padding: 2, border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}
-              />
-              <code style={{ fontSize: 13 }}>{cfg.corPrimaria}</code>
-            </div>
-          </label>
-          <label className="campo"><span>Como vocês chamam o grupo pequeno?</span>
-            <input type="text" value={cfg.termoGrupo} onChange={(e) => mudar({ termoGrupo: e.target.value })} placeholder="Conexão, Célula, PG, GC…" />
-          </label>
-        </div>
+        <label className="campo"><span>Como vocês chamam o grupo pequeno?</span>
+          <input type="text" value={cfg.termoGrupo} onChange={(e) => mudar({ termoGrupo: e.target.value })} placeholder="Conexão, Célula, PG, GC…" />
+        </label>
       </div>
+
+      <Cores />
 
       <div className="card">
         <h3>Regras do fluxo</h3>
@@ -516,6 +771,15 @@ function AbaAutocadastro() {
           <input type="checkbox" checked={s.config.autocadastroMostrarSituacaoCivil} onChange={(e) => mudar({ autocadastroMostrarSituacaoCivil: e.target.checked })} />
           Perguntar a situação civil
         </label>
+        <label className="check">
+          <input type="checkbox" checked={s.config.autocadastroPerguntarBatismo} onChange={(e) => mudar({ autocadastroPerguntarBatismo: e.target.checked })} />
+          Perguntar se já é batizado(a)
+        </label>
+        <p className="descricao-secao" style={{ marginTop: 6, marginBottom: 0 }}>
+          A pergunta do batismo é opcional e sem pressão — serve para a equipe não convidar ao
+          batismo quem já é batizado. Se preferir descobrir isso na conversa, desligue aqui: a
+          equipe pode registrar a qualquer momento na ficha da pessoa.
+        </p>
       </div>
 
       <div className="card">

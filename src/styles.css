@@ -1,18 +1,34 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* Design tokens — padrão compartilhado com o Sistema de Louvor (iFE) */
+/* ================= Design tokens =================
+   Três cores mandam no sistema inteiro — as mesmas da área de configuração do
+   site da igreja. Elas são sobrescritas em tempo real por App.tsx a partir das
+   Configurações; TODO o resto (superfícies, bordas, texto) é derivado delas por
+   color-mix, para que trocar a paleta não deixe nenhum canto para trás. */
 :root {
-  --bg: #F6F8FA;
+  --papel: #FAF7F1;    /* fundo das telas */
+  --escura: #0042AA;   /* fundos escuros, títulos */
+  --primary: #E5A13C;  /* destaques, botões */
+
+  /* Texto que fica EM CIMA das cores acima — calculado por luminância em
+     tema.ts, porque branco sobre dourado claro seria ilegível. */
+  --primary-contraste: #1A1206;
+  --escura-contraste: #FFFFFF;
+
+  /* ---- Derivados: superfícies e bordas ---- */
+  --bg: var(--papel);
   --surface: #FFFFFF;
-  --surface2: #EFF3F6;
-  --border: #E4E9EE;
-  --border-strong: #D5DDE5;
-  --text: #1B2530;
-  --text-2: #5D6B7A;
-  --text-3: #93A1B0;
-  --primary: #4f46e5; /* sobrescrita em tempo real pela cor configurada da igreja */
+  --surface2: color-mix(in srgb, var(--papel) 72%, var(--escura) 5%);
+  --border: color-mix(in srgb, var(--escura) 12%, white);
+  --border-strong: color-mix(in srgb, var(--escura) 24%, white);
+
+  /* ---- Derivados: texto (levemente tingido pela cor escura da igreja) ---- */
+  --text: color-mix(in srgb, var(--escura) 20%, #141A22);
+  --text-2: color-mix(in srgb, var(--escura) 26%, #5D6B7A);
+  --text-3: color-mix(in srgb, var(--escura) 16%, #93A1B0);
+
   --primary-dark: color-mix(in srgb, var(--primary) 78%, black);
-  --primary-soft: color-mix(in srgb, var(--primary) 9%, white);
+  --primary-soft: color-mix(in srgb, var(--primary) 12%, white);
   --danger: #C93A3A;
   --warn: #b45309;
   --ok: #1E8E4D;
@@ -54,7 +70,7 @@ body {
 }
 .marca-logo {
   width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
-  background: var(--primary); color: #fff;
+  background: var(--primary); color: var(--primary-contraste);
   display: flex; align-items: center; justify-content: center;
   font-size: 16px; font-weight: 800;
 }
@@ -228,7 +244,7 @@ textarea { resize: vertical; min-height: 64px; }
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid transparent;
   font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font);
-  background: var(--primary); color: #fff;
+  background: var(--primary); color: var(--primary-contraste);
   box-shadow: 0 1px 2px rgba(16,24,40,0.10);
   transition: all var(--transition);
 }
@@ -248,7 +264,13 @@ textarea { resize: vertical; min-height: 64px; }
 .alerta { padding: 11px 14px; border-radius: 8px; margin-bottom: 8px; font-size: 13.5px; display: flex; gap: 8px; align-items: flex-start; }
 .alerta-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
 .alerta-perigo { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
-.alerta-info { background: var(--primary-soft); border: 1px solid #c7d2fe; color: #3730a3; }
+/* Informativo acompanha a paleta da igreja (o aviso e o perigo continuam
+   âmbar/vermelho: são significados universais, não identidade visual). */
+.alerta-info {
+  background: color-mix(in srgb, var(--escura) 6%, white);
+  border: 1px solid color-mix(in srgb, var(--escura) 18%, white);
+  color: color-mix(in srgb, var(--escura) 78%, black);
+}
 
 /* ---- Timeline de interações ---- */
 .interacao-item { border-left: 3px solid var(--border); padding: 4px 0 14px 14px; margin-left: 6px; position: relative; }
@@ -268,7 +290,7 @@ textarea { resize: vertical; min-height: 64px; }
   padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border);
   background: #fff; cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--text-2);
 }
-.filtros .chip.sel { background: var(--primary); color: #fff; border-color: var(--primary); }
+.filtros .chip.sel { background: var(--primary); color: var(--primary-contraste); border-color: var(--primary); }
 
 .vazio { text-align: center; color: var(--text-3); padding: 34px 0; }
 
@@ -307,6 +329,53 @@ textarea { resize: vertical; min-height: 64px; }
 .form-secao { padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
 .form-secao.form-secao-ultima { border-bottom: none; margin-bottom: 4px; padding-bottom: 0; }
 .form-secao h4 { font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--text-2); margin-bottom: 10px; }
+
+/* ================= Padrão de formulário (o mesmo do autocadastro) =================
+   Seções com respiro + título por bloco, pares de campos lado a lado e escolhas
+   em pílula em vez de select para listas curtas. Definido aqui, sem escopo, para
+   valer em TODO o sistema; .ife-site sobrescreve com a tipografia do site nas
+   telas públicas. */
+.ac-secao { padding: 18px 0; border-top: 1px solid var(--border); }
+.ac-secao:first-of-type { border-top: none; padding-top: 6px; }
+.ac-secao .campo { margin-bottom: 12px; }
+.ac-secao .campo:last-child { margin-bottom: 0; }
+.ac-secao-titulo {
+  font-size: 14.5px; font-weight: 700; color: var(--text);
+  margin-bottom: 12px; letter-spacing: -0.01em;
+}
+.ac-grupo { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+
+/* Escolhas em pílula — Sim/Não e listas curtas. Um toque, sem abrir menu. */
+.ac-opcoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.ac-opcao {
+  font-family: inherit; font-size: 13.5px; font-weight: 600;
+  color: var(--text); background: var(--surface); cursor: pointer;
+  border: 1px solid var(--border-strong); border-radius: 999px; padding: 8px 14px;
+  transition: border-color var(--transition), background var(--transition);
+}
+.ac-opcao:hover { border-color: var(--primary); }
+.ac-opcao.sel { background: var(--primary); color: var(--primary-contraste); border-color: var(--primary); }
+
+/* Bloco em destaque dentro de um card — para um assunto que merece moldura
+   própria sem virar um card separado (ex.: situação de batismo na ficha). */
+.bloco-destaque {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px; margin: 4px 0 16px;
+}
+.bloco-destaque-titulo { font-size: 13.5px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+
+/* Data já passada continua listada (o histórico aponta para ela), mas apagada */
+.tag-passada { opacity: .6; }
+.btn-icone-mini {
+  width: 20px; height: 20px; border-radius: 6px;
+  border: none; background: transparent; color: var(--text-3); padding: 0;
+}
+.btn-icone-mini:hover { background: var(--surface2); color: var(--danger); }
+
+@media (max-width: 520px) { .ac-grupo { grid-template-columns: 1fr; } }
 
 /* ---- Ficha do visitante (reforma: guia + abas) ---- */
 .ficha-wrap { max-width: 920px; }
@@ -508,7 +577,7 @@ details summary:hover { color: var(--primary); }
 .ac-cab { text-align: center; margin-bottom: 20px; }
 .ac-selo {
   width: 54px; height: 54px; margin: 0 auto 12px;
-  border-radius: 16px; background: var(--primary); color: #fff;
+  border-radius: 16px; background: var(--primary); color: var(--primary-contraste);
   display: flex; align-items: center; justify-content: center;
   font-size: 22px; font-weight: 800;
   box-shadow: 0 6px 16px rgba(79, 70, 229, .28);
@@ -532,7 +601,7 @@ details summary:hover { color: var(--primary); }
 .chip-entrar {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 12px; font-weight: 700; text-decoration: none;
-  color: #fff; background: var(--primary);
+  color: var(--primary-contraste); background: var(--primary);
   padding: 6px 12px; border-radius: 999px;
   box-shadow: 0 2px 8px rgba(79, 70, 229, .25);
 }
@@ -584,7 +653,7 @@ details summary:hover { color: var(--primary); }
 .ac-pessoa-foto, .ac-pessoa-ini {
   width: 40px; height: 40px; border-radius: 50%; flex: none; object-fit: cover;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 14px; color: #fff; background: var(--primary);
+  font-weight: 700; font-size: 14px; color: var(--primary-contraste); background: var(--primary);
 }
 .ac-pessoa-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .ac-pessoa-info b { font-size: 14.5px; }
@@ -602,7 +671,7 @@ details summary:hover { color: var(--primary); }
   display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;
   background: var(--bg); border: 1.5px solid var(--border); color: var(--text-2);
 }
-.wz-step.ativo .wz-num { background: var(--primary); border-color: var(--primary); color: #fff; }
+.wz-step.ativo .wz-num { background: var(--primary); border-color: var(--primary); color: var(--primary-contraste); }
 .wz-step.feito .wz-num { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
 .wz-step.ativo .wz-rotulo { color: var(--text); font-weight: 700; }
 .wz-rotulo { line-height: 1.2; }
@@ -713,7 +782,7 @@ details summary:hover { color: var(--primary); }
   }
   /* Botão central de destaque: Novo visitante */
   .bottomnav .destaque .icone {
-    background: var(--primary); color: #fff;
+    background: var(--primary); color: var(--primary-contraste);
     width: 46px; height: 46px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     margin-top: -20px;
@@ -852,8 +921,27 @@ details summary:hover { color: var(--primary); }
 .dash-kpi .dash-kpi-nota { font-size: 11.5px; color: var(--text-3); }
 
 /* Barra empilhada de distribuição por status */
-.dash-stack { display: flex; height: 26px; border-radius: 7px; overflow: hidden; background: var(--surface2); }
-.dash-stack-seg { height: 100%; min-width: 2px; }
+.dash-stack { display: flex; height: 26px; border-radius: 7px; background: var(--surface2); }
+.dash-stack { overflow: visible; }
+.dash-stack > :first-child { border-radius: 7px 0 0 7px; }
+.dash-stack > :last-child { border-radius: 0 7px 7px 0; }
+.dash-stack-seg { height: 100%; min-width: 2px; position: relative; cursor: default; transition: filter var(--transition); }
+.dash-stack-seg:hover { filter: brightness(1.12); }
+
+/* Balão de porcentagem — o "quanto pesa" que a legenda abaixo não mostra */
+.dash-stack-tip {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: var(--text); color: var(--surface);
+  padding: 5px 9px; border-radius: var(--radius-sm);
+  font-size: 12px; line-height: 1; white-space: nowrap;
+  opacity: 0; visibility: hidden; transition: opacity var(--transition);
+  pointer-events: none; z-index: 5; box-shadow: var(--shadow);
+}
+.dash-stack-tip::after {
+  content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: var(--text);
+}
+.dash-stack-seg:hover .dash-stack-tip { opacity: 1; visibility: visible; }
 .dash-stack-legenda { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 12px; }
 .dash-stack-legenda span { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); }
 .dash-stack-legenda i { width: 10px; height: 10px; border-radius: 3px; }
@@ -878,39 +966,41 @@ details summary:hover { color: var(--primary); }
   .rel-chart-bar { width: 6px; }
 }
 
-/* ================= Tema SiteiFE — autocadastro público do visitante =================
-   Espelha a identidade do site (ifamiliaextraordinaria.com.br): azul royal +
-   dourado + creme, títulos em serif (Fraunces) e corpo em Manrope. Escopado em
-   .ife-site para não mudar as outras telas públicas (login, cadastro de integrante). */
+/* ================= Tema imersivo — telas públicas (autocadastro) =================
+   Espelha a identidade do site da igreja: fundo na cor escura, cartão em papel,
+   destaques na primária, títulos em serif (Fraunces) e corpo em Manrope.
+   Todas as cores saem das MESMAS variáveis configuráveis do resto do sistema —
+   trocar a paleta nas Configurações muda esta tela junto. Escopado em .ife-site
+   porque só as telas públicas usam o tratamento imersivo (fundo colorido). */
 .ife-site {
-  --ife-azul: #0042AA;
-  --ife-azul-2: #1A55B3;
-  --ife-ouro: #E5A13C;
-  --ife-creme: #F7F3EA;
-  --ife-tinta: #16233f;
-  --ife-tinta-2: #51607d;
+  --ife-azul: var(--escura);
+  --ife-azul-2: color-mix(in srgb, var(--escura) 84%, white);
+  --ife-ouro: var(--primary);
+  --ife-creme: var(--escura-contraste);
+  --ife-tinta: color-mix(in srgb, var(--escura) 34%, #10192c);
+  --ife-tinta-2: color-mix(in srgb, var(--escura) 34%, #5a6880);
 }
 .ife-site.ac-tela {
   /* Formulário longo: alinha ao topo (o padrão "center" corta o topo de cartões
      mais altos que a tela) e rola normalmente. */
   align-items: flex-start;
   background:
-    radial-gradient(120% 80% at 50% 0%, rgba(229, 161, 60, .16), rgba(0, 0, 0, 0) 62%),
-    linear-gradient(160deg, #0042AA 0%, #1A55B3 100%);
+    radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--primary) 18%, transparent), rgba(0, 0, 0, 0) 62%),
+    linear-gradient(160deg, var(--ife-azul) 0%, var(--ife-azul-2) 100%);
   padding: 40px 18px;
 }
 .ife-site .ac-cartao {
   max-width: 480px;
-  background: #FCFAF4;
-  border: 1px solid rgba(0, 66, 170, .10);
+  background: color-mix(in srgb, var(--papel) 55%, white);
+  border: 1px solid color-mix(in srgb, var(--escura) 10%, transparent);
   border-radius: 22px;
-  box-shadow: 0 34px 80px -34px rgba(0, 26, 80, .55);
+  box-shadow: 0 34px 80px -34px color-mix(in srgb, var(--escura) 70%, black);
 }
 .ife-site .ac-selo {
   background: linear-gradient(160deg, var(--ife-azul), var(--ife-azul-2));
   color: var(--ife-creme);
-  border: 2px solid rgba(229, 161, 60, .55);
-  box-shadow: 0 10px 24px -10px rgba(0, 66, 170, .7);
+  border: 2px solid color-mix(in srgb, var(--primary) 55%, transparent);
+  box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--escura) 70%, transparent);
 }
 .ife-site .ac-eyebrow {
   font-family: 'Manrope', system-ui, sans-serif;
@@ -938,30 +1028,30 @@ details summary:hover { color: var(--primary); }
 .ife-site .campo input,
 .ife-site .campo select {
   background: #fff; color: var(--ife-tinta);
-  border: 1px solid rgba(0, 66, 170, .18);
+  border: 1px solid color-mix(in srgb, var(--escura) 18%, transparent);
   font-family: 'Manrope', system-ui, sans-serif;
 }
 .ife-site .campo input:focus,
 .ife-site .campo select:focus {
   border-color: var(--ife-azul);
-  box-shadow: 0 0 0 3px rgba(0, 66, 170, .14);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--escura) 14%, transparent);
 }
-.ife-site .campo input::placeholder { color: #9aa6bd; }
+.ife-site .campo input::placeholder { color: color-mix(in srgb, var(--escura) 26%, #9aa6bd); }
 .ife-site .ac-lgpd {
-  background: rgba(0, 66, 170, .05);
-  border: 1px solid rgba(0, 66, 170, .12);
+  background: color-mix(in srgb, var(--escura) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--escura) 12%, transparent);
   color: var(--ife-tinta-2);
 }
 .ife-site .ac-btn-enviar {
   background: linear-gradient(160deg, var(--ife-azul), var(--ife-azul-2));
   color: var(--ife-creme); border: none;
   font-family: 'Manrope', system-ui, sans-serif; font-weight: 700;
-  box-shadow: 0 14px 30px -14px rgba(0, 66, 170, .85);
+  box-shadow: 0 14px 30px -14px color-mix(in srgb, var(--escura) 85%, transparent);
 }
 .ife-site .ac-btn-enviar:hover { filter: brightness(1.07); }
 .ife-site .ac-cartao-lg { max-width: 560px; }
 /* Seções da tela de acolhimento — respiro e título por bloco */
-.ife-site .ac-secao { padding: 18px 0; border-top: 1px solid rgba(0, 66, 170, .10); }
+.ife-site .ac-secao { padding: 18px 0; border-top: 1px solid color-mix(in srgb, var(--escura) 10%, transparent); }
 .ife-site .ac-secao:first-of-type { border-top: none; padding-top: 6px; }
 .ife-site .ac-secao .campo { margin-bottom: 12px; }
 .ife-site .ac-secao .campo:last-child { margin-bottom: 0; }
@@ -974,15 +1064,15 @@ details summary:hover { color: var(--primary); }
 .ife-site .ac-opcao {
   font-family: 'Manrope', system-ui, sans-serif; font-size: 13.5px; font-weight: 600;
   color: var(--ife-tinta); background: #fff; cursor: pointer;
-  border: 1px solid rgba(0, 66, 170, .22); border-radius: 999px; padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--escura) 22%, transparent); border-radius: 999px; padding: 8px 14px;
 }
 .ife-site .ac-opcao:hover { border-color: var(--ife-azul); }
 .ife-site .ac-opcao.sel { background: var(--ife-azul); color: var(--ife-creme); border-color: var(--ife-azul); }
 .ife-site .campo textarea {
-  background: #fff; color: var(--ife-tinta); border: 1px solid rgba(0, 66, 170, .18);
+  background: #fff; color: var(--ife-tinta); border: 1px solid color-mix(in srgb, var(--escura) 18%, transparent);
   font-family: 'Manrope', system-ui, sans-serif;
 }
-.ife-site .campo textarea:focus { border-color: var(--ife-azul); box-shadow: 0 0 0 3px rgba(0, 66, 170, .14); }
+.ife-site .campo textarea:focus { border-color: var(--ife-azul); box-shadow: 0 0 0 3px color-mix(in srgb, var(--escura) 14%, transparent); }
 .ife-site .ac-fim {
   text-align: center; font-family: 'Manrope', system-ui, sans-serif;
   color: var(--ife-tinta-2); font-size: 13px; margin: 14px 0 0;

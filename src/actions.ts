@@ -1,7 +1,7 @@
 // Operações de negócio — fluxo principal (seção 7) e exceções (seção 8)
-import type { AppState, HorarioContato, Interacao, Origem, Papel, SituacaoCivil, Status, StatusAcesso, Usuario, Visitante } from './types'
-import { PAPEL_LABEL } from './types'
-import { aplicarTransicao } from './machine'
+import type { AppState, HorarioContato, Interacao, Origem, Papel, SituacaoBatismo, SituacaoCivil, Status, StatusAcesso, Usuario, Visitante } from './types'
+import { rotuloPapel, SITUACAO_BATISMO_LABEL } from './types'
+import { aplicarTransicao, mesesDesde } from './machine'
 import { comExclusoes, consolidadoresAtivos, getEstado, interacoesDe, primeiraGestaoIntegracao, setEstado, uid } from './store'
 import { registrarAuditoria } from './auditoria'
 import { getUsuarioAtualId, usuarioAtual } from './acesso'
@@ -26,6 +26,7 @@ export interface NovoVisitanteInput {
   desejaContato?: boolean
   melhorHorarioContato?: HorarioContato
   pedidoOracao?: string
+  situacaoBatismo?: SituacaoBatismo
   flagMenorIdade: boolean
   flagOutraCidade: boolean
   observacoes?: string
@@ -161,6 +162,7 @@ export function cadastrarVisitante(input: NovoVisitanteInput): ResultadoTriagem 
     desejaContato: input.desejaContato,
     melhorHorarioContato: input.melhorHorarioContato,
     pedidoOracao: input.pedidoOracao?.trim() || undefined,
+    situacaoBatismo: input.situacaoBatismo,
     flagMenorIdade: input.flagMenorIdade,
     flagOutraCidade: input.flagOutraCidade,
     flagCuidado: false,
@@ -342,8 +344,9 @@ export function desfazerUltimaMudanca(visitanteId: string) {
         ...v,
         status: hist[hist.length - 1].para,
         transferenciaConfirmada: desfeita.para === 'transferido' ? false : v.transferenciaConfirmada,
-        // desfazer uma integração também limpa a data de batismo/membresia
-        dataBatismoMembresia: desfeita.para === 'integrado' ? undefined : v.dataBatismoMembresia,
+        // Desfazer a conclusão limpa a data de membresia. O batismo NÃO é tocado:
+        // é um fato da pessoa, independente da etapa em que ela está no funil.
+        dataMembresia: desfeita.para === 'integrado' ? undefined : v.dataMembresia,
         historicoStatus: [
           ...hist,
           // registra a correção sem apagar a trilha de auditoria
@@ -369,7 +372,9 @@ export function corrigirStatus(visitanteId: string, para: Status, motivo: string
       return {
         ...v,
         status: para,
-        transferenciaConfirmada: para === 'transferido' ? true : para === 'integrado' ? v.transferenciaConfirmada : false,
+        transferenciaConfirmada: para === 'transferido' ? true
+          : para === 'batismo' || para === 'integrado' ? v.transferenciaConfirmada
+            : false,
         historicoStatus: [
           ...v.historicoStatus,
           { de: v.status, para, data: agora, motivo: `✏️ Correção manual: ${motivo || 'sem motivo informado'}`, automatica: false },
@@ -427,12 +432,19 @@ export function proximaAcao(s: AppState, v: Visitante): AcaoSugerida {
       return { titulo: 'Cobrar confirmação do líder', detalhe: 'A transferência só se conclui quando o líder confirma que assumiu.' }
     case 'transferido':
       return { titulo: 'Acompanhar com o líder', detalhe: 'Consolidação em suporte até a integração se confirmar.' }
+    case 'batismo':
+      // Dentro da etapa há dois momentos bem diferentes: antes e depois do
+      // batismo acontecer. Mandar "acompanhar até o batismo" para quem já foi
+      // batizado faz o time perder tempo com o passo errado.
+      return v.situacaoBatismo === 'batizado_aqui' || v.situacaoBatismo === 'ja_batizado'
+        ? { titulo: 'Receber como membro', detalhe: 'Já foi batizado(a) — falta a recepção como membro para concluir a jornada.' }
+        : { titulo: 'Acompanhar até o batismo', detalhe: 'Encaminhada ao batismo — depois dele, receber como membro.' }
     case 'em_espera':
       return { titulo: 'Enviar informativo da celebração', detalhe: 'Acompanhamento leve. Reabrir contato pessoal quando sinalizar presença.', gatilhoTemplate: 'sabado_celebracao' }
     case 'recusou':
       return { titulo: 'Não contatar', detalhe: 'Respeitar é não ser invasivo. A porta segue aberta se a pessoa retornar.' }
     case 'integrado':
-      return { titulo: 'Jornada concluída 🎉', detalhe: 'Pessoa integrada à vida da igreja.' }
+      return { titulo: 'Jornada concluída 🎉', detalhe: 'Recebida como membro e integrada à vida da igreja.' }
     case 'encerrado':
       return { titulo: 'Sem ação', detalhe: 'Cadastro encerrado na triagem.' }
   }
@@ -628,7 +640,7 @@ export function aprovarIntegrante(usuarioId: string, aprovadorId?: string, papei
   const ajustou = papeis && alvo && JSON.stringify([...papeis].sort()) !== JSON.stringify([...alvo.papeis].sort())
   registrarAuditoria('🔓 Aprovou acesso de integrante', {
     alvoTipo: 'usuario', alvoId: usuarioId, alvoNome: nome,
-    detalhe: ajustou ? `Funções ajustadas para: ${papeis.map((p) => PAPEL_LABEL[p]).join(', ')}` : undefined,
+    detalhe: ajustou ? `Funções ajustadas para: ${papeis.map((p) => rotuloPapel(p)).join(', ')}` : undefined,
   })
 }
 
@@ -648,17 +660,123 @@ export function rejeitarIntegrante(usuarioId: string, rejeitadorId: string | und
   })
 }
 
-// Fase 4 — Integração: batismo/membresia conclui a jornada
-export function marcarIntegracao(visitanteId: string, dataBatismo: string) {
+// ---- Fase 4 — Batismo (opcional) e Membro (o que conclui a jornada) ----
+//
+// Depois que o líder assume, há dois caminhos, decididos pela situação de
+// batismo da pessoa:
+//
+//   Transferido → Batismo → Membro    (quem ainda NÃO é batizado)
+//   Transferido → Membro              (quem JÁ chegou batizado)
+//
+// O batismo é etapa de quem precisa dele; quem já é batizado não repete. Em
+// qualquer um dos caminhos, é virar MEMBRO que fecha a jornada.
+
+// Encaminhou para o batismo (etapa só de quem ainda não é batizado).
+export function encaminharParaBatismo(visitanteId: string) {
+  const nome = getEstado().visitantes.find((v) => v.id === visitanteId)?.nome ?? '?'
+  setEstado((s) => ({
+    ...s,
+    visitantes: s.visitantes.map((v) =>
+      v.id === visitanteId && v.status === 'transferido'
+        ? aplicarTransicao(v, 'batismo', 'Encaminhado(a) para o batismo')
+        : v,
+    ),
+  }))
+  registrarAuditoria('💧 Encaminhou para o batismo', { alvoTipo: 'visitante', alvoId: visitanteId, alvoNome: nome })
+}
+
+// O batismo aconteceu: grava a data e marca que foi batizado AQUI. Não conclui
+// a jornada — a pessoa segue na etapa até ser recebida como membro.
+export function registrarBatismoRealizado(visitanteId: string, dataBatismo: string) {
+  const nome = getEstado().visitantes.find((v) => v.id === visitanteId)?.nome ?? '?'
+  setEstado((s) => ({
+    ...s,
+    visitantes: s.visitantes.map((v) =>
+      v.id === visitanteId
+        ? { ...v, situacaoBatismo: 'batizado_aqui', dataBatismo, atualizadoEm: new Date().toISOString() }
+        : v,
+    ),
+  }))
+  registrarAuditoria('💧 Registrou o batismo', {
+    alvoTipo: 'visitante', alvoId: visitanteId, alvoNome: nome, detalhe: `Batizado(a) em ${dataBatismo}`,
+  })
+}
+
+// Prontidão para virar membro — os requisitos que a liderança do grupo confere
+// antes de concluir a jornada (tempo de casa no grupo + presença). É só leitura:
+// a frequência mínima é uma confirmação do líder (o sistema não registra
+// presença encontro a encontro), enquanto o tempo é calculado da data de início.
+export interface ProntidaoMembro {
+  regraAtiva: boolean // há alguma exigência configurada?
+  exigeTempo: boolean
+  mesesMinimos: number
+  temDataInicio: boolean
+  meses: number | null // meses no grupo (null se a data de início não foi preenchida)
+  tempoOk: boolean
+  exigeFrequencia: boolean
+  frequenciaMinima: number
+}
+
+export function prontidaoMembro(s: AppState, v: Visitante): ProntidaoMembro {
+  const mesesMinimos = Math.max(0, s.config.mesesMinimosConexao ?? 0)
+  const frequenciaMinima = Math.max(0, s.config.frequenciaMinimaConexao ?? 0)
+  const exigeTempo = mesesMinimos > 0
+  const exigeFrequencia = frequenciaMinima > 0
+  const temDataInicio = !!v.dataInicioConexao
+  const meses = temDataInicio ? mesesDesde(v.dataInicioConexao!) : null
+  const tempoOk = !exigeTempo || (meses !== null && meses >= mesesMinimos)
+  return {
+    regraAtiva: exigeTempo || exigeFrequencia,
+    exigeTempo, mesesMinimos, temDataInicio, meses, tempoOk,
+    exigeFrequencia, frequenciaMinima,
+  }
+}
+
+// Recebida como membro — conclui a jornada (status "integrado"). `obs` guarda no
+// histórico o que a liderança confirmou na hora (frequência, exceção ao tempo).
+export function marcarMembresia(visitanteId: string, dataMembresia: string, obs?: string) {
+  const nome = getEstado().visitantes.find((v) => v.id === visitanteId)?.nome ?? '?'
   setEstado((s) => ({
     ...s,
     visitantes: s.visitantes.map((v) => {
       if (v.id !== visitanteId) return v
-      let novo = v
-      if (v.status === 'transferido') {
-        novo = aplicarTransicao(v, 'integrado', 'Batismo / recepção como membro')
-      }
-      return { ...novo, dataBatismoMembresia: dataBatismo, atualizadoEm: new Date().toISOString() }
+      // Aceita vir do batismo OU direto do líder (quem já chegou batizado).
+      const novo = v.status === 'transferido' || v.status === 'batismo'
+        ? aplicarTransicao(v, 'integrado', 'Recebido(a) como membro')
+        : v
+      return { ...novo, dataMembresia, atualizadoEm: new Date().toISOString() }
     }),
   }))
+  registrarAuditoria('🎉 Recebido(a) como membro', {
+    alvoTipo: 'visitante', alvoId: visitanteId, alvoNome: nome,
+    detalhe: `Membro desde ${dataMembresia}${obs ? ` · ${obs}` : ''}`,
+  })
+}
+
+// Situação de batismo — atributo da pessoa, registrável em QUALQUER etapa e
+// independente do funil. Não altera o status.
+export function registrarBatismo(
+  visitanteId: string,
+  situacao: SituacaoBatismo | undefined,
+  dataBatismo?: string,
+) {
+  const nome = getEstado().visitantes.find((v) => v.id === visitanteId)?.nome ?? '?'
+  setEstado((s) => ({
+    ...s,
+    visitantes: s.visitantes.map((v) =>
+      v.id === visitanteId
+        ? {
+          ...v,
+          situacaoBatismo: situacao,
+          // Sem batismo não há data de batismo a guardar.
+          dataBatismo: situacao && situacao !== 'nao_batizado' ? dataBatismo || undefined : undefined,
+          atualizadoEm: new Date().toISOString(),
+        }
+        : v,
+    ),
+  }))
+  registrarAuditoria('💧 Atualizou a situação de batismo', {
+    alvoTipo: 'visitante', alvoId: visitanteId, alvoNome: nome,
+    detalhe: situacao ? SITUACAO_BATISMO_LABEL[situacao] : 'Não informada',
+  })
 }

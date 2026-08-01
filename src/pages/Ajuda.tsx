@@ -31,16 +31,18 @@ function secoes(termoGrupo: string): Secao[] {
       ],
     },
     {
-      id: 'jornada', icone: '🗺️', titulo: 'A jornada do visitante', resumo: 'Os 6 passos, do "chegou" ao "integrado".',
+      id: 'jornada', icone: '🗺️', titulo: 'A jornada do visitante', resumo: 'Os 7 passos, do "chegou" ao "virou membro".',
       blocos: [
         { passos: [
           'Cadastro realizado — a pessoa chega pelo culto (você cadastra) ou pelo QR code (ela mesma preenche).',
           `Primeira semana de contatos — mensagens de segunda (acolhida), quarta (convite ao grupo) e sábado (celebração). O texto já vem pronto.`,
-          `Entrega ao líder do ${termoGrupo} — quando a pessoa aceita visitar, o líder fala com ela ANTES da visita.`,
+          `Encaminhado ao líder de ${termoGrupo} — quando a pessoa aceita visitar, o líder fala com ela ANTES da visita.`,
           `Visita ao ${termoGrupo} — a pessoa participa de um encontro pela primeira vez.`,
           'Líder assume o acompanhamento — depois da visita, o líder confirma que assumiu. A consolidação fica de apoio.',
-          'Integrado — frequência firme + batismo ou recepção como membro concluem a jornada.',
+          'Batismo — etapa de quem ainda não é batizado. Quem já chegou batizado pula este passo.',
+          'Membro 🎉 — ser recebido(a) como membro da igreja conclui a jornada.',
         ] },
+        { nota: { tipo: 'info', texto: 'O batismo é um passo opcional: nem todo visitante precisa dele, porque muitos já chegam batizados de outra igreja — e ninguém se batiza duas vezes. Por isso, quem já é batizado vai direto de "Líder assume" para "Membro". O que fecha a jornada, nos dois caminhos, é virar membro.' } },
         { nota: { tipo: 'info', texto: 'Você não precisa decorar isso: ao registrar cada contato, o sistema move a pessoa para o passo certo sozinho. A ficha sempre mostra onde ela está.' } },
         { nota: { tipo: 'warn', texto: 'Marcou etapa errada? Na ficha, no fim do "Passo a passo da jornada", use "↩ Voltar para a etapa anterior". Para trocar por qualquer outra, use a aba Acompanhamento → "Marcou errado?".' } },
       ],

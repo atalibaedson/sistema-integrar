@@ -1,33 +1,11 @@
 import { useState } from 'react'
 import { cadastrarVisitante } from '../actions'
 import { useAppState } from '../store'
+import { Escolha, SIM_NAO } from '../campos'
 import {
-  HORARIO_CONTATO_LABEL, OPCOES_DESEJA_CONEXAO, SITUACAO_CIVIL_LABEL,
-  type HorarioContato, type SituacaoCivil,
+  HORARIO_CONTATO_LABEL, OPCOES_DESEJA_CONEXAO, SITUACAO_BATISMO_CURTO, SITUACAO_CIVIL_LABEL,
+  type HorarioContato, type SituacaoBatismo, type SituacaoCivil,
 } from '../types'
-
-// Grupo de opções em "pílulas" — usado para Sim/Não e listas curtas de escolha.
-function Escolha({ valor, opcoes, onEscolher }: {
-  valor: string
-  opcoes: { v: string; rotulo: string }[]
-  onEscolher: (v: string) => void
-}) {
-  return (
-    <div className="ac-opcoes">
-      {opcoes.map((o) => (
-        <button
-          type="button" key={o.v}
-          className={`ac-opcao ${valor === o.v ? 'sel' : ''}`}
-          onClick={() => onEscolher(valor === o.v ? '' : o.v)}
-        >
-          {o.rotulo}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-const SIM_NAO = [{ v: 'sim', rotulo: 'Sim' }, { v: 'nao', rotulo: 'Não' }]
 
 // Formulário público de acolhimento (QR code) — sem menu, em seções claras,
 // no padrão do formulário da igreja.
@@ -43,6 +21,7 @@ export default function Autocadastro() {
   const [primeiraVez, setPrimeiraVez] = useState('')
   const [membroOutra, setMembroOutra] = useState('')
   const [comoConheceu, setComoConheceu] = useState('')
+  const [batismo, setBatismo] = useState('')
   const [desejaConexao, setDesejaConexao] = useState('')
   const [desejaContato, setDesejaContato] = useState('')
   const [horario, setHorario] = useState('')
@@ -74,6 +53,7 @@ export default function Autocadastro() {
       cidade: cidade || undefined,
       primeiraVez: primeiraVez ? primeiraVez === 'sim' : undefined,
       membroOutraIgreja: membroOutra ? membroOutra === 'sim' : undefined,
+      situacaoBatismo: (batismo || undefined) as SituacaoBatismo | undefined,
       comoConheceu: comoConheceu || undefined,
       desejaConexao: desejaConexao || undefined,
       desejaContato: desejaContato ? desejaContato === 'sim' : undefined,
@@ -159,6 +139,18 @@ export default function Autocadastro() {
             <div className="campo"><span>Atualmente é membro de outra igreja?</span>
               <Escolha valor={membroOutra} opcoes={SIM_NAO} onEscolher={setMembroOutra} />
             </div>
+            {s.config.autocadastroPerguntarBatismo && (
+              <div className="campo"><span>Você já é batizado(a)? <em className="campo-dica">(opcional)</em></span>
+                <Escolha
+                  valor={batismo}
+                  opcoes={[
+                    { v: 'ja_batizado', rotulo: SITUACAO_BATISMO_CURTO.ja_batizado },
+                    { v: 'nao_batizado', rotulo: SITUACAO_BATISMO_CURTO.nao_batizado },
+                  ]}
+                  onEscolher={setBatismo}
+                />
+              </div>
+            )}
             <label className="campo"><span>Como você conheceu a {s.config.nomeIgreja}?</span>
               <select value={comoConheceu} onChange={(e) => setComoConheceu(e.target.value)}>
                 <option value="">— selecionar —</option>

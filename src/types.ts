@@ -7,6 +7,7 @@ export type Status =
   | 'encaminhado_lider'
   | 'visitou'
   | 'transferido'
+  | 'batismo'
   | 'integrado'
   | 'em_espera'
   | 'recusou'
@@ -17,6 +18,25 @@ export type Origem = 'culto' | 'qr_code'
 export type SituacaoCivil = 'solteiro' | 'casado' | 'divorciado' | 'viuvo' | 'outro'
 
 export type HorarioContato = 'manha' | 'tarde' | 'noite'
+
+// Situação de batismo — atributo da PESSOA, paralelo ao funil (não é etapa dele).
+// Nem todo visitante precisa ser batizado: muitos já chegam batizados. Saber isso
+// cedo evita convidar para o batismo quem já é batizado — e separa, no relatório,
+// "quantos batizamos aqui" de "quantos chegaram batizados".
+export type SituacaoBatismo = 'nao_batizado' | 'ja_batizado' | 'batizado_aqui'
+
+export const SITUACAO_BATISMO_LABEL: Record<SituacaoBatismo, string> = {
+  nao_batizado: 'Ainda não é batizado(a)',
+  ja_batizado: 'Já era batizado(a) quando chegou',
+  batizado_aqui: 'Batizado(a) aqui na igreja',
+}
+
+// Versão curta, para pílulas de escolha em formulários públicos
+export const SITUACAO_BATISMO_CURTO: Record<SituacaoBatismo, string> = {
+  nao_batizado: 'Ainda não',
+  ja_batizado: 'Sim, já sou batizado(a)',
+  batizado_aqui: 'Fui batizado(a) aqui',
+}
 
 // Opções da pergunta "quer fazer parte de uma Conexão?" (formulário de acolhimento)
 export const OPCOES_DESEJA_CONEXAO = [
@@ -54,8 +74,21 @@ export interface ConfigIgreja {
   nomeIgreja: string
   subtitulo: string
   termoGrupo: string // como a igreja chama o grupo pequeno: Conexão, Célula, PG…
-  corPrimaria: string
+
+  // ---- Paleta (mesmo vocabulário da área de configuração do site da igreja) ----
+  // Os tons derivados (mais claros/escuros) são calculados sozinhos no CSS.
+  corPrimaria: string // destaques, botões
+  corFundo: string // "papel" — fundo das telas
+  corEscura: string // fundos escuros, títulos, rodapé
+
   prazoEsperaDias: number // silêncio até mover para "Em espera" (padrão 14)
+
+  // Requisitos para receber como membro — a liderança do grupo confirma, antes
+  // de concluir a jornada, que a pessoa já frequenta há tempo suficiente e com
+  // boa presença. 0 em qualquer um deles desliga aquela exigência.
+  mesesMinimosConexao: number // tempo mínimo frequentando o grupo (padrão 3)
+  frequenciaMinimaConexao: number // % de presença esperada nesse período (padrão 80)
+
   cultos: string[] // rótulos dos cultos — mantido em sincronia com cultosDef (compatibilidade)
   cultosDef: CultoDef[] // cadastro estruturado dos cultos (aba ⛪ Cultos)
   comoConheceuOpcoes: string[] // opções de "como conheceu a igreja"
@@ -66,6 +99,18 @@ export interface ConfigIgreja {
   autocadastroMensagemFinal: string // mensagem exibida após o envio
   autocadastroMostrarBairro: boolean
   autocadastroMostrarSituacaoCivil: boolean
+  autocadastroPerguntarBatismo: boolean
+
+  // Nomes das etapas e das funções, do jeito que ESTA igreja fala.
+  // Só guarda o que foi personalizado — o que ficar de fora usa o padrão.
+  rotulosStatus?: Partial<Record<Status, string>>
+  rotulosPapel?: Partial<Record<Papel, string>>
+
+  // Datas marcadas no calendário da igreja (yyyy-mm-dd). O batismo e a recepção
+  // de membros não acontecem em qualquer dia: são eventos com data marcada. A
+  // equipe escolhe numa lista em vez de digitar — menos erro de digitação.
+  datasBatismo: string[]
+  datasMembresia: string[]
 }
 
 export interface MudancaStatus {
@@ -91,6 +136,7 @@ export interface Visitante {
   responsavelId?: string // Consolidador dono do acompanhamento
   liderConexaoId?: string
   conexaoId?: string
+  dataInicioConexao?: string // yyyy-mm-dd — quando começou a frequentar o grupo (preenchido pelo líder)
   situacaoCivil?: SituacaoCivil
   dataNascimento?: string // yyyy-mm-dd
   endereco?: string // rua / logradouro (opcional)
@@ -109,6 +155,16 @@ export interface Visitante {
   transferenciaConfirmada: boolean // líder confirmou que assumiu (regra 9)
   consentimentoLgpd: boolean // autorizou o uso dos dados para o acompanhamento
   consentimentoLgpdData?: string // ISO — quando o consentimento foi dado
+
+  // ---- Batismo (atributo da pessoa) × Membresia (marco que fecha a jornada) ----
+  // São eventos diferentes e independentes: a pessoa pode virar membro já sendo
+  // batizada, e pode ser batizada muito antes de concluir a membresia.
+  situacaoBatismo?: SituacaoBatismo
+  dataBatismo?: string // yyyy-mm-dd — quando foi batizada (se souber)
+  dataMembresia?: string // yyyy-mm-dd — recepção como membro; é o que conclui a jornada
+  /** @deprecated Campo antigo que misturava batismo e membresia numa data só.
+   *  Migrado para `dataMembresia` em store.ts — mantido apenas para a leitura
+   *  dos estados salvos antes dessa separação. Não usar em código novo. */
   dataBatismoMembresia?: string
   observacoes?: string
   historicoStatus: MudancaStatus[]
@@ -259,7 +315,8 @@ export const STATUS_LABEL: Record<Status, string> = {
   encaminhado_lider: 'Encaminhado ao líder',
   visitou: 'Visitou',
   transferido: 'Transferido',
-  integrado: 'Integrado',
+  batismo: 'Batismo',
+  integrado: 'Membro',
   em_espera: 'Em espera',
   recusou: 'Recusou',
   encerrado: 'Encerrado / Inválido',
@@ -272,10 +329,54 @@ export const STATUS_COR: Record<Status, string> = {
   encaminhado_lider: '#8b5cf6',
   visitou: '#14b8a6',
   transferido: '#10b981',
+  batismo: '#84cc16',
   integrado: '#22c55e',
   em_espera: '#94a3b8',
   recusou: '#ef4444',
   encerrado: '#64748b',
+}
+
+// ---- Rótulos configuráveis (Configurações → Nomes das etapas) ----
+//
+// Cada igreja fala do próprio jeito: o que aqui é "Conexão" lá é "Célula", e o
+// que é "Integrador" pode ser "Consolidador". Os nomes ficam guardados aqui, em
+// módulo, e não passados de tela em tela, porque são usados em componentes bem
+// fundos onde carregar a config inteira só para exibir um rótulo não se paga.
+// App.tsx mantém estes valores em dia a partir das Configurações.
+let termoGrupoAtual = 'Conexão'
+let rotulosStatusAtuais: Partial<Record<Status, string>> = {}
+let rotulosPapelAtuais: Partial<Record<Papel, string>> = {}
+
+export function aplicarRotulos(cfg: {
+  termoGrupo: string
+  rotulosStatus?: Partial<Record<Status, string>>
+  rotulosPapel?: Partial<Record<Papel, string>>
+}): void {
+  termoGrupoAtual = cfg.termoGrupo.trim() || 'Conexão'
+  rotulosStatusAtuais = cfg.rotulosStatus ?? {}
+  rotulosPapelAtuais = cfg.rotulosPapel ?? {}
+}
+
+/**
+ * Rótulo do status para exibição. Use SEMPRE esta função nas telas, no lugar de
+ * STATUS_LABEL: só ela aplica o nome personalizado da igreja e o termo do grupo.
+ */
+export function rotuloStatus(st: Status): string {
+  const personalizado = rotulosStatusAtuais[st]?.trim()
+  if (personalizado) return personalizado
+  if (st === 'encaminhado_lider') return `Encaminhado ao líder de ${termoGrupoAtual}`
+  return STATUS_LABEL[st]
+}
+
+/** Idem para as funções da equipe. Use no lugar de PAPEL_LABEL nas telas. */
+export function rotuloPapel(p: Papel): string {
+  return rotulosPapelAtuais[p]?.trim() || PAPEL_LABEL[p]
+}
+
+/** O rótulo padrão de fábrica — mostrado como placeholder na configuração. */
+export function rotuloStatusPadrao(st: Status): string {
+  if (st === 'encaminhado_lider') return `Encaminhado ao líder de ${termoGrupoAtual}`
+  return STATUS_LABEL[st]
 }
 
 // Badge "suave" (fundo claro + texto colorido), padrão visual dos sistemas iFE

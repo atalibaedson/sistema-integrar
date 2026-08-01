@@ -17,8 +17,12 @@ export const CONFIG_PADRAO: ConfigIgreja = {
   nomeIgreja: 'Igreja Família Extraordinária',
   subtitulo: 'Consolidação de visitantes',
   termoGrupo: 'Conexão',
-  corPrimaria: '#4f46e5',
+  corPrimaria: '#E5A13C',
+  corFundo: '#FAF7F1',
+  corEscura: '#0042AA',
   prazoEsperaDias: 14,
+  mesesMinimosConexao: 3,
+  frequenciaMinimaConexao: 80,
   cultos: ['Domingo — manhã', 'Domingo — tarde', 'Domingo — noite', 'Quarta — noite'],
   cultosDef: [
     { nome: 'Domingo — manhã', diaSemana: 0 },
@@ -42,6 +46,11 @@ export const CONFIG_PADRAO: ConfigIgreja = {
   autocadastroMensagemFinal: 'Recebemos seus dados. Em breve alguém da nossa equipe vai falar com você pelo WhatsApp. Essa casa também é sua!',
   autocadastroMostrarBairro: true,
   autocadastroMostrarSituacaoCivil: true,
+  autocadastroPerguntarBatismo: true,
+  rotulosStatus: {},
+  rotulosPapel: {},
+  datasBatismo: [],
+  datasMembresia: [],
 }
 
 // Gatilhos usados pelos botões do fluxo — estes templates não podem ser excluídos
@@ -146,6 +155,15 @@ function migrar(raw: any): AppState {
   // v3 → v4: trilha de auditoria
   base.auditoria = base.auditoria ?? []
 
+  // Blindagem: garante que as coleções existam antes de qualquer tela usá-las.
+  // Sem isto, um estado antigo (ou um payload da nuvem anterior a um destes
+  // campos) sem `interacoes`/`conexoes` derruba a ficha do visitante no primeiro
+  // `.filter`. Barato e evita tela branca.
+  base.visitantes = base.visitantes ?? []
+  base.interacoes = base.interacoes ?? []
+  base.conexoes = base.conexoes ?? []
+  base.usuarios = base.usuarios ?? []
+
   // v4 → v5: mensagens ganham etapa do fluxo (fixas herdam do gatilho; extras viram "geral")
   base.templates = (base.templates as Template[]).map((t) => ({
     ...t,
@@ -185,6 +203,30 @@ function migrar(raw: any): AppState {
       statusAcesso: u.statusAcesso ?? 'sem_login',
     }
   })
+
+  // v8 → v9: batismo e membresia deixam de ser a mesma coisa.
+  // O campo antigo `dataBatismoMembresia` guardava a data que CONCLUÍA a jornada,
+  // sem dizer se tinha sido um batismo ou uma recepção como membro. Como o que
+  // fecha a jornada é a membresia, ela vira `dataMembresia`; a situação de
+  // batismo fica em branco (desconhecida) para a equipe preencher quando souber.
+  base.visitantes = (base.visitantes ?? []).map((v: any) => {
+    if (!v.dataBatismoMembresia || v.dataMembresia) return v
+    const { dataBatismoMembresia, ...resto } = v
+    return { ...resto, dataMembresia: dataBatismoMembresia }
+  })
+
+  // v9 → v10: a etapa entre "transferido" e "membro" passou a ser o BATISMO
+  // (só para quem ainda não é batizado), no lugar da classe de membresia.
+  // Renomeia o status no cadastro e no histórico, para não sobrar etapa órfã.
+  base.visitantes = base.visitantes.map((v: any) => ({
+    ...v,
+    status: v.status === 'em_membresia' ? 'batismo' : v.status,
+    historicoStatus: (v.historicoStatus ?? []).map((h: any) => ({
+      ...h,
+      de: h.de === 'em_membresia' ? 'batismo' : h.de,
+      para: h.para === 'em_membresia' ? 'batismo' : h.para,
+    })),
+  }))
 
   return base as AppState
 }
@@ -496,6 +538,9 @@ export function ultimaRespostaOuCadastro(s: AppState, v: Visitante): string {
 // Etapas em que alguém deveria estar mexendo na ficha
 const STATUS_EM_ANDAMENTO: Status[] = [
   'novo', 'em_contato', 'aguardando_resposta', 'encaminhado_lider', 'visitou', 'transferido',
+  // 'batismo' entra aqui: encaminhar ao batismo e esquecer é o esquecimento mais
+  // fácil de acontecer — a pessoa "já está resolvida" na cabeça de todo mundo.
+  'batismo',
 ]
 
 // Dias desde a última movimentação da FICHA (edição ou contato registrado) —

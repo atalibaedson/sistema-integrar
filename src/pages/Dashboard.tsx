@@ -1,6 +1,6 @@
 import { semAtualizacao, useAppState, ultimaRespostaOuCadastro } from '../store'
 import { diasDesde } from '../machine'
-import { estiloStatus, STATUS_COR, STATUS_LABEL, type Status } from '../types'
+import { estiloStatus, rotuloStatus, STATUS_COR, type Status } from '../types'
 import { aplicarTemplate, linkWhatsApp, proximaAcao } from '../actions'
 import { navegar } from '../router'
 import { podeVerCuidado, useUsuarioAtualId, usuarioAtual, visitantesVisiveis } from '../acesso'
@@ -10,7 +10,7 @@ import { IcoUsuarios, IcoWhats, IcoUserCheck, IcoJornada } from '../icones'
 // Ordem de exibição da barra empilhada de status (do início do fluxo ao fim)
 const ORDEM_STATUS: Status[] = [
   'novo', 'em_contato', 'aguardando_resposta', 'encaminhado_lider', 'visitou',
-  'transferido', 'integrado', 'em_espera', 'recusou', 'encerrado',
+  'transferido', 'batismo', 'integrado', 'em_espera', 'recusou', 'encerrado',
 ]
 
 // Por onde os visitantes chegam: termômetro dos canais de divulgação
@@ -71,7 +71,7 @@ export default function Dashboard() {
   // Alertas (seção 13) — cuidado respeita a restrição extra do pastor/responsável
   const cuidado = vs.filter((v) => v.flagCuidado && podeVerCuidado(s, eu, v))
   const semResponsavel = vs.filter(
-    (v) => !v.responsavelId && !['encerrado', 'recusou', 'integrado', 'transferido'].includes(v.status),
+    (v) => !v.responsavelId && !['encerrado', 'recusou', 'integrado', 'batismo', 'transferido'].includes(v.status),
   )
   const transferenciaPendente = vs.filter((v) => v.status === 'visitou' && !v.transferenciaConfirmada)
   const semAtualizar = vs.filter((v) => semAtualizacao(s, v))
@@ -94,7 +94,7 @@ export default function Dashboard() {
     { rotulo: 'Em acompanhamento', valor: emAcompanhamento, cor: '#0ea5e9', icone: <IcoWhats size={15} />, nota: 'na semana de consolidação' },
     { rotulo: 'Com o líder', valor: comLider, cor: '#8b5cf6', icone: <IcoUserCheck size={15} />, nota: 'encaminhados ou visitando' },
     { rotulo: 'Em espera', valor: porStatus('em_espera'), cor: '#94a3b8', icone: <IcoJornada size={15} />, nota: 'silêncio prolongado' },
-    { rotulo: 'Integrados', valor: integrados, cor: '#22c55e', icone: <IcoUserCheck size={15} />, nota: `${taxaIntegracao}% de conversão` },
+    { rotulo: 'Membros', valor: integrados, cor: '#22c55e', icone: <IcoUserCheck size={15} />, nota: `${taxaIntegracao}% de conversão` },
   ]
 
   return (
@@ -155,14 +155,24 @@ export default function Dashboard() {
       {vs.length > 0 && (
         <div className="card">
           <h3>Distribuição por status</h3>
+          {/* A legenda abaixo já mostra rótulo + quantidade. O que falta ali — e é
+              o que o gráfico responde bem — é o PESO de cada fatia: a porcentagem. */}
           <div className="dash-stack">
             {segmentos.map(({ st, n }) => (
-              <div key={st} className="dash-stack-seg" style={{ width: `${(n / totalStack) * 100}%`, background: STATUS_COR[st] }} title={`${STATUS_LABEL[st]}: ${n}`} />
+              <div
+                key={st}
+                className="dash-stack-seg"
+                style={{ width: `${(n / totalStack) * 100}%`, background: STATUS_COR[st] }}
+              >
+                <span className="dash-stack-tip">
+                  {rotuloStatus(st)} · <b>{Math.round((n / totalStack) * 100)}%</b>
+                </span>
+              </div>
             ))}
           </div>
           <div className="dash-stack-legenda">
             {segmentos.map(({ st, n }) => (
-              <span key={st}><i style={{ background: STATUS_COR[st] }} />{STATUS_LABEL[st]} <b>{n}</b></span>
+              <span key={st}><i style={{ background: STATUS_COR[st] }} />{rotuloStatus(st)} <b>{n}</b></span>
             ))}
           </div>
         </div>
@@ -186,7 +196,7 @@ export default function Dashboard() {
                         <td className="clicavel cell-title" onClick={() => navegar(`/visitante/${v.id}`)}>
                           {v.nome}{v.flagCuidado && ' 🚨'}
                         </td>
-                        <td><span className="badge" style={estiloStatus(v.status)}>{STATUS_LABEL[v.status]}</span></td>
+                        <td><span className="badge" style={estiloStatus(v.status)}>{rotuloStatus(v.status)}</span></td>
                         <td style={{ fontSize: 13 }}>{acao.urgente ? <b>{acao.titulo}</b> : acao.titulo}</td>
                         <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                           {template && (

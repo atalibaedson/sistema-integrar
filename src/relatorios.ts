@@ -56,13 +56,35 @@ export interface EtapaFunil {
 }
 
 const DEF_FUNIL: { chave: string; rotulo: string; statuses: Status[]; cor: string }[] = [
-  { chave: 'cadastrados', rotulo: 'Cadastrados', statuses: ['novo', 'em_contato', 'aguardando_resposta', 'em_espera', 'encaminhado_lider', 'visitou', 'transferido', 'integrado', 'recusou'], cor: '#6366f1' },
-  { chave: 'contato', rotulo: 'Fizeram 1º contato', statuses: ['em_contato', 'aguardando_resposta', 'em_espera', 'encaminhado_lider', 'visitou', 'transferido', 'integrado'], cor: '#0ea5e9' },
-  { chave: 'encaminhado', rotulo: 'Encaminhados ao líder', statuses: ['encaminhado_lider', 'visitou', 'transferido', 'integrado'], cor: '#8b5cf6' },
-  { chave: 'visitou', rotulo: 'Visitaram a Conexão', statuses: ['visitou', 'transferido', 'integrado'], cor: '#14b8a6' },
-  { chave: 'transferido', rotulo: 'Transferidos ao líder', statuses: ['transferido', 'integrado'], cor: '#10b981' },
-  { chave: 'integrado', rotulo: 'Integrados', statuses: ['integrado'], cor: '#22c55e' },
+  { chave: 'cadastrados', rotulo: 'Cadastrados', statuses: ['novo', 'em_contato', 'aguardando_resposta', 'em_espera', 'encaminhado_lider', 'visitou', 'transferido', 'batismo', 'integrado', 'recusou'], cor: '#6366f1' },
+  { chave: 'contato', rotulo: 'Fizeram 1º contato', statuses: ['em_contato', 'aguardando_resposta', 'em_espera', 'encaminhado_lider', 'visitou', 'transferido', 'batismo', 'integrado'], cor: '#0ea5e9' },
+  { chave: 'encaminhado', rotulo: 'Encaminhados ao líder', statuses: ['encaminhado_lider', 'visitou', 'transferido', 'batismo', 'integrado'], cor: '#8b5cf6' },
+  { chave: 'visitou', rotulo: 'Visitaram a Conexão', statuses: ['visitou', 'transferido', 'batismo', 'integrado'], cor: '#14b8a6' },
+  { chave: 'transferido', rotulo: 'Transferidos ao líder', statuses: ['transferido', 'batismo', 'integrado'], cor: '#10b981' },
+  // O batismo NÃO entra no funil: é etapa opcional (só de quem não é batizado),
+  // então contá-lo aqui faria a taxa de conversão mentir para quem já chegou
+  // batizado. Ele tem bloco próprio — ver `resumoBatismo`.
+  { chave: 'integrado', rotulo: 'Viraram membros', statuses: ['integrado'], cor: '#22c55e' },
 ]
+
+// ---- Batismo: quantos batizamos AQUI × quantos já chegaram batizados ----
+// Duas coisas que o campo antigo (batismo+membresia numa data só) não separava.
+export interface ResumoBatismo {
+  batizadosAqui: number
+  jaBatizados: number
+  naoBatizados: number // candidatos ao batismo
+  naoInformado: number
+}
+
+export function resumoBatismo(vs: Visitante[]): ResumoBatismo {
+  const conta = (s: Visitante['situacaoBatismo']) => vs.filter((v) => v.situacaoBatismo === s).length
+  return {
+    batizadosAqui: conta('batizado_aqui'),
+    jaBatizados: conta('ja_batizado'),
+    naoBatizados: conta('nao_batizado'),
+    naoInformado: vs.filter((v) => !v.situacaoBatismo).length,
+  }
+}
 
 export function funil(vs: Visitante[]): EtapaFunil[] {
   const topo = vs.length || 1
@@ -117,7 +139,7 @@ export interface LinhaEquipe {
   interacoes: number
 }
 
-const STATUS_ANDAMENTO: Status[] = ['novo', 'em_contato', 'aguardando_resposta', 'encaminhado_lider', 'visitou', 'transferido']
+const STATUS_ANDAMENTO: Status[] = ['novo', 'em_contato', 'aguardando_resposta', 'encaminhado_lider', 'visitou', 'transferido', 'batismo']
 const STATUS_PERDIDO: Status[] = ['recusou', 'encerrado', 'em_espera']
 
 export function desempenhoEquipe(s: AppState, vs: Visitante[], is: Interacao[]): LinhaEquipe[] {
@@ -160,8 +182,8 @@ export function desempenhoConexoes(s: AppState, vs: Visitante[]): LinhaConexao[]
   return s.conexoes
     .map((c) => {
       const daConexao = vs.filter((v) => v.conexaoId === c.id)
-      const encaminhados = daConexao.filter((v) => jaAlcancou(v, ['encaminhado_lider', 'visitou', 'transferido', 'integrado'])).length
-      const visitaram = daConexao.filter((v) => jaAlcancou(v, ['visitou', 'transferido', 'integrado'])).length
+      const encaminhados = daConexao.filter((v) => jaAlcancou(v, ['encaminhado_lider', 'visitou', 'transferido', 'batismo', 'integrado'])).length
+      const visitaram = daConexao.filter((v) => jaAlcancou(v, ['visitou', 'transferido', 'batismo', 'integrado'])).length
       const integrados = daConexao.filter((v) => v.status === 'integrado').length
       const lider = [nomeUsuario(c.liderId), nomeUsuario(c.lider2Id)].filter(Boolean).join(' & ')
       return {

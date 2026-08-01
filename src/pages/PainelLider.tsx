@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { lideres, templatePorGatilho, useAppState } from '../store'
-import { estiloStatus, STATUS_LABEL, type Status, type Visitante } from '../types'
+import { estiloStatus, rotuloStatus, type Status, type Visitante } from '../types'
 import { aplicarTemplate, linkWhatsApp, mudarStatus } from '../actions'
 import { navegar } from '../router'
 import { iniciais } from './Equipe'
@@ -9,17 +9,25 @@ import { IcoBusca, IcoCheck, IcoWhats } from '../icones'
 
 // Filtros por tarefa do líder (mesmo padrão de chips da página Visitantes)
 const GRUPOS: { id: string; rotulo: string; statuses: Status[] }[] = [
-  { id: 'todos', rotulo: 'Todos', statuses: ['encaminhado_lider', 'visitou', 'transferido', 'integrado'] },
+  { id: 'todos', rotulo: 'Todos', statuses: ['encaminhado_lider', 'visitou', 'transferido', 'batismo', 'integrado'] },
   { id: 'antes', rotulo: '🤝 Falar antes da visita', statuses: ['encaminhado_lider'] },
   { id: 'confirmar', rotulo: '⏳ Confirmar que assumiu', statuses: ['visitou'] },
-  { id: 'acompanhando', rotulo: '🌱 Acompanhando', statuses: ['transferido', 'integrado'] },
+  { id: 'acompanhando', rotulo: '🌱 Acompanhando', statuses: ['transferido', 'batismo', 'integrado'] },
 ]
 
-const O_QUE_FAZER: Partial<Record<Status, string>> = {
-  encaminhado_lider: 'Falar com a pessoa ANTES da visita',
-  visitou: 'Confirmar que você assumiu o acompanhamento',
-  transferido: 'Acompanhar até a integração',
-  integrado: 'Jornada concluída 🎉',
+// O que o líder precisa fazer. Depende do status e, na etapa do batismo, também
+// de o batismo já ter acontecido ou não — são dois momentos bem diferentes.
+function oQueFazer(v: Visitante): string | undefined {
+  if (v.status === 'batismo') {
+    const jaFoi = v.situacaoBatismo === 'batizado_aqui' || v.situacaoBatismo === 'ja_batizado'
+    return jaFoi ? 'Já batizado(a) — falta receber como membro' : 'Acompanhar até o batismo'
+  }
+  return ({
+    encaminhado_lider: 'Falar com a pessoa ANTES da visita',
+    visitou: 'Confirmar que você assumiu o acompanhamento',
+    transferido: 'Acompanhar até o batismo ou a membresia',
+    integrado: 'Jornada concluída 🎉',
+  } as Partial<Record<Status, string>>)[v.status]
 }
 
 // Painel do líder de Conexão (requisito 11): seus visitantes encaminhados/transferidos
@@ -43,7 +51,7 @@ export default function PainelLider() {
 
   const meus = s.visitantes.filter(
     (v) => v.liderConexaoId === liderId &&
-      ['encaminhado_lider', 'visitou', 'transferido', 'integrado'].includes(v.status),
+      ['encaminhado_lider', 'visitou', 'transferido', 'batismo', 'integrado'].includes(v.status),
   )
 
   const contaGrupo = (g: typeof GRUPOS[number]) => meus.filter((v) => g.statuses.includes(v.status)).length
@@ -130,8 +138,8 @@ export default function PainelLider() {
                       <div className="cell-title">{v.nome}{v.flagCuidado && ' 🚨'}</div>
                       <div className="cell-sub">{v.whatsapp}</div>
                     </td>
-                    <td><span className="badge" style={estiloStatus(v.status)}>{STATUS_LABEL[v.status]}</span></td>
-                    <td style={{ fontSize: 12.5, color: 'var(--text-2)', maxWidth: 240 }}>{O_QUE_FAZER[v.status]}</td>
+                    <td><span className="badge" style={estiloStatus(v.status)}>{rotuloStatus(v.status)}</span></td>
+                    <td style={{ fontSize: 12.5, color: 'var(--text-2)', maxWidth: 240 }}>{oQueFazer(v)}</td>
                     <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <AcoesLider v={v} tplPreVisita={tplPreVisita} />
                     </td>

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAppState, usuarioPorId } from '../store'
 import { useUsuarioAtualId, usuarioAtual } from '../acesso'
 import { aprovarIntegrante, rejeitarIntegrante } from '../actions'
-import { PAPEL_COR, PAPEL_LABEL, SITUACAO_CIVIL_LABEL, STATUS_ACESSO_LABEL, type Papel, type Usuario } from '../types'
+import { PAPEL_COR, PAPEL_LABEL, rotuloPapel, SITUACAO_CIVIL_LABEL, STATUS_ACESSO_LABEL, type Papel, type Usuario } from '../types'
 import { iniciais } from './Equipe'
 import { IcoCheck } from '../icones'
 
@@ -56,7 +56,7 @@ export default function Aprovacoes() {
                   {(Object.keys(PAPEL_LABEL) as Papel[]).map((p) => (
                     <label key={p} className="check" style={{ fontSize: 13 }}>
                       <input type="checkbox" checked={papeisDe(u).includes(p)} onChange={() => alternarPapel(u, p)} />
-                      {PAPEL_LABEL[p]}
+                      {rotuloPapel(p)}
                     </label>
                   ))}
                 </div>
@@ -64,7 +64,7 @@ export default function Aprovacoes() {
             ) : (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '4px 0' }}>
                 {u.papeis.map((p) => (
-                  <span key={p} className="badge" style={{ background: PAPEL_COR[p] + '22', color: PAPEL_COR[p] }}>{PAPEL_LABEL[p]}</span>
+                  <span key={p} className="badge" style={{ background: PAPEL_COR[p] + '22', color: PAPEL_COR[p] }}>{rotuloPapel(p)}</span>
                 ))}
               </div>
             )}

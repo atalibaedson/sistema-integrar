@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { cadastrarIntegrante } from '../actions'
 import { useAppState } from '../store'
-import { PAPEL_COR, PAPEL_LABEL, SITUACAO_CIVIL_LABEL, type Papel, type SituacaoCivil } from '../types'
+import { PAPEL_COR, PAPEL_LABEL, rotuloPapel, SITUACAO_CIVIL_LABEL, type Papel, type SituacaoCivil } from '../types'
 
 // Descrição curta de cada função, para a pessoa escolher com segurança.
 const PAPEL_DESC: Record<Papel, string> = {
@@ -190,7 +190,7 @@ export default function CadastroIntegrante() {
                     >
                       <span className="wz-papel-dot" style={{ background: PAPEL_COR[p] }} />
                       <span className="wz-papel-txt">
-                        <b>{PAPEL_LABEL[p]}</b>
+                        <b>{rotuloPapel(p)}</b>
                         <small>{PAPEL_DESC[p]}</small>
                       </span>
                       <span className="wz-papel-check" style={sel ? { background: PAPEL_COR[p], borderColor: PAPEL_COR[p] } : undefined}>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { comExclusoes, primeiraGestaoIntegracao, setEstado, uid, useAppState } from '../store'
-import { PAPEL_COR, PAPEL_LABEL, STATUS_ACESSO_LABEL, type AppState, type Papel, type Usuario } from '../types'
+import { PAPEL_COR, PAPEL_LABEL, rotuloPapel, STATUS_ACESSO_LABEL, type AppState, type Papel, type Usuario } from '../types'
 import { linkWhatsApp } from '../actions'
 import { criariCiclo } from '../acesso'
 import { registrarAuditoria } from '../auditoria'
@@ -35,7 +35,7 @@ function TagsPapeis({ u }: { u: Usuario }) {
     <>
       {u.papeis.map((p) => (
         <span key={p} className="tag" style={{ background: PAPEL_COR[p] + '18', borderColor: PAPEL_COR[p] + '40', color: PAPEL_COR[p] }}>
-          {PAPEL_LABEL[p]}
+          {rotuloPapel(p)}
         </span>
       ))}
     </>
@@ -54,7 +54,7 @@ function EscolherPapeis({ papeis, onMudar }: { papeis: Papel[]; onMudar: (novos:
       {(Object.keys(PAPEL_LABEL) as Papel[]).map((p) => (
         <label key={p} className="check" style={{ fontSize: 13 }}>
           <input type="checkbox" checked={papeis.includes(p)} onChange={() => alternar(p)} />
-          {PAPEL_LABEL[p]}
+          {rotuloPapel(p)}
         </label>
       ))}
     </div>
@@ -104,10 +104,10 @@ export default function Equipe() {
             className="kpi kpi-btn"
             style={{ borderTop: `3px solid ${PAPEL_COR[p]}`, outline: aba === p ? `2px solid ${PAPEL_COR[p]}` : 'none' }}
             onClick={() => setAba(p)}
-            title={`Ver só ${PAPEL_LABEL[p]}`}
+            title={`Ver só ${rotuloPapel(p)}`}
           >
             <div className="valor">{conta(p)}</div>
-            <div className="rotulo">{PAPEL_LABEL[p]}</div>
+            <div className="rotulo">{rotuloPapel(p)}</div>
           </button>
         ))}
       </div>
@@ -120,7 +120,7 @@ export default function Equipe() {
       <div className="card">
         <div className="card-cab">
           <h3>
-            {aba === 'todos' ? 'Todos os membros' : PAPEL_LABEL[aba]} ({lista.length})
+            {aba === 'todos' ? 'Todos os membros' : rotuloPapel(aba)} ({lista.length})
           </h3>
           <button className="btn" onClick={() => setNovo(!novo)}>{novo ? 'Fechar' : <><IcoMais size={15} /> Novo membro</>}</button>
         </div>
@@ -156,7 +156,7 @@ export default function Equipe() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: PAPEL_COR[g.papel], display: 'inline-block' }} />
                   <h4 style={{ margin: 0, fontSize: 13, textTransform: 'uppercase', letterSpacing: '.03em', color: 'var(--text-2)' }}>
-                    {PAPEL_LABEL[g.papel]} ({g.membros.length})
+                    {rotuloPapel(g.papel)} ({g.membros.length})
                   </h4>
                 </div>
               )}
@@ -206,7 +206,7 @@ function CardHierarquia() {
             >
               <option value="">— ninguém (topo) —</option>
               {ativos.filter((x) => x.id !== u.id).map((x) => (
-                <option key={x.id} value={x.id}>{x.nome} · {x.papeis.map((p) => PAPEL_LABEL[p]).join(', ')}</option>
+                <option key={x.id} value={x.id}>{x.nome} · {x.papeis.map((p) => rotuloPapel(p)).join(', ')}</option>
               ))}
             </select>
           </div>
@@ -311,7 +311,7 @@ function CartaoPessoa({ u }: { u: Usuario }) {
               <select value={u.supervisorId ?? ''} onChange={(e) => definirSupervisor(s, u, e.target.value)}>
                 <option value="">— ninguém acima —</option>
                 {s.usuarios.filter((x) => x.id !== u.id && x.ativo).map((x) => (
-                  <option key={x.id} value={x.id}>{x.nome} · {x.papeis.map((p) => PAPEL_LABEL[p]).join(', ')}</option>
+                  <option key={x.id} value={x.id}>{x.nome} · {x.papeis.map((p) => rotuloPapel(p)).join(', ')}</option>
                 ))}
               </select>
               <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>Também editável na seção "Hierarquia" acima.</span>

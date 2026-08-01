@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAppState, ultimaRespostaOuCadastro } from '../store'
 import { diasDesde, podeTransitar } from '../machine'
-import { STATUS_COR, STATUS_LABEL, type Status } from '../types'
+import { rotuloStatus, STATUS_COR, type Status } from '../types'
 import { mudarStatus } from '../actions'
 import { navegar } from '../router'
 import { useUsuarioAtualId, usuarioAtual, visitantesVisiveis } from '../acesso'
@@ -10,7 +10,7 @@ import { useUsuarioAtualId, usuarioAtual, visitantesVisiveis } from '../acesso'
 // Transições inválidas são bloqueadas pela máquina de estados.
 
 const COLUNAS_FLUXO: Status[] = [
-  'novo', 'em_contato', 'aguardando_resposta', 'encaminhado_lider', 'visitou', 'transferido', 'integrado',
+  'novo', 'em_contato', 'aguardando_resposta', 'encaminhado_lider', 'visitou', 'transferido', 'batismo', 'integrado',
 ]
 const COLUNAS_EXCECAO: Status[] = ['em_espera', 'recusou', 'encerrado']
 
@@ -29,11 +29,11 @@ export default function Jornada() {
     const v = visiveis.find((x) => x.id === id)
     if (!v || v.status === destino) return
     if (!podeTransitar(v.status, destino)) {
-      setErro(`"${STATUS_LABEL[v.status]}" não pode ir direto para "${STATUS_LABEL[destino]}". Para corrigir um engano, abra a ficha e use "Corrigir status".`)
+      setErro(`"${rotuloStatus(v.status)}" não pode ir direto para "${rotuloStatus(destino)}". Para corrigir um engano, abra a ficha e use "Corrigir status".`)
       return
     }
     setErro('')
-    mudarStatus(v.id, destino, `Movido no quadro da jornada (${STATUS_LABEL[v.status]} → ${STATUS_LABEL[destino]})`)
+    mudarStatus(v.id, destino, `Movido no quadro da jornada (${rotuloStatus(v.status)} → ${rotuloStatus(destino)})`)
   }
 
   const colunas = mostrarExcecoes ? [...COLUNAS_FLUXO, ...COLUNAS_EXCECAO] : COLUNAS_FLUXO
@@ -64,7 +64,7 @@ export default function Jornada() {
               onDrop={(e) => soltar(e, st)}
             >
               <div className="kanban-cab" style={{ borderTopColor: STATUS_COR[st] }}>
-                <span>{STATUS_LABEL[st]}</span>
+                <span>{rotuloStatus(st)}</span>
                 <span className="kanban-n">{cards.length}</span>
               </div>
               <div className="kanban-corpo">

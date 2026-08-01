@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useAppState } from '../store'
 import { setUsuarioAtualId } from '../acesso'
 import { registrarAuditoria } from '../auditoria'
-import { PAPEL_LABEL, type Usuario } from '../types'
+import { rotuloPapel, type Usuario } from '../types'
 import { iniciais } from './Equipe'
 
 // Login PROVISÓRIO — enquanto o Supabase Auth não está ligado (ver SUPABASE-AUTH.md),
@@ -67,7 +67,7 @@ export default function EntrarProvisorio() {
                     : <span className="ac-pessoa-ini">{iniciais(u.nome)}</span>}
                   <span className="ac-pessoa-info">
                     <b>{u.nome}</b>
-                    <small>{u.papeis.map((p) => PAPEL_LABEL[p]).join(' · ')}</small>
+                    <small>{u.papeis.map((p) => rotuloPapel(p)).join(' · ')}</small>
                   </span>
                   <span className="ac-pessoa-seta">→</span>
                 </button>
