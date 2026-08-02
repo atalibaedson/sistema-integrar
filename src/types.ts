@@ -209,9 +209,15 @@ export interface Conexao {
   nome: string
   liderId?: string
   lider2Id?: string // 2º líder (opcional) — casais que lideram juntos, dupla de liderança etc.
-  regiao: string
+  // Onde o grupo se reúne — usado para sugerir a Conexão pela proximidade do
+  // bairro do visitante. Substituiu o antigo campo "região" (migrado para bairro).
+  endereco?: string
+  bairro?: string
+  cidade?: string
   perfil: string // ex.: solteiros, casais, jovens
   diaHorario: string
+  /** @deprecated Campo antigo — migrado para `bairro`. Mantido só para leitura de estados salvos. */
+  regiao?: string
 }
 
 // Usuários do sistema, por categoria (papel) — seção 3 da especificação

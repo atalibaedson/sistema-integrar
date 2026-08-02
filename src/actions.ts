@@ -63,12 +63,12 @@ export function sugerirConexao(
   let melhorPts = -Infinity
 
   for (const c of s.conexoes) {
-    const regiao = normalizarTexto(c.regiao ?? '')
+    const local = normalizarTexto(`${c.bairro ?? ''} ${c.endereco ?? ''} ${c.cidade ?? ''} ${c.regiao ?? ''}`)
     const perfil = normalizarTexto(c.perfil ?? '')
     let pts = 0
 
-    // 1) Proximidade: bairro do visitante aparece no endereço/região do grupo
-    if (palavrasBairro.some((w) => regiao.includes(w))) pts += 4
+    // 1) Proximidade: bairro do visitante aparece no endereço/bairro/cidade do grupo
+    if (palavrasBairro.some((w) => local.includes(w))) pts += 4
 
     // 2) Público-alvo compatível
     const infantil = /crianc|adolesc/.test(perfil)

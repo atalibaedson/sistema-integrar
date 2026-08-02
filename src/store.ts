@@ -114,8 +114,8 @@ function estadoInicial(): AppState {
     visitantes: [],
     interacoes: [],
     conexoes: [
-      { id: 'cx1', nome: 'Conexão Casais Centro', regiao: 'Centro', perfil: 'Casais', diaHorario: 'Quinta, 20h', liderId: 'ld1' },
-      { id: 'cx2', nome: 'Conexão Jovens Zona Sul', regiao: 'Zona Sul', perfil: 'Jovens / Solteiros', diaHorario: 'Sexta, 20h', liderId: 'ld2' },
+      { id: 'cx1', nome: 'Conexão Casais Centro', bairro: 'Centro', cidade: '', perfil: 'Casais', diaHorario: 'Quinta, 20h', liderId: 'ld1' },
+      { id: 'cx2', nome: 'Conexão Jovens Zona Sul', bairro: 'Zona Sul', cidade: '', perfil: 'Jovens / Solteiros', diaHorario: 'Sexta, 20h', liderId: 'ld2' },
     ],
     // Dados de exemplo genéricos (instalação nova/demonstração). Os cadastros
     // reais da igreja vivem na nuvem — a primeira sincronização os adota e a
@@ -262,6 +262,16 @@ function migrar(raw: any): AppState {
   base.templates = (base.templates as Template[]).map((t) =>
     TITULOS_ANTIGOS[t.gatilho] === t.titulo ? { ...t, titulo: TITULOS_NOVOS[t.gatilho] } : t,
   )
+
+  // v11 → v12: Conexão troca "região" por endereço/bairro/cidade. O valor antigo
+  // (usado como bairro/região na sugestão) migra para `bairro`.
+  base.conexoes = (base.conexoes ?? []).map((c: any) => {
+    if (c.regiao && !c.bairro) {
+      const { regiao, ...resto } = c
+      return { ...resto, bairro: regiao }
+    }
+    return c
+  })
 
   return base as AppState
 }

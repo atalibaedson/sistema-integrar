@@ -638,7 +638,7 @@ function AbaGrupos() {
   const filtradas = s.conexoes
     .filter((c) => {
       if (!q) return true
-      const alvo = semAcento(`${c.nome} ${c.regiao} ${c.perfil} ${c.diaHorario} ${nomeLider(c.liderId) ?? ''} ${nomeLider(c.lider2Id) ?? ''}`)
+      const alvo = semAcento(`${c.nome} ${c.endereco ?? ''} ${c.bairro ?? ''} ${c.cidade ?? ''} ${c.perfil} ${c.diaHorario} ${nomeLider(c.liderId) ?? ''} ${nomeLider(c.lider2Id) ?? ''}`)
       return alvo.includes(q)
     })
     .slice()
@@ -696,12 +696,15 @@ function CartaoConexao({ c }: { c: import('../types').Conexao }) {
   const s = useAppState()
   const [editando, setEditando] = useState(false)
   const [nome, setNome] = useState(c.nome)
-  const [regiao, setRegiao] = useState(c.regiao)
+  const [endereco, setEndereco] = useState(c.endereco ?? '')
+  const [bairro, setBairro] = useState(c.bairro ?? '')
+  const [cidade, setCidade] = useState(c.cidade ?? '')
   const [perfil, setPerfil] = useState(c.perfil)
   const [dia, setDia] = useState(c.diaHorario)
 
   function abrirEdicao() {
-    setNome(c.nome); setRegiao(c.regiao); setPerfil(c.perfil); setDia(c.diaHorario)
+    setNome(c.nome); setEndereco(c.endereco ?? ''); setBairro(c.bairro ?? '')
+    setCidade(c.cidade ?? ''); setPerfil(c.perfil); setDia(c.diaHorario)
     setEditando(true)
   }
 
@@ -710,7 +713,7 @@ function CartaoConexao({ c }: { c: import('../types').Conexao }) {
     setEstado((st) => ({
       ...st,
       conexoes: st.conexoes.map((x) => x.id === c.id
-        ? { ...x, nome: nome.trim(), regiao: regiao.trim(), perfil: perfil.trim(), diaHorario: dia.trim() }
+        ? { ...x, nome: nome.trim(), endereco: endereco.trim() || undefined, bairro: bairro.trim() || undefined, cidade: cidade.trim() || undefined, perfil: perfil.trim(), diaHorario: dia.trim() }
         : x),
     }))
     setEditando(false)
@@ -752,6 +755,8 @@ function CartaoConexao({ c }: { c: import('../types').Conexao }) {
   const lider1 = s.usuarios.find((u) => u.id === c.liderId)?.nome
   const lider2 = s.usuarios.find((u) => u.id === c.lider2Id)?.nome
   const semLider = !c.liderId && !c.lider2Id
+  // Linha de local: "Endereço — Bairro · Cidade" (só o que estiver preenchido)
+  const local = [c.endereco, [c.bairro, c.cidade].filter(Boolean).join(' · ')].filter(Boolean).join(' — ')
 
   if (editando) {
     return (
@@ -759,17 +764,25 @@ function CartaoConexao({ c }: { c: import('../types').Conexao }) {
         <label className="campo"><span>Nome do grupo</span>
           <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} autoFocus />
         </label>
+        <label className="campo"><span>Endereço <em className="campo-dica">(onde o grupo se reúne)</em></span>
+          <input type="text" value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Rua e número" />
+        </label>
         <div className="linha-campos">
-          <label className="campo"><span>Região</span>
-            <input type="text" value={regiao} onChange={(e) => setRegiao(e.target.value)} />
+          <label className="campo"><span>Bairro</span>
+            <input type="text" value={bairro} onChange={(e) => setBairro(e.target.value)} placeholder="Usado para sugerir o grupo" />
           </label>
-          <label className="campo"><span>Perfil</span>
-            <input type="text" value={perfil} onChange={(e) => setPerfil(e.target.value)} placeholder="ex.: casais" />
+          <label className="campo"><span>Cidade</span>
+            <input type="text" value={cidade} onChange={(e) => setCidade(e.target.value)} />
           </label>
         </div>
-        <label className="campo"><span>Dia/horário</span>
-          <input type="text" value={dia} onChange={(e) => setDia(e.target.value)} placeholder="ex.: Quinta, 20h" />
-        </label>
+        <div className="linha-campos">
+          <label className="campo"><span>Perfil</span>
+            <input type="text" value={perfil} onChange={(e) => setPerfil(e.target.value)} placeholder="ex.: casais, jovens" />
+          </label>
+          <label className="campo"><span>Dia/horário</span>
+            <input type="text" value={dia} onChange={(e) => setDia(e.target.value)} placeholder="ex.: Quinta, 20h" />
+          </label>
+        </div>
         <div className="linha-campos">
           <label className="campo" style={{ marginBottom: 0 }}><span>Líder 1</span>
             <select value={c.liderId ?? ''} onChange={(e) => mudarLider('liderId', e.target.value)}>
@@ -784,7 +797,7 @@ function CartaoConexao({ c }: { c: import('../types').Conexao }) {
             </select>
           </label>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <button className="btn btn-mini" onClick={salvar}><IcoCheck size={14} /> Salvar</button>
           <button className="btn btn-sec btn-mini" onClick={() => setEditando(false)}>Fechar</button>
         </div>
@@ -798,24 +811,20 @@ function CartaoConexao({ c }: { c: import('../types').Conexao }) {
         <div className="grupo-icone">🏠</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="grupo-nome">{c.nome}</div>
-          <div className="grupo-meta">
-            {c.regiao && <span>🧭 {c.regiao}</span>}
-            {c.perfil && <span>👥 {c.perfil}</span>}
-            {c.diaHorario && <span>🗓️ {c.diaHorario}</span>}
-            {!c.regiao && !c.perfil && !c.diaHorario && <span style={{ color: 'var(--text-3)' }}>sem detalhes</span>}
-          </div>
+          {c.perfil && <span className="grupo-tag">{c.perfil}</span>}
         </div>
         <div className="cartao-acoes">
           <button className="btn-icone" onClick={abrirEdicao} title="Editar"><IcoEditar /></button>
           <button className="btn-icone perigo" onClick={remover} title="Remover"><IcoLixeira /></button>
         </div>
       </div>
-      <div className="grupo-lideres">
-        {semLider ? (
-          <span className="grupo-semlider">⚠️ Sem líder definido</span>
-        ) : (
-          <span>👤 {[lider1, lider2].filter(Boolean).join(' · ')}</span>
-        )}
+      <div className="grupo-linhas">
+        <div className="grupo-linha"><span className="grupo-linha-ic">📍</span>{local || <span style={{ color: 'var(--text-3)' }}>local não informado</span>}</div>
+        <div className="grupo-linha"><span className="grupo-linha-ic">🗓️</span>{c.diaHorario || <span style={{ color: 'var(--text-3)' }}>dia a definir</span>}</div>
+        <div className="grupo-linha">
+          <span className="grupo-linha-ic">👤</span>
+          {semLider ? <span className="grupo-semlider">Sem líder definido</span> : [lider1, lider2].filter(Boolean).join(' · ')}
+        </div>
       </div>
     </div>
   )
@@ -1045,7 +1054,8 @@ function CardNuvem() {
 
 function FormConexao({ onPronto }: { onPronto: () => void }) {
   const s = useAppState()
-  const [nome, setNome] = useState(''); const [regiao, setRegiao] = useState('')
+  const [nome, setNome] = useState('')
+  const [endereco, setEndereco] = useState(''); const [bairro, setBairro] = useState(''); const [cidade, setCidade] = useState('')
   const [perfil, setPerfil] = useState(''); const [dia, setDia] = useState('')
   const [liderId, setLiderId] = useState(''); const [lider2Id, setLider2Id] = useState('')
 
@@ -1064,7 +1074,9 @@ function FormConexao({ onPronto }: { onPronto: () => void }) {
     setEstado((st) => ({
       ...st,
       conexoes: [...st.conexoes, {
-        id, nome: nome.trim(), regiao: regiao.trim(), perfil: perfil.trim(), diaHorario: dia.trim(),
+        id, nome: nome.trim(),
+        endereco: endereco.trim() || undefined, bairro: bairro.trim() || undefined, cidade: cidade.trim() || undefined,
+        perfil: perfil.trim(), diaHorario: dia.trim(),
         liderId: liderId || undefined, lider2Id: lider2Id || undefined,
       }],
       usuarios: st.usuarios.map((u) => (u.id === liderId || u.id === lider2Id) ? { ...u, conexaoId: id } : u),
@@ -1075,14 +1087,9 @@ function FormConexao({ onPronto }: { onPronto: () => void }) {
 
   return (
     <form className="bloco-form" onSubmit={adicionar}>
-      <div className="linha-campos">
-        <label className="campo"><span>Nome do grupo *</span>
-          <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="ex.: Conexão Casais Centro" autoFocus />
-        </label>
-        <label className="campo"><span>Região</span>
-          <input type="text" value={regiao} onChange={(e) => setRegiao(e.target.value)} />
-        </label>
-      </div>
+      <label className="campo"><span>Nome do grupo *</span>
+        <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="ex.: Conexão Casais Centro" autoFocus />
+      </label>
       {duplicado && (
         <div className="alerta alerta-warn" style={{ marginTop: 0 }}>
           ⚠️ <div>Já existe um grupo com esse nome: <b>{duplicado.nome}</b>. Escolha outro nome.</div>
@@ -1093,6 +1100,17 @@ function FormConexao({ onPronto }: { onPronto: () => void }) {
           💡 <div>Grupos parecidos já cadastrados: {parecidos.map((c) => c.nome).join(', ')}. Confira se não é o mesmo.</div>
         </div>
       )}
+      <label className="campo"><span>Endereço <em className="campo-dica">(onde o grupo se reúne)</em></span>
+        <input type="text" value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Rua e número" />
+      </label>
+      <div className="linha-campos">
+        <label className="campo"><span>Bairro</span>
+          <input type="text" value={bairro} onChange={(e) => setBairro(e.target.value)} placeholder="Usado para sugerir o grupo" />
+        </label>
+        <label className="campo"><span>Cidade</span>
+          <input type="text" value={cidade} onChange={(e) => setCidade(e.target.value)} />
+        </label>
+      </div>
       <div className="linha-campos">
         <label className="campo"><span>Perfil</span>
           <input type="text" value={perfil} onChange={(e) => setPerfil(e.target.value)} placeholder="ex.: casais, jovens" />

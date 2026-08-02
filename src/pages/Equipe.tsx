@@ -4,7 +4,8 @@ import { PAPEL_COR, PAPEL_LABEL, rotuloPapel, STATUS_ACESSO_LABEL, type AppState
 import { linkWhatsApp } from '../actions'
 import { criariCiclo } from '../acesso'
 import { registrarAuditoria } from '../auditoria'
-import { IcoBusca, IcoEditar, IcoLixeira, IcoMais, IcoWhats } from '../icones'
+import { toast } from '../toast'
+import { IcoBusca, IcoCheck, IcoEditar, IcoLixeira, IcoMais, IcoWhats } from '../icones'
 
 // Muda o supervisor de `alvo`, com validação de ciclo e registro em auditoria.
 // Usado tanto na seção de Hierarquia quanto no card de edição da pessoa.
@@ -235,7 +236,7 @@ function CardConexoes() {
   const lista = s.conexoes
     .filter((c) => {
       if (!q) return true
-      const alvo = norm(`${c.nome} ${c.regiao} ${c.perfil} ${c.diaHorario} ${nomeLider(c.liderId) ?? ''} ${nomeLider(c.lider2Id) ?? ''}`)
+      const alvo = norm(`${c.nome} ${c.endereco ?? ''} ${c.bairro ?? ''} ${c.cidade ?? ''} ${c.perfil} ${c.diaHorario} ${nomeLider(c.liderId) ?? ''} ${nomeLider(c.lider2Id) ?? ''}`)
       return alvo.includes(q)
     })
     .slice()
@@ -265,7 +266,7 @@ function CardConexoes() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 13.5 }}>{c.nome}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                    {[c.regiao, c.perfil, c.diaHorario].filter(Boolean).join(' · ') || 'sem detalhes'}
+                    {[[c.bairro, c.cidade].filter(Boolean).join(' · '), c.perfil, c.diaHorario].filter(Boolean).join(' · ') || 'sem detalhes'}
                   </div>
                 </div>
                 <div style={{ fontSize: 12.5, color: 'var(--text-2)', textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -284,6 +285,28 @@ function CartaoPessoa({ u }: { u: Usuario }) {
   const s = useAppState()
   const [editando, setEditando] = useState(false)
   const conexao = s.conexoes.find((c) => c.id === u.conexaoId)
+
+  // Rascunho dos campos simples (nome, WhatsApp, funções) — só gravam ao Salvar,
+  // mesmo padrão dos grupos. Grupo, supervisor e ativar seguem imediatos, pois
+  // têm efeitos relacionais e confirmação própria.
+  const [dNome, setDNome] = useState(u.nome)
+  const [dWhats, setDWhats] = useState(u.whatsapp)
+  const [dPapeis, setDPapeis] = useState<Papel[]>(u.papeis)
+
+  function abrirEdicao() {
+    setDNome(u.nome); setDWhats(u.whatsapp); setDPapeis(u.papeis)
+    setEditando(true)
+  }
+
+  function salvar() {
+    if (!dNome.trim() || !dWhats.trim() || dPapeis.length === 0) return
+    setEstado((st) => ({
+      ...st,
+      usuarios: st.usuarios.map((x) => x.id === u.id ? { ...x, nome: dNome.trim(), whatsapp: dWhats.trim(), papeis: dPapeis } : x),
+    }))
+    setEditando(false)
+    toast('Membro salvo')
+  }
 
   // Mover líder de grupo pede confirmação (evita troca acidental)
   function mudarConexao(novaId: string) {
@@ -355,23 +378,29 @@ function CartaoPessoa({ u }: { u: Usuario }) {
         {editando && (
           <div className="pessoa-edicao" style={{ marginTop: 10 }}>
             <label className="campo"><span>Nome</span>
-              <input type="text" value={u.nome} onChange={(e) => mudar({ nome: e.target.value })} autoFocus />
+              <input type="text" value={dNome} onChange={(e) => setDNome(e.target.value)} autoFocus />
             </label>
             <div className="campo"><span>Funções (marque todas que se aplicam)</span>
-              <EscolherPapeis papeis={u.papeis} onMudar={(novos) => mudar({ papeis: novos })} />
+              <EscolherPapeis papeis={dPapeis} onMudar={setDPapeis} />
             </div>
-            {u.papeis.includes('lider') && (
-              <label className="campo"><span>Grupo que lidera</span>
+            <label className="campo"><span>WhatsApp</span>
+              <input type="tel" value={dWhats} onChange={(e) => setDWhats(e.target.value)} />
+            </label>
+
+            <div style={{ display: 'flex', gap: 8, margin: '4px 0 14px' }}>
+              <button className="btn btn-mini" onClick={salvar}><IcoCheck size={14} /> Salvar</button>
+              <button className="btn btn-sec btn-mini" onClick={() => setEditando(false)}>Fechar</button>
+            </div>
+
+            {dPapeis.includes('lider') && (
+              <label className="campo"><span>Grupo que lidera <em style={{ fontStyle: 'normal', color: 'var(--text-3)', fontWeight: 500 }}>(salvo na hora)</em></span>
                 <select value={u.conexaoId ?? ''} onChange={(e) => mudarConexao(e.target.value)}>
                   <option value="">— sem grupo —</option>
                   {s.conexoes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
               </label>
             )}
-            <label className="campo"><span>WhatsApp</span>
-              <input type="tel" value={u.whatsapp} onChange={(e) => mudar({ whatsapp: e.target.value })} />
-            </label>
-            <label className="campo"><span>Supervisor (quem está acima)</span>
+            <label className="campo"><span>Supervisor (quem está acima) <em style={{ fontStyle: 'normal', color: 'var(--text-3)', fontWeight: 500 }}>(salvo na hora)</em></span>
               <select value={u.supervisorId ?? ''} onChange={(e) => definirSupervisor(s, u, e.target.value)}>
                 <option value="">— ninguém acima —</option>
                 {s.usuarios.filter((x) => x.id !== u.id && x.ativo).map((x) => (
@@ -380,7 +409,7 @@ function CartaoPessoa({ u }: { u: Usuario }) {
               </select>
               <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>Também editável na seção "Hierarquia" acima.</span>
             </label>
-            <button className="btn btn-sec btn-mini" onClick={() => mudar({ ativo: !u.ativo })}>
+            <button className="btn btn-sec btn-mini" onClick={() => { mudar({ ativo: !u.ativo }); toast(u.ativo ? 'Membro desativado' : 'Membro reativado', 'info') }}>
               {u.ativo ? '⏸️ Desativar' : '▶️ Reativar'}
             </button>
           </div>
@@ -388,7 +417,7 @@ function CartaoPessoa({ u }: { u: Usuario }) {
       </div>
       <div className="cartao-acoes">
         <a className="btn-icone whats" href={linkWhatsApp(u.whatsapp)} target="_blank" rel="noreferrer" title="WhatsApp"><IcoWhats /></a>
-        <button className="btn-icone" onClick={() => setEditando(!editando)} title="Editar"><IcoEditar /></button>
+        <button className="btn-icone" onClick={() => editando ? setEditando(false) : abrirEdicao()} title="Editar"><IcoEditar /></button>
         <button className="btn-icone perigo" onClick={remover} title="Remover"><IcoLixeira /></button>
       </div>
     </div>

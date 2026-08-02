@@ -1096,7 +1096,10 @@ function AbaAcompanhamento({ v }: { v: Visitante }) {
             }}
           >
             <option value="">— sem grupo —</option>
-            {s.conexoes.map((c) => <option key={c.id} value={c.id}>{c.nome} ({c.regiao})</option>)}
+            {s.conexoes.map((c) => {
+              const loc = [c.bairro, c.cidade].filter(Boolean).join(' · ')
+              return <option key={c.id} value={c.id}>{c.nome}{loc ? ` (${loc})` : ''}</option>
+            })}
           </select>
         </label>
       </div>

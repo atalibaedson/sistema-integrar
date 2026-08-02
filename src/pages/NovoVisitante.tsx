@@ -229,7 +229,7 @@ export default function NovoVisitante() {
           </div>
           {conexaoSugerida && (
             <div className="alerta alerta-info" style={{ marginTop: 4 }}>
-              💡 <div>{s.config.termoGrupo} sugerida (proximidade + situação civil): <b>{conexaoSugerida.nome}</b> — {conexaoSugerida.regiao}, {conexaoSugerida.perfil}</div>
+              💡 <div>{s.config.termoGrupo} sugerida (proximidade + situação civil): <b>{conexaoSugerida.nome}</b>{[conexaoSugerida.bairro, conexaoSugerida.cidade, conexaoSugerida.perfil].filter(Boolean).length > 0 && <> — {[[conexaoSugerida.bairro, conexaoSugerida.cidade].filter(Boolean).join(' · '), conexaoSugerida.perfil].filter(Boolean).join(', ')}</>}</div>
             </div>
           )}
         </div>
