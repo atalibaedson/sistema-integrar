@@ -217,7 +217,7 @@ tr.clicavel:hover { background: #f8fafc; }
 
 /* ---- Formulários ---- */
 label.campo { display: block; margin-bottom: 12px; }
-label.campo span { display: block; font-weight: 600; font-size: 12.5px; margin-bottom: 4px; color: var(--text-2); }
+label.campo span, .campo > span { display: block; font-weight: 600; font-size: 12.5px; margin-bottom: 6px; color: var(--text-2); }
 input[type="text"], input[type="tel"], input[type="email"], input[type="date"], input[type="number"], input[type="password"], select, textarea {
   width: 100%;
   padding: 9px 12px;
@@ -236,6 +236,15 @@ input:focus, select:focus, textarea:focus {
 }
 input::placeholder { color: var(--text-3); }
 textarea { resize: vertical; min-height: 64px; }
+/* Combos (select) no mesmo padrão dos inputs: sem o visual nativo do sistema
+   operacional, com uma seta própria e o mesmo espaço interno. */
+select {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  cursor: pointer; padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 15px;
+}
+select::-ms-expand { display: none; }
 .linha-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
 .check { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-weight: 500; cursor: pointer; }
 
@@ -336,18 +345,18 @@ textarea { resize: vertical; min-height: 64px; }
    em pílula em vez de select para listas curtas. Definido aqui, sem escopo, para
    valer em TODO o sistema; .ife-site sobrescreve com a tipografia do site nas
    telas públicas. */
-.ac-secao { padding: 18px 0; border-top: 1px solid var(--border); }
+.ac-secao { padding: 22px 0; border-top: 1px solid var(--border); }
 .ac-secao:first-of-type { border-top: none; padding-top: 6px; }
-.ac-secao .campo { margin-bottom: 12px; }
+.ac-secao .campo { margin-bottom: 20px; }
 .ac-secao .campo:last-child { margin-bottom: 0; }
 .ac-secao-titulo {
   font-size: 14.5px; font-weight: 700; color: var(--text);
-  margin-bottom: 12px; letter-spacing: -0.01em;
+  margin-bottom: 16px; letter-spacing: -0.01em;
 }
-.ac-grupo { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.ac-grupo { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; }
 
 /* Escolhas em pílula — Sim/Não e listas curtas. Um toque, sem abrir menu. */
-.ac-opcoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.ac-opcoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .ac-opcao {
   font-family: inherit; font-size: 13.5px; font-weight: 600;
   color: var(--text); background: var(--surface); cursor: pointer;
@@ -1044,7 +1053,7 @@ details summary:hover { color: var(--primary); }
 }
 .ife-site .campo input,
 .ife-site .campo select {
-  background: #fff; color: var(--ife-tinta);
+  background-color: #fff; color: var(--ife-tinta);
   border: 1px solid color-mix(in srgb, var(--escura) 18%, transparent);
   font-family: 'Manrope', system-ui, sans-serif;
 }
