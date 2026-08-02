@@ -67,6 +67,11 @@ export interface CultoDef {
   nome: string
   diaSemana?: number // 0=domingo … 6=sábado
   horario?: string // ex.: "10:00" (exibição)
+  // Datas concretas do culto (yyyy-mm-dd) — mesmo padrão do cadastro de culto do
+  // sistema do louvor: ao cadastrar, o sistema gera as ocorrências recentes e as
+  // próximas; a equipe pode adicionar datas avulsas e gerar mais. No cadastro do
+  // visitante só aparecem as ocorrências da última semana (ver cultos.ts).
+  ocorrencias?: string[]
 }
 
 // Configuração da igreja — torna o sistema white-label (multi-igreja)
@@ -94,12 +99,23 @@ export interface ConfigIgreja {
   comoConheceuOpcoes: string[] // opções de "como conheceu a igreja"
 
   // Personalização da página pública de autocadastro (QR code)
+  autocadastroUrl: string // link público divulgado (ex.: https://visitante.suaigreja.com.br)
   autocadastroTitulo: string // título de boas-vindas
   autocadastroMensagem: string // texto de introdução, abaixo do título
   autocadastroMensagemFinal: string // mensagem exibida após o envio
-  autocadastroMostrarBairro: boolean
+  // Quais campos aparecem no formulário público. Nome, contato e data de
+  // nascimento são sempre exibidos — o resto a igreja liga/desliga aqui.
   autocadastroMostrarSituacaoCivil: boolean
+  autocadastroMostrarEndereco: boolean
+  autocadastroMostrarBairro: boolean
+  autocadastroMostrarCidade: boolean
+  autocadastroPerguntarPrimeiraVez: boolean
+  autocadastroPerguntarMembroOutra: boolean
   autocadastroPerguntarBatismo: boolean
+  autocadastroPerguntarComoConheceu: boolean
+  autocadastroPerguntarConexao: boolean
+  autocadastroPerguntarContato: boolean
+  autocadastroPerguntarOracao: boolean
 
   // Nomes das etapas e das funções, do jeito que ESTA igreja fala.
   // Só guarda o que foi personalizado — o que ficar de fora usa o padrão.
@@ -254,21 +270,30 @@ export interface Usuario {
 export type EtapaFluxo =
   | 'aproximacao' | 'conexao' | 'celebracao' | 'pre_visita' | 'aviso_lider' | 'reengajamento' | 'geral'
 
+// Rótulos base das etapas do fluxo (sem dias fixos da semana). Para o termo do
+// grupo aparecer com o nome da igreja (Conexão/Célula/PG…), use rotuloEtapa().
 export const ETAPA_LABEL: Record<EtapaFluxo, string> = {
-  aproximacao: 'Seg · Aproximação (1º contato)',
-  conexao: 'Qua · Convite para o grupo',
-  celebracao: 'Sáb · Celebração',
-  pre_visita: 'Líder · Contato pré-visita',
+  aproximacao: '1º Contato — Aproximação',
+  conexao: 'Convite para a Conexão',
+  celebracao: 'Convite Celebração',
+  pre_visita: 'Líder — contato pré-visita',
   aviso_lider: 'Aviso ao líder (handoff)',
   reengajamento: 'Reengajamento',
   geral: 'Geral / contato livre',
+}
+
+/** Rótulo da etapa aplicando o termo do grupo da igreja. Use nas telas. */
+export function rotuloEtapa(e: EtapaFluxo): string {
+  if (e === 'conexao') return `Convite para ${termoGrupoAtual}`
+  if (e === 'aviso_lider') return `Aviso ao líder de ${termoGrupoAtual} (handoff)`
+  return ETAPA_LABEL[e]
 }
 
 export interface Template {
   id: string
   gatilho: string // ex.: 'segunda_aproximacao'
   titulo: string
-  texto: string // com {{nome}}
+  texto: string // aceita {{nome}} e {{nome_conexão}} (nome do grupo do visitante)
   etapa: EtapaFluxo // em qual parte do fluxo esta mensagem pode ser usada
 }
 
@@ -386,11 +411,17 @@ export function estiloStatus(st: Status): { background: string; color: string } 
 }
 
 export const TIPO_INTERACAO_LABEL: Record<TipoInteracao, string> = {
-  aproximacao: 'Aproximação (segunda)',
-  conexao: 'Conexão (quarta)',
-  celebracao: 'Celebração (sábado)',
+  aproximacao: '1º Contato — Aproximação',
+  conexao: 'Convite para a Conexão',
+  celebracao: 'Convite Celebração',
   livre: 'Contato livre',
   lider_pre_visita: 'Líder — pré-visita',
+}
+
+/** Rótulo do tipo de interação aplicando o termo do grupo da igreja. */
+export function rotuloTipoInteracao(t: TipoInteracao): string {
+  if (t === 'conexao') return `Convite para ${termoGrupoAtual}`
+  return TIPO_INTERACAO_LABEL[t]
 }
 
 export const GRAU_LABEL: Record<GrauAbertura, string> = {

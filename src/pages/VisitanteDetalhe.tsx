@@ -3,7 +3,7 @@ import { consolidadoresAtivos, getEstado, interacoesDe, templatesPorEtapa, useAp
 import {
   estiloStatus, GRAU_LABEL, HORARIO_CONTATO_LABEL, OPCOES_DESEJA_CONEXAO, ORIGEM_LABEL, PERFIL_LABEL,
   SITUACAO_BATISMO_LABEL, SITUACAO_CIVIL_LABEL,
-  rotuloStatus, STATUS_COR, STATUS_LABEL, TIPO_INTERACAO_LABEL,
+  rotuloStatus, rotuloTipoInteracao, STATUS_COR, STATUS_LABEL, TIPO_INTERACAO_LABEL,
   type EtapaFluxo, type GrauAbertura, type HorarioContato, type PerfilAbordagem, type SituacaoBatismo, type SituacaoCivil, type Status, type TipoInteracao, type Visitante,
 } from '../types'
 import {
@@ -14,6 +14,7 @@ import {
 } from '../actions'
 import { transicoesDisponiveis } from '../machine'
 import { fmtDataVisita } from '../cultos'
+import { SeletorData as CampoData } from '../campos'
 import { iniciais } from './Equipe'
 import { podeVerCuidado, podeVerVisitante, useUsuarioAtualId, usuarioAtual } from '../acesso'
 import { registrarAuditoria } from '../auditoria'
@@ -62,15 +63,15 @@ function SeletorData({ datas, valor, onMudar, rotulo }: {
 
   if (semCalendario) {
     return (
-      <label className="campo" style={{ marginBottom: 0, maxWidth: 210 }}>
+      <div className="campo" style={{ marginBottom: 0, maxWidth: 210 }}>
         <span>{rotulo}</span>
-        <input type="date" value={valor} onChange={(e) => onMudar(e.target.value)} />
+        <CampoData value={valor} onChange={onMudar} />
         {cadastradas.length > 0 && (
-          <a href="#/" onClick={(e) => { e.preventDefault(); setLivre(false) }} style={{ fontSize: 11.5, marginTop: 4 }}>
+          <a href="#/" onClick={(e) => { e.preventDefault(); setLivre(false) }} style={{ fontSize: 11.5, marginTop: 4, display: 'inline-block' }}>
             ← escolher uma data do calendário
           </a>
         )}
-      </label>
+      </div>
     )
   }
 
@@ -100,15 +101,14 @@ function CampoInicioConexao({ v }: { v: Visitante }) {
   const s = useAppState()
   const grupo = s.config.termoGrupo || 'Conexão'
   return (
-    <label className="campo" style={{ marginBottom: 0, maxWidth: 230 }}>
+    <div className="campo" style={{ marginBottom: 0, maxWidth: 230 }}>
       <span>Começou a frequentar a {grupo} em</span>
-      <input
-        type="date"
+      <CampoData
         value={v.dataInicioConexao ?? ''}
         max={new Date().toISOString().slice(0, 10)}
-        onChange={(e) => atualizarVisitante(v.id, { dataInicioConexao: e.target.value || undefined })}
+        onChange={(iso) => atualizarVisitante(v.id, { dataInicioConexao: iso || undefined })}
       />
-    </label>
+    </div>
   )
 }
 
@@ -432,7 +432,7 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
     const candidatos = templatesPorEtapa(s, etapa)
     const idxAtual = Math.min(msgIdx, Math.max(candidatos.length - 1, 0))
     const template = candidatos[idxAtual]
-    const texto = template ? aplicarTemplate(template.texto, v.nome) : undefined
+    const texto = template ? aplicarTemplate(template.texto, v, s) : undefined
 
     if (v.status === 'encerrado') {
       return <div className="rot-sub">Cadastro encerrado na triagem — sem ações. Reative pela aba Acompanhamento se for engano.</div>
@@ -504,7 +504,7 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
           {lider && (
             <a
               className="btn btn-whats"
-              href={linkWhatsApp(lider.whatsapp, (avisoLider ? aplicarTemplate(avisoLider.texto, v.nome) : `Encaminhando o contato de ${v.nome}.`) + ` WhatsApp: ${v.whatsapp}`)}
+              href={linkWhatsApp(lider.whatsapp, (avisoLider ? aplicarTemplate(avisoLider.texto, v, s) : `Encaminhando o contato de ${v.nome}.`) + ` WhatsApp: ${v.whatsapp}`)}
               target="_blank" rel="noreferrer"
             ><IcoWhats size={15} /> 1. Passar contato ao líder</a>
           )}
@@ -791,7 +791,7 @@ function RegistroGuiado({ v, onFechar }: { v: Visitante; onFechar: () => void })
           </label>
           <label className="campo"><span>Tipo de contato</span>
             <select value={tipo} onChange={(e) => setTipo(e.target.value as TipoInteracao)}>
-              {Object.entries(TIPO_INTERACAO_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              {(Object.keys(TIPO_INTERACAO_LABEL) as TipoInteracao[]).map((k) => <option key={k} value={k}>{rotuloTipoInteracao(k)}</option>)}
             </select>
           </label>
         </div>
@@ -830,7 +830,7 @@ function AbaAtividade({ v }: { v: Visitante }) {
         <div className="interacao-item" key={idx}>
           <div className="interacao-meta">
             {fmt(e.data)}
-            {e.tipo === 'contato' && <> · {TIPO_INTERACAO_LABEL[e.contato!.tipo]} · por {e.contato!.autorPapel === 'lider' ? 'líder' : 'consolidador'}</>}
+            {e.tipo === 'contato' && <> · {rotuloTipoInteracao(e.contato!.tipo)} · por {e.contato!.autorPapel === 'lider' ? 'líder' : 'consolidador'}</>}
             {e.tipo === 'status' && e.mudanca!.automatica && ' · automático'}
           </div>
           {e.tipo === 'contato' ? (
@@ -881,9 +881,9 @@ function AbaDados({ v }: { v: Visitante }) {
         <label className="campo"><span>E-mail</span>
           <input type="email" value={v.email ?? ''} onChange={(e) => m({ email: e.target.value || undefined })} />
         </label>
-        <label className="campo"><span>Data de nascimento</span>
-          <input type="date" value={v.dataNascimento ?? ''} onChange={(e) => m({ dataNascimento: e.target.value || undefined })} />
-        </label>
+        <div className="campo"><span>Data de nascimento</span>
+          <CampoData value={v.dataNascimento ?? ''} max={new Date().toISOString().slice(0, 10)} onChange={(iso) => m({ dataNascimento: iso || undefined })} />
+        </div>
       </div>
       <div className="linha-campos">
         <label className="campo"><span>Endereço</span>
@@ -911,9 +911,9 @@ function AbaDados({ v }: { v: Visitante }) {
         </label>
       </div>
       <div className="linha-campos">
-        <label className="campo"><span>Data da 1ª visita</span>
-          <input type="date" value={v.dataPrimeiraVisita ?? ''} onChange={(e) => m({ dataPrimeiraVisita: e.target.value || undefined })} />
-        </label>
+        <div className="campo"><span>Data da 1ª visita</span>
+          <CampoData value={v.dataPrimeiraVisita ?? ''} max={new Date().toISOString().slice(0, 10)} onChange={(iso) => m({ dataPrimeiraVisita: iso || undefined })} />
+        </div>
         <div className="campo" />
       </div>
       <div className="linha-campos">
@@ -959,12 +959,12 @@ function AbaDados({ v }: { v: Visitante }) {
             </select>
           </label>
           {v.situacaoBatismo && v.situacaoBatismo !== 'nao_batizado' && (
-            <label className="campo"><span>Data do batismo <em className="campo-dica">(se souber)</em></span>
-              <input
-                type="date" value={v.dataBatismo ?? ''}
-                onChange={(e) => registrarBatismo(v.id, v.situacaoBatismo, e.target.value || undefined)}
+            <div className="campo"><span>Data do batismo <em className="campo-dica">(se souber)</em></span>
+              <CampoData
+                value={v.dataBatismo ?? ''}
+                onChange={(iso) => registrarBatismo(v.id, v.situacaoBatismo, iso || undefined)}
               />
-            </label>
+            </div>
           )}
         </div>
       </div>
@@ -980,12 +980,9 @@ function AbaDados({ v }: { v: Visitante }) {
             O dia em que a pessoa foi recebida como membro — é o que conclui a jornada.
           </p>
           <div className="linha-campos">
-            <label className="campo"><span>Data em que virou membro</span>
-              <input
-                type="date" value={v.dataMembresia ?? ''}
-                onChange={(e) => m({ dataMembresia: e.target.value || undefined })}
-              />
-            </label>
+            <div className="campo"><span>Data em que virou membro</span>
+              <CampoData value={v.dataMembresia ?? ''} onChange={(iso) => m({ dataMembresia: iso || undefined })} />
+            </div>
             <div className="campo" />
           </div>
           {v.status === 'integrado' && !v.dataMembresia && (

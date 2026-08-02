@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { cadastrarIntegrante } from '../actions'
 import { useAppState } from '../store'
 import { PAPEL_COR, PAPEL_LABEL, rotuloPapel, SITUACAO_CIVIL_LABEL, type Papel, type SituacaoCivil } from '../types'
+import { SeletorData } from '../campos'
 
 // Descrição curta de cada função, para a pessoa escolher com segurança.
 const PAPEL_DESC: Record<Papel, string> = {
@@ -150,9 +151,9 @@ export default function CadastroIntegrante() {
                 <label className="campo"><span>WhatsApp *</span>
                   <input type="tel" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="(00) 90000-0000" />
                 </label>
-                <label className="campo"><span>Data de nascimento</span>
-                  <input type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} />
-                </label>
+                <div className="campo"><span>Data de nascimento</span>
+                  <SeletorData value={dataNascimento} onChange={setDataNascimento} max={new Date().toISOString().slice(0, 10)} />
+                </div>
               </div>
               <label className="campo"><span>E-mail * <em className="campo-dica">(será sua conta de acesso)</em></span>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@exemplo.com" />

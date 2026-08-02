@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useAppState } from '../store'
 import { useUsuarioAtualId, usuarioAtual, visitantesVisiveis } from '../acesso'
 import { estiloStatus, ORIGEM_LABEL, rotuloStatus, SITUACAO_CIVIL_LABEL, STATUS_LABEL, type Status } from '../types'
+import { SeletorData } from '../campos'
 import { IcoDownload, IcoImpressora } from '../icones'
 import {
   atividadePorDia, desempenhoConexoes, desempenhoEquipe, distribuicao, engajamento,
@@ -135,8 +136,8 @@ export default function Relatorios() {
           ))}
         </div>
         <div className="rel-periodo-datas">
-          <label className="aud-periodo">De <input type="date" value={de} max={ate || undefined} onChange={(e) => { setDe(e.target.value); setPresetAtivo('custom') }} /></label>
-          <label className="aud-periodo">Até <input type="date" value={ate} min={de || undefined} onChange={(e) => { setAte(e.target.value); setPresetAtivo('custom') }} /></label>
+          <span className="aud-periodo">De <SeletorData compacto value={de} max={ate || undefined} onChange={(iso) => { setDe(iso); setPresetAtivo('custom') }} /></span>
+          <span className="aud-periodo">Até <SeletorData compacto value={ate} min={de || undefined} onChange={(iso) => { setAte(iso); setPresetAtivo('custom') }} /></span>
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAppState } from '../store'
+import { SeletorData } from '../campos'
 import { IcoBusca } from '../icones'
 import { navegar } from '../router'
 
@@ -35,8 +36,8 @@ export default function Auditoria() {
           <span className="search-icon"><IcoBusca /></span>
           <input type="text" placeholder="Buscar por pessoa, ação ou visitante…" value={busca} onChange={(e) => setBusca(e.target.value)} />
         </div>
-        <label className="aud-periodo">De <input type="date" value={de} max={ate || undefined} onChange={(e) => setDe(e.target.value)} /></label>
-        <label className="aud-periodo">Até <input type="date" value={ate} min={de || undefined} onChange={(e) => setAte(e.target.value)} /></label>
+        <span className="aud-periodo">De <SeletorData compacto value={de} max={ate || undefined} onChange={setDe} /></span>
+        <span className="aud-periodo">Até <SeletorData compacto value={ate} min={de || undefined} onChange={setAte} /></span>
         {temFiltro && <button className="btn btn-sec" onClick={limpar}>Limpar filtros</button>}
       </div>
 

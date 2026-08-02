@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { semAtualizacao, useAppState, ultimaRespostaOuCadastro } from '../store'
 import { diasDesde } from '../machine'
 import { estiloStatus, rotuloStatus, STATUS_COR, type Status } from '../types'
@@ -57,6 +58,57 @@ function CardComoConheceu({ vs }: { vs: import('../types').Visitante[] }) {
   )
 }
 
+// Blocos do painel que a pessoa pode reordenar arrastando. A ordem fica salva
+// neste navegador (por usuário não precisa: é preferência de visualização).
+const BLOCOS_PADRAO = ['kpis', 'status', 'funil', 'canais', 'acoes'] as const
+type BlocoId = typeof BLOCOS_PADRAO[number]
+const ORDEM_KEY = 'ife-dash-ordem-v1'
+
+function carregarOrdem(): BlocoId[] {
+  try {
+    const raw = localStorage.getItem(ORDEM_KEY)
+    if (raw) {
+      const arr = (JSON.parse(raw) as string[]).filter((x): x is BlocoId => (BLOCOS_PADRAO as readonly string[]).includes(x))
+      const faltando = BLOCOS_PADRAO.filter((x) => !arr.includes(x))
+      return [...arr, ...faltando]
+    }
+  } catch { /* preferência corrompida: usa o padrão */ }
+  return [...BLOCOS_PADRAO]
+}
+
+// Um quadro do painel, com alça (⠿) para arrastar e reordenar
+function BlocoArrastavel({ id, arrastando, onIniciar, onEntrar, onFim, children }: {
+  id: BlocoId
+  arrastando: BlocoId | null
+  onIniciar: (id: BlocoId) => void
+  onEntrar: (id: BlocoId) => void
+  onFim: () => void
+  children: React.ReactNode
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  return (
+    <div
+      ref={ref}
+      className={`dash-bloco ${arrastando === id ? 'arrastando' : ''} ${arrastando && arrastando !== id ? 'alvo' : ''}`}
+      onDragOver={(e) => { e.preventDefault(); onEntrar(id) }}
+      onDrop={(e) => e.preventDefault()}
+    >
+      <button
+        type="button" className="dash-bloco-alca" title="Arraste para reordenar" aria-label="Arraste para reordenar"
+        draggable
+        onDragStart={(e) => {
+          if (ref.current) e.dataTransfer.setDragImage(ref.current, 24, 18)
+          e.dataTransfer.effectAllowed = 'move'
+          e.dataTransfer.setData('text/plain', id)
+          onIniciar(id)
+        }}
+        onDragEnd={onFim}
+      >⠿</button>
+      {children}
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const s = useAppState()
   const eu = usuarioAtual(s, useUsuarioAtualId())
@@ -82,8 +134,22 @@ export default function Dashboard() {
     .map((v) => ({ v, acao: proximaAcao(s, v), dias: diasDesde(ultimaRespostaOuCadastro(s, v)) }))
     .sort((a, b) => Number(b.acao.urgente ?? false) - Number(a.acao.urgente ?? false) || b.dias - a.dias)
 
-  const hoje = new Date().getDay()
-  const diaFluxo = hoje === 1 ? 'Segunda — Aproximação' : hoje === 3 ? 'Quarta — Conexão' : hoje === 6 ? 'Sábado — Celebração' : null
+  // Ordem dos quadros (arrastável) — salva neste navegador
+  const [ordem, setOrdem] = useState<BlocoId[]>(carregarOrdem)
+  const [arrastando, setArrastando] = useState<BlocoId | null>(null)
+  useEffect(() => { localStorage.setItem(ORDEM_KEY, JSON.stringify(ordem)) }, [ordem])
+
+  function aoEntrar(alvo: BlocoId) {
+    setArrastando((atual) => {
+      if (!atual || atual === alvo) return atual
+      setOrdem((prev) => {
+        const nova = prev.filter((x) => x !== atual)
+        nova.splice(nova.indexOf(alvo), 0, atual)
+        return nova
+      })
+      return atual
+    })
+  }
 
   const etapasFunil = funil(vs)
   const totalStack = vs.length || 1
@@ -97,6 +163,107 @@ export default function Dashboard() {
     { rotulo: 'Membros', valor: integrados, cor: '#22c55e', icone: <IcoUserCheck size={15} />, nota: `${taxaIntegracao}% de conversão` },
   ]
 
+  // Conteúdo de cada quadro reordenável. `null` = quadro sem conteúdo (não aparece).
+  const conteudo: Record<BlocoId, React.ReactNode> = {
+    kpis: (
+      <div className="dash-kpis">
+        {kpis.map((k) => (
+          <div className="dash-kpi" key={k.rotulo}>
+            <div className="dash-kpi-top">
+              <span className="dash-kpi-icone" style={{ background: k.cor }}>{k.icone}</span>
+              {k.rotulo}
+            </div>
+            <div className="dash-kpi-valor" style={{ color: k.cor }}>{k.valor}</div>
+            <div className="dash-kpi-nota">{k.nota}</div>
+          </div>
+        ))}
+      </div>
+    ),
+    status: vs.length > 0 ? (
+      <div className="card">
+        <h3>Distribuição por status</h3>
+        <div className="dash-stack">
+          {segmentos.map(({ st, n }) => (
+            <div
+              key={st}
+              className="dash-stack-seg"
+              style={{ width: `${(n / totalStack) * 100}%`, background: STATUS_COR[st] }}
+            >
+              <span className="dash-stack-tip">
+                {rotuloStatus(st)} · <b>{Math.round((n / totalStack) * 100)}%</b>
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="dash-stack-legenda">
+          {segmentos.map(({ st, n }) => (
+            <span key={st}><i style={{ background: STATUS_COR[st] }} />{rotuloStatus(st)} <b>{n}</b></span>
+          ))}
+        </div>
+      </div>
+    ) : null,
+    funil: (
+      <div className="card">
+        <h3>Funil de consolidação</h3>
+        {vs.length === 0 ? (
+          <div className="vazio">Nenhum visitante ainda. Cadastre em <a href="#/novo">Novo visitante</a>.</div>
+        ) : (
+          <div className="rel-barlist">
+            {etapasFunil.map((e) => (
+              <div className="rel-bar-row" key={e.chave}>
+                <div className="rel-bar-rotulo" title={e.rotulo}>{e.rotulo}</div>
+                <div className="rel-bar-trilho">
+                  <div className="rel-bar-fill" style={{ width: `${Math.max(e.taxaDoTopo, 3)}%`, background: e.cor }} />
+                </div>
+                <div className="rel-bar-num">{e.total} <span className="rel-bar-pct">· {e.taxaDoTopo}%</span></div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    ),
+    canais: <CardComoConheceu vs={vs} />,
+    acoes: (
+      <div className="card" style={{ padding: 0 }}>
+        <div style={{ padding: '16px 18px 0' }}><h3 style={{ marginBottom: 0 }}>✅ Ações de hoje ({ativos.length})</h3></div>
+        {ativos.length === 0 ? (
+          <div className="vazio">Nenhuma ação pendente. 🎉</div>
+        ) : (
+          <div className="table-wrap" style={{ overflowX: 'auto' }}>
+            <table>
+              <thead><tr><th>Visitante</th><th>Status</th><th>O que fazer</th><th></th></tr></thead>
+              <tbody>
+                {ativos.slice(0, 12).map(({ v, acao }) => {
+                  const template = acao.gatilhoTemplate ? s.templates.find((t) => t.gatilho === acao.gatilhoTemplate) : undefined
+                  return (
+                    <tr key={v.id}>
+                      <td className="clicavel cell-title" onClick={() => navegar(`/visitante/${v.id}`)}>
+                        {v.nome}{v.flagCuidado && ' 🚨'}
+                      </td>
+                      <td><span className="badge" style={estiloStatus(v.status)}>{rotuloStatus(v.status)}</span></td>
+                      <td style={{ fontSize: 13 }}>{acao.urgente ? <b>{acao.titulo}</b> : acao.titulo}</td>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        {template && (
+                          <a
+                            className="btn btn-whats btn-mini"
+                            href={linkWhatsApp(v.whatsapp, aplicarTemplate(template.texto, v, s))}
+                            target="_blank" rel="noreferrer"
+                            style={{ marginRight: 6 }}
+                          >💬 Enviar</a>
+                        )}
+                        <button className="btn btn-sec btn-mini" onClick={() => navegar(`/visitante/${v.id}`)}>Abrir</button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    ),
+  }
+
   return (
     <div>
       <div className="dash-cab">
@@ -104,7 +271,7 @@ export default function Dashboard() {
           <h1 className="titulo-pagina">Painel da Consolidação</h1>
           <p className="subtitulo" style={{ marginBottom: 0 }}>Visão geral da jornada — do primeiro contato à integração.</p>
         </div>
-        {diaFluxo && <div className="dash-hoje">📅 Hoje é dia de contato: {diaFluxo}</div>}
+        <div className="dash-dica-arrastar">⠿ Arraste os quadros pela alça para reorganizar</div>
       </div>
 
       <div style={{ height: 16 }} />
@@ -137,108 +304,15 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* KPIs */}
-      <div className="dash-kpis">
-        {kpis.map((k) => (
-          <div className="dash-kpi" key={k.rotulo}>
-            <div className="dash-kpi-top">
-              <span className="dash-kpi-icone" style={{ background: k.cor }}>{k.icone}</span>
-              {k.rotulo}
-            </div>
-            <div className="dash-kpi-valor" style={{ color: k.cor }}>{k.valor}</div>
-            <div className="dash-kpi-nota">{k.nota}</div>
-          </div>
+      <div className="dash-blocos">
+        {ordem.map((id) => conteudo[id] && (
+          <BlocoArrastavel
+            key={id} id={id} arrastando={arrastando}
+            onIniciar={setArrastando} onEntrar={aoEntrar} onFim={() => setArrastando(null)}
+          >
+            {conteudo[id]}
+          </BlocoArrastavel>
         ))}
-      </div>
-
-      {/* Distribuição por status (barra empilhada) */}
-      {vs.length > 0 && (
-        <div className="card">
-          <h3>Distribuição por status</h3>
-          {/* A legenda abaixo já mostra rótulo + quantidade. O que falta ali — e é
-              o que o gráfico responde bem — é o PESO de cada fatia: a porcentagem. */}
-          <div className="dash-stack">
-            {segmentos.map(({ st, n }) => (
-              <div
-                key={st}
-                className="dash-stack-seg"
-                style={{ width: `${(n / totalStack) * 100}%`, background: STATUS_COR[st] }}
-              >
-                <span className="dash-stack-tip">
-                  {rotuloStatus(st)} · <b>{Math.round((n / totalStack) * 100)}%</b>
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="dash-stack-legenda">
-            {segmentos.map(({ st, n }) => (
-              <span key={st}><i style={{ background: STATUS_COR[st] }} />{rotuloStatus(st)} <b>{n}</b></span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Duas colunas: ações de hoje + funil/canais */}
-      <div className="dash-grid">
-        <div className="card" style={{ padding: 0 }}>
-          <div style={{ padding: '16px 18px 0' }}><h3 style={{ marginBottom: 0 }}>✅ Ações de hoje ({ativos.length})</h3></div>
-          {ativos.length === 0 ? (
-            <div className="vazio">Nenhuma ação pendente. 🎉</div>
-          ) : (
-            <div className="table-wrap" style={{ overflowX: 'auto' }}>
-              <table>
-                <thead><tr><th>Visitante</th><th>Status</th><th>O que fazer</th><th></th></tr></thead>
-                <tbody>
-                  {ativos.slice(0, 12).map(({ v, acao }) => {
-                    const template = acao.gatilhoTemplate ? s.templates.find((t) => t.gatilho === acao.gatilhoTemplate) : undefined
-                    return (
-                      <tr key={v.id}>
-                        <td className="clicavel cell-title" onClick={() => navegar(`/visitante/${v.id}`)}>
-                          {v.nome}{v.flagCuidado && ' 🚨'}
-                        </td>
-                        <td><span className="badge" style={estiloStatus(v.status)}>{rotuloStatus(v.status)}</span></td>
-                        <td style={{ fontSize: 13 }}>{acao.urgente ? <b>{acao.titulo}</b> : acao.titulo}</td>
-                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          {template && (
-                            <a
-                              className="btn btn-whats btn-mini"
-                              href={linkWhatsApp(v.whatsapp, aplicarTemplate(template.texto, v.nome))}
-                              target="_blank" rel="noreferrer"
-                              style={{ marginRight: 6 }}
-                            >💬 Enviar</a>
-                          )}
-                          <button className="btn btn-sec btn-mini" onClick={() => navegar(`/visitante/${v.id}`)}>Abrir</button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="card">
-            <h3>Funil de consolidação</h3>
-            {vs.length === 0 ? (
-              <div className="vazio">Nenhum visitante ainda. Cadastre em <a href="#/novo">Novo visitante</a>.</div>
-            ) : (
-              <div className="rel-barlist">
-                {etapasFunil.map((e) => (
-                  <div className="rel-bar-row" key={e.chave}>
-                    <div className="rel-bar-rotulo" title={e.rotulo}>{e.rotulo}</div>
-                    <div className="rel-bar-trilho">
-                      <div className="rel-bar-fill" style={{ width: `${Math.max(e.taxaDoTopo, 3)}%`, background: e.cor }} />
-                    </div>
-                    <div className="rel-bar-num">{e.total} <span className="rel-bar-pct">· {e.taxaDoTopo}%</span></div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <CardComoConheceu vs={vs} />
-        </div>
       </div>
     </div>
   )

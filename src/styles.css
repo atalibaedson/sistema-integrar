@@ -249,6 +249,7 @@ textarea { resize: vertical; min-height: 64px; }
   transition: all var(--transition);
 }
 .btn:hover { filter: brightness(0.92); }
+.btn:disabled { opacity: .45; cursor: default; box-shadow: none; filter: none; }
 .btn-sec { background: var(--surface); color: var(--text); border-color: var(--border-strong); box-shadow: none; }
 .btn-sec:hover { background: var(--surface2); filter: none; }
 .btn-perigo { background: #fef2f2; color: var(--danger); border-color: #fecaca; }
@@ -910,6 +911,22 @@ details summary:hover { color: var(--primary); }
   color: var(--primary); background: var(--primary-soft); border: 1px solid var(--border);
   padding: 8px 14px; border-radius: 999px; white-space: nowrap;
 }
+.dash-dica-arrastar { font-size: 12px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.dash-blocos { display: flex; flex-direction: column; gap: 16px; }
+.dash-bloco { position: relative; }
+.dash-bloco .dash-kpis { margin-bottom: 0; }
+.dash-bloco-alca {
+  position: absolute; top: 8px; right: 8px; z-index: 4;
+  width: 28px; height: 26px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-3); cursor: grab; font-size: 13px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  opacity: .4; transition: opacity var(--transition), color var(--transition), border-color var(--transition);
+}
+.dash-bloco:hover .dash-bloco-alca { opacity: 1; }
+.dash-bloco-alca:hover { color: var(--primary); border-color: var(--primary); }
+.dash-bloco-alca:active { cursor: grabbing; }
+.dash-bloco.arrastando { opacity: .4; }
+.dash-bloco.alvo { border-radius: var(--radius); outline: 1.5px dashed color-mix(in srgb, var(--primary) 45%, transparent); outline-offset: 4px; }
 .dash-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .dash-kpi {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -1078,3 +1095,112 @@ details summary:hover { color: var(--primary); }
   color: var(--ife-tinta-2); font-size: 13px; margin: 14px 0 0;
 }
 @media (max-width: 520px) { .ife-site .ac-grupo { grid-template-columns: 1fr; } }
+
+/* ---- Botão salvar (barra de confirmação) ---- */
+.barra-salvar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border);
+}
+.salvar-ok { font-size: 13px; font-weight: 700; color: var(--ok); display: inline-flex; align-items: center; gap: 4px; }
+.salvar-pend { font-size: 12.5px; font-weight: 600; color: var(--warn); }
+.salvar-sync { font-size: 12.5px; color: var(--text-3); display: inline-flex; align-items: center; gap: 5px; }
+.salvar-sync::before { content: '✓'; color: var(--ok); font-weight: 700; }
+
+/* ---- Seletor de data moderno ---- */
+.seletor-data {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 14px; font-family: var(--font); background: var(--surface); color: var(--text);
+  cursor: pointer; text-align: left; transition: border-color var(--transition), box-shadow var(--transition);
+}
+.seletor-data:hover { border-color: var(--border-strong); }
+.seletor-data.aberto { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.seletor-data.sd-vazio > span:first-child { color: var(--text-3); }
+.seletor-data.sd-compacto { width: auto; min-width: 150px; padding: 8px 10px; }
+.seletor-data-ico { font-size: 15px; line-height: 1; opacity: .85; }
+.seletor-data:disabled { opacity: .6; cursor: not-allowed; }
+
+.cal-pop {
+  z-index: 1000;
+  background: var(--surface, #fff); color: var(--text, #1a2233);
+  border: 1px solid var(--border, #e2e6ec); border-radius: 12px;
+  box-shadow: 0 16px 40px -12px rgba(16,24,40,.35), 0 2px 8px rgba(16,24,40,.12);
+  padding: 12px;
+}
+.cal-cab { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.cal-titulo { display: flex; gap: 6px; flex: 1; min-width: 0; }
+.cal-titulo select {
+  padding: 5px 6px; font-size: 13px; font-weight: 600; border-radius: 7px;
+  border: 1px solid var(--border); background: var(--bg); cursor: pointer; width: auto;
+}
+.cal-titulo select:first-child { flex: 1 1 auto; min-width: 0; }
+.cal-titulo select:last-child { flex: 0 0 auto; width: 78px; }
+.cal-nav {
+  width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-2); font-size: 20px; line-height: 1; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.cal-nav:hover { background: var(--bg); color: var(--text); }
+.cal-grade { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-semana { margin-bottom: 4px; }
+.cal-wd { text-align: center; font-size: 11px; font-weight: 700; color: var(--text-3); padding: 4px 0; }
+.cal-dia {
+  aspect-ratio: 1; border: none; background: transparent; border-radius: 8px;
+  font-size: 13px; font-weight: 500; color: var(--text); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background var(--transition);
+}
+.cal-dia:hover:not(:disabled) { background: var(--primary-soft); }
+.cal-dia.fora { color: var(--text-3); opacity: .55; }
+.cal-dia.hoje { box-shadow: inset 0 0 0 1.5px var(--primary); font-weight: 700; }
+.cal-dia.sel { background: var(--primary); color: var(--primary-contraste); font-weight: 700; }
+.cal-dia.sel:hover { background: var(--primary-dark); }
+.cal-dia:disabled { color: var(--text-3); opacity: .35; cursor: not-allowed; }
+.cal-rodape { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+
+/* No formulário público, o seletor herda a mesma pegada dos inputs da igreja */
+.ife-site .seletor-data {
+  background: #fff; color: var(--ife-tinta);
+  border: 1px solid color-mix(in srgb, var(--escura) 18%, transparent);
+  font-family: 'Manrope', system-ui, sans-serif;
+}
+.ife-site .seletor-data.aberto { border-color: var(--ife-azul); box-shadow: 0 0 0 3px color-mix(in srgb, var(--escura) 14%, transparent); }
+
+/* ---- Toast (confirmação rápida) ---- */
+#toast-host {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+  z-index: 3000; display: flex; flex-direction: column; gap: 8px; align-items: center;
+  pointer-events: none;
+}
+.toast {
+  background: var(--escura); color: #fff;
+  padding: 10px 18px; border-radius: 999px; font-size: 13.5px; font-weight: 600;
+  box-shadow: 0 8px 24px -6px rgba(16,24,40,.45); white-space: nowrap;
+  opacity: 0; transform: translateY(10px); transition: opacity .25s ease, transform .25s ease;
+}
+.toast.visivel { opacity: 1; transform: translateY(0); }
+.toast-ok { background: var(--ok); }
+.toast-erro { background: var(--danger); }
+.toast-info { background: var(--escura); }
+
+/* ---- Aba Cultos (cadastro + lista, padrão do louvor) ---- */
+.grid-cultos { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .grid-cultos { grid-template-columns: 1fr; } }
+.btn.w100 { width: 100%; justify-content: center; margin-top: 4px; }
+.culto-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--surface); }
+.culto-card-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.culto-avatar {
+  width: 38px; height: 38px; flex-shrink: 0; border-radius: 10px;
+  background: var(--primary-soft); color: var(--primary);
+  display: inline-flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.culto-nome { font-weight: 700; font-size: 14.5px; color: var(--text); }
+.culto-sub { font-size: 12.5px; color: var(--text-3); }
+
+/* ---- Grade de toggles (campos do autocadastro) ---- */
+.grade-toggles { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px 16px; }
+.toggle-item {
+  padding: 8px 10px; border-radius: 8px; margin-bottom: 0;
+  transition: background var(--transition);
+}
+.toggle-item:hover { background: var(--bg); }

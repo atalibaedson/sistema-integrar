@@ -159,7 +159,7 @@ function AcoesLider({ v, tplPreVisita }: { v: Visitante; tplPreVisita?: { texto:
     return (
       <span style={{ display: 'inline-flex', gap: 6 }}>
         <a className="btn-icone whats" title="Fazer contato pré-visita" target="_blank" rel="noreferrer"
-          href={linkWhatsApp(v.whatsapp, tplPreVisita ? aplicarTemplate(tplPreVisita.texto, v.nome) : undefined)}><IcoWhats /></a>
+          href={linkWhatsApp(v.whatsapp, tplPreVisita ? aplicarTemplate(tplPreVisita.texto, v) : undefined)}><IcoWhats /></a>
         <button className="btn btn-mini" onClick={() => mudarStatus(v.id, 'visitou', 'Compareceu ao grupo')}>
           <IcoCheck size={13} /> Visitou
         </button>

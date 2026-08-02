@@ -2,7 +2,7 @@
 import { useSyncExternalStore } from 'react'
 import type { AppState, ConfigIgreja, CultoDef, EtapaFluxo, Exclusao, Interacao, RegistroAuditoria, Status, Template, Usuario, Visitante } from './types'
 import { aplicarTransicao, diasDesde } from './machine'
-import { diaSemanaDoCulto } from './cultos'
+import { diaSemanaDoCulto, gerarOcorrencias } from './cultos'
 import { baixarEstado, enviarEstado, getConfigNuvem, setConfigNuvem, type ConfigNuvem } from './nuvem'
 import { mesclarEstados } from './mesclar'
 import { getUsuarioAtualId } from './acesso'
@@ -25,10 +25,10 @@ export const CONFIG_PADRAO: ConfigIgreja = {
   frequenciaMinimaConexao: 80,
   cultos: ['Domingo — manhã', 'Domingo — tarde', 'Domingo — noite', 'Quarta — noite'],
   cultosDef: [
-    { nome: 'Domingo — manhã', diaSemana: 0 },
-    { nome: 'Domingo — tarde', diaSemana: 0 },
-    { nome: 'Domingo — noite', diaSemana: 0 },
-    { nome: 'Quarta — noite', diaSemana: 3 },
+    { nome: 'Domingo — manhã', diaSemana: 0, horario: '10:00', ocorrencias: gerarOcorrencias(0) },
+    { nome: 'Domingo — tarde', diaSemana: 0, horario: '17:00', ocorrencias: gerarOcorrencias(0) },
+    { nome: 'Domingo — noite', diaSemana: 0, horario: '19:00', ocorrencias: gerarOcorrencias(0) },
+    { nome: 'Quarta — noite', diaSemana: 3, horario: '20:00', ocorrencias: gerarOcorrencias(3) },
   ],
   comoConheceuOpcoes: [
     'Convite de amigo(a)',
@@ -41,12 +41,21 @@ export const CONFIG_PADRAO: ConfigIgreja = {
     'Já frequentava outra unidade',
     'Outro',
   ],
+  autocadastroUrl: 'https://visitante.ifamiliaextraordinaria.com.br',
   autocadastroTitulo: 'Foi uma alegria receber você! 🎉',
   autocadastroMensagem: 'Deixe seu contato — leva menos de um minuto — e nossa equipe vem falar com você em breve.',
   autocadastroMensagemFinal: 'Recebemos seus dados. Em breve alguém da nossa equipe vai falar com você pelo WhatsApp. Essa casa também é sua!',
-  autocadastroMostrarBairro: true,
   autocadastroMostrarSituacaoCivil: true,
+  autocadastroMostrarEndereco: true,
+  autocadastroMostrarBairro: true,
+  autocadastroMostrarCidade: true,
+  autocadastroPerguntarPrimeiraVez: true,
+  autocadastroPerguntarMembroOutra: true,
   autocadastroPerguntarBatismo: true,
+  autocadastroPerguntarComoConheceu: true,
+  autocadastroPerguntarConexao: true,
+  autocadastroPerguntarContato: true,
+  autocadastroPerguntarOracao: true,
   rotulosStatus: {},
   rotulosPapel: {},
   datasBatismo: [],
@@ -73,16 +82,16 @@ export const GATILHO_ETAPA: Record<string, EtapaFluxo> = {
 function templatesPadrao(): Template[] {
   return [
     {
-      id: 'tp1', gatilho: 'segunda_aproximacao', titulo: 'Segunda — Aproximação', etapa: 'aproximacao',
+      id: 'tp1', gatilho: 'segunda_aproximacao', titulo: '1º Contato — Aproximação', etapa: 'aproximacao',
       texto: 'Olá, {{nome}}! Foi uma alegria receber você conosco. Ficamos felizes pela sua presença, gostaríamos de te conhecer melhor e queremos dizer que essa casa também é sua. Conte conosco para o que precisar.',
     },
     {
-      id: 'tp2', gatilho: 'quarta_conexao', titulo: 'Quarta — Convite para o grupo', etapa: 'conexao',
-      texto: 'Bom dia, tudo bem? Como está a sua semana? Gostaria de te apresentar um pouco sobre o nosso modelo de pastoreio. Você já ouviu falar sobre conexão?',
+      id: 'tp2', gatilho: 'quarta_conexao', titulo: 'Convite para a Conexão', etapa: 'conexao',
+      texto: 'Bom dia, tudo bem? Como está a sua semana? Gostaria de te apresentar um pouco sobre o nosso modelo de pastoreio. Você já ouviu falar sobre a {{nome_conexão}}?',
     },
     {
-      id: 'tp3', gatilho: 'sabado_celebracao', titulo: 'Sábado — Celebração', etapa: 'celebracao',
-      texto: 'Bom dia, tudo bem? Segue nossa programação de domingo, será um prazer ter você conosco novamente.',
+      id: 'tp3', gatilho: 'sabado_celebracao', titulo: 'Convite Celebração', etapa: 'celebracao',
+      texto: 'Bom dia, tudo bem? Segue nossa programação, será um prazer ter você conosco novamente na próxima Celebração.',
     },
     {
       id: 'tp4', gatilho: 'pre_visita_lider', titulo: 'Líder — contato pré-visita', etapa: 'pre_visita',
@@ -227,6 +236,32 @@ function migrar(raw: any): AppState {
       para: h.para === 'em_membresia' ? 'batismo' : h.para,
     })),
   }))
+
+  // v10 → v11: cultos ganham lista de datas concretas (padrão do louvor). Quem
+  // tem dia da semana mas ainda não tem `ocorrencias` recebe as datas geradas
+  // (semanas recentes + próximas), para o cadastro do culto já vir preenchido.
+  base.config.cultosDef = (base.config.cultosDef as CultoDef[] ?? []).map((c) =>
+    c.diaSemana !== undefined && (!c.ocorrencias || c.ocorrencias.length === 0)
+      ? { ...c, ocorrencias: gerarOcorrencias(c.diaSemana) }
+      : c,
+  )
+
+  // v10 → v11: fluxo de mensagens deixa de usar dias fixos (segunda/quarta/
+  // sábado). Renomeia só os títulos fixos que ainda estão no padrão antigo —
+  // textos e títulos que a igreja já editou são preservados.
+  const TITULOS_ANTIGOS: Record<string, string> = {
+    segunda_aproximacao: 'Segunda — Aproximação',
+    quarta_conexao: 'Quarta — Convite para o grupo',
+    sabado_celebracao: 'Sábado — Celebração',
+  }
+  const TITULOS_NOVOS: Record<string, string> = {
+    segunda_aproximacao: '1º Contato — Aproximação',
+    quarta_conexao: 'Convite para a Conexão',
+    sabado_celebracao: 'Convite Celebração',
+  }
+  base.templates = (base.templates as Template[]).map((t) =>
+    TITULOS_ANTIGOS[t.gatilho] === t.titulo ? { ...t, titulo: TITULOS_NOVOS[t.gatilho] } : t,
+  )
 
   return base as AppState
 }

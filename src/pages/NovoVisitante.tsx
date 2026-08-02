@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { buscarDuplicado, cadastrarVisitante, sugerirConexao } from '../actions'
 import { useAppState } from '../store'
-import { ocorrenciasRecentes } from '../cultos'
+import { ocorrenciasParaVisitante } from '../cultos'
 import {
   HORARIO_CONTATO_LABEL, OPCOES_DESEJA_CONEXAO, SITUACAO_BATISMO_CURTO, SITUACAO_CIVIL_LABEL,
   rotuloStatus, type HorarioContato, type SituacaoBatismo, type SituacaoCivil,
 } from '../types'
-import { Escolha, SIM_NAO } from '../campos'
+import { Escolha, SeletorData, SIM_NAO } from '../campos'
 import { soAcolhedor, useUsuarioAtualId, usuarioAtual } from '../acesso'
 import { navegar } from '../router'
 
@@ -56,7 +56,7 @@ export default function NovoVisitante() {
   // Alerta de duplicado em tempo real, enquanto digita (WhatsApp ou e-mail)
   const duplicado = buscarDuplicado(s, whatsapp, email)
 
-  const ocorrencias = ocorrenciasRecentes(s.config.cultosDef)
+  const ocorrencias = ocorrenciasParaVisitante(s.config.cultosDef)
   const [dataVisitaSel, cultoNome] = [
     cultoSel.slice(0, cultoSel.indexOf('|')),
     cultoSel.slice(cultoSel.indexOf('|') + 1),
@@ -142,9 +142,9 @@ export default function NovoVisitante() {
             <label className="campo"><span>WhatsApp *</span>
               <input type="tel" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="(00) 90000-0000" />
             </label>
-            <label className="campo"><span>Data de nascimento</span>
-              <input type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} />
-            </label>
+            <div className="campo"><span>Data de nascimento</span>
+              <SeletorData value={dataNascimento} onChange={setDataNascimento} max={new Date().toISOString().slice(0, 10)} />
+            </div>
           </div>
           <div className="ac-grupo">
             <label className="campo"><span>E-mail <em className="campo-dica">(opcional)</em></span>
@@ -193,32 +193,33 @@ export default function NovoVisitante() {
               <select value={cultoSel} onChange={(e) => { setCultoSel(e.target.value); setDataManual('') }}>
                 <option value="">— selecionar —</option>
                 {ocorrencias.length > 0 && (
-                  <optgroup label="Últimos 7 dias">
+                  <optgroup label="Cultos desta semana">
                     {ocorrencias.map((o) => (
                       <option key={`${o.data}|${o.culto}`} value={`${o.data}|${o.culto}`}>{o.rotulo}</option>
                     ))}
                   </optgroup>
                 )}
                 <optgroup label="Outra data (informar ao lado)">
-                  {s.config.cultosDef.map((c) => <option key={`|${c.nome}`} value={`|${c.nome}`}>{c.nome}</option>)}
+                  {s.config.cultosDef.map((c) => <option key={`|${c.nome}`} value={`|${c.nome}`}>{c.nome}{c.horario ? ` · ${c.horario}` : ''}</option>)}
                 </optgroup>
               </select>
             </label>
             {cultoSel !== '' && !dataVisitaSel && (
-              <label className="campo"><span>Data da visita</span>
-                <input type="date" value={dataManual} onChange={(e) => setDataManual(e.target.value)} />
-              </label>
+              <div className="campo"><span>Data da visita</span>
+                <SeletorData value={dataManual} onChange={setDataManual} max={new Date().toISOString().slice(0, 10)} />
+              </div>
             )}
           </div>
           <div className="campo"><span>É a primeira vez na {s.config.nomeIgreja}?</span>
             <Escolha valor={primeiraVez} opcoes={SIM_NAO} onEscolher={setPrimeiraVez} />
           </div>
-          <label className="campo"><span>Como conheceu a {s.config.nomeIgreja}?</span>
-            <select value={comoConheceu} onChange={(e) => setComoConheceu(e.target.value)}>
-              <option value="">— selecionar —</option>
-              {s.config.comoConheceuOpcoes.map((o) => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </label>
+          <div className="campo"><span>Como conheceu a {s.config.nomeIgreja}?</span>
+            <Escolha
+              valor={comoConheceu}
+              opcoes={s.config.comoConheceuOpcoes.map((o) => ({ v: o, rotulo: o }))}
+              onEscolher={setComoConheceu}
+            />
+          </div>
           <div className="campo"><span>Quer fazer parte de uma {s.config.termoGrupo || 'Conexão'}?</span>
             <Escolha
               valor={desejaConexao}

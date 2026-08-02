@@ -394,8 +394,30 @@ export function linkWhatsApp(numero: string, texto?: string): string {
   return `https://wa.me/${digitos}${texto ? `?text=${encodeURIComponent(texto)}` : ''}`
 }
 
-export function aplicarTemplate(texto: string, nome: string): string {
-  return texto.replace(/\{\{nome\}\}/g, nome.split(' ')[0])
+// Nome do grupo (Conexão/Célula/PG…) ligado ao visitante: primeiro a conexão
+// dele; se não tiver, a conexão liderada pelo líder encaminhado.
+export function nomeConexaoDoVisitante(s: AppState, v: Visitante): string {
+  const direta = s.conexoes.find((c) => c.id === v.conexaoId)
+  if (direta) return direta.nome
+  const lider = s.usuarios.find((u) => u.id === v.liderConexaoId)
+  const doLider = lider && s.conexoes.find((c) => c.id === lider.conexaoId)
+  return doLider?.nome ?? ''
+}
+
+/**
+ * Substitui as variáveis do template. Aceita:
+ *  - {{nome}}          → primeiro nome do visitante
+ *  - {{nome_conexão}}  → nome do grupo do visitante (com ou sem acento)
+ * `alvo` pode ser o visitante (com estado, para resolver a Conexão) ou só o nome.
+ */
+export function aplicarTemplate(texto: string, alvo: Visitante | string, s?: AppState): string {
+  const nome = typeof alvo === 'string' ? alvo : alvo.nome
+  const estado = s ?? getEstado()
+  const nomeConexao = typeof alvo === 'string' ? '' : nomeConexaoDoVisitante(estado, alvo)
+  const termo = estado.config.termoGrupo || 'Conexão'
+  return texto
+    .replace(/\{\{\s*nome\s*\}\}/g, nome.split(' ')[0])
+    .replace(/\{\{\s*nome[_ ]conex[ãa]o\s*\}\}/gi, nomeConexao || `sua ${termo}`)
 }
 
 // ---- Próxima ação sugerida (guia o usuário em cada etapa) ----
@@ -419,12 +441,12 @@ export function proximaAcao(s: AppState, v: Visitante): AcaoSugerida {
     case 'em_contato':
     case 'aguardando_resposta': {
       if (!fez('aproximacao'))
-        return { titulo: 'Enviar mensagem de Aproximação (segunda)', detalhe: 'Primeiro contato da semana.', gatilhoTemplate: 'segunda_aproximacao' }
+        return { titulo: 'Enviar mensagem de 1º contato (Aproximação)', detalhe: 'Primeiro contato de acolhimento.', gatilhoTemplate: 'segunda_aproximacao' }
       if (!fez('conexao'))
-        return { titulo: 'Convidar para a Conexão (quarta)', detalhe: 'Apresentar o modelo de pastoreio e convidar.', gatilhoTemplate: 'quarta_conexao' }
+        return { titulo: 'Convidar para o grupo', detalhe: 'Apresentar o modelo de pastoreio e convidar.', gatilhoTemplate: 'quarta_conexao' }
       if (!fez('celebracao'))
-        return { titulo: 'Enviar programação da Celebração (sábado)', detalhe: 'Reforçar o convite para o culto de domingo.', gatilhoTemplate: 'sabado_celebracao' }
-      return { titulo: 'Manter contato e reforçar o convite', detalhe: 'Semana repetida: adapte a abordagem ao perfil da pessoa.', gatilhoTemplate: 'quarta_conexao' }
+        return { titulo: 'Enviar convite para a Celebração', detalhe: 'Reforçar o convite para a próxima celebração.', gatilhoTemplate: 'sabado_celebracao' }
+      return { titulo: 'Manter contato e reforçar o convite', detalhe: 'Adapte a abordagem ao perfil da pessoa.', gatilhoTemplate: 'quarta_conexao' }
     }
     case 'encaminhado_lider':
       return { titulo: 'Líder: fazer contato ANTES da visita', detalhe: 'A pessoa não pode chegar "de paraquedas" — o líder inicia o vínculo.', urgente: true }

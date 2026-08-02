@@ -41,13 +41,92 @@ function p2(n: number): string {
   return String(n).padStart(2, '0')
 }
 
+// "Domingo 27/07/2026" — dia da semana + data por extenso curto
+export function fmtDataComDia(iso: string): string {
+  const [ano, mes, dia] = iso.split('-').map(Number)
+  if (!ano || !mes || !dia) return iso
+  const d = new Date(ano, mes - 1, dia)
+  return `${DIA_SEMANA_LABEL[d.getDay()]} ${p2(dia)}/${p2(mes)}/${ano}`
+}
+
+// Gera as datas concretas de um culto: `passado` semanas para trás e `futuro`
+// semanas para frente, a partir da ocorrência mais próxima do dia da semana.
+// Ex.: gerarOcorrencias(0, 4, 4) → 4 domingos recentes + próximos 4 (ordenadas).
+export function gerarOcorrencias(diaSemana: number, passado = 4, futuro = 4): string[] {
+  const hoje = new Date()
+  hoje.setHours(12, 0, 0, 0)
+  // Recua até a ocorrência mais recente (hoje, se cair no dia)
+  const base = new Date(hoje)
+  while (base.getDay() !== diaSemana) base.setDate(base.getDate() - 1)
+  const datas: string[] = []
+  for (let i = -passado; i <= futuro; i++) {
+    const d = new Date(base)
+    d.setDate(base.getDate() + i * 7)
+    datas.push(isoDataLocal(d))
+  }
+  return [...new Set(datas)].sort()
+}
+
+// Gera mais `qtd` datas futuras do dia da semana, começando logo após a última
+// data já existente (ou após hoje). Usado pelo botão "Gerar mais 8".
+export function gerarMaisOcorrencias(diaSemana: number, existentes: string[], qtd = 8): string[] {
+  const ultima = existentes.length > 0 ? [...existentes].sort().slice(-1)[0] : undefined
+  const partida = ultima ? new Date(`${ultima}T12:00:00`) : new Date()
+  partida.setHours(12, 0, 0, 0)
+  const d = new Date(partida)
+  // Avança para a próxima ocorrência do dia da semana, depois da data de partida
+  do { d.setDate(d.getDate() + 1) } while (d.getDay() !== diaSemana)
+  const novas: string[] = []
+  for (let i = 0; i < qtd; i++) {
+    novas.push(isoDataLocal(d))
+    d.setDate(d.getDate() + 7)
+  }
+  return [...new Set([...existentes, ...novas])].sort()
+}
+
 export interface OcorrenciaCulto {
   culto: string // nome do culto
   data: string // yyyy-mm-dd
-  rotulo: string // ex.: "Domingo — manhã · dom 12/07"
+  horario?: string
+  rotulo: string // ex.: "Celebração manhã · dom 02/08 · 10:00"
 }
 
-// Cultos que aconteceram de hoje até `dias` dias atrás, mais recentes primeiro
+// Ocorrências oferecidas no cadastro do visitante: só as da última semana até
+// hoje (janela [hoje-7, hoje]). Assim, num domingo aparecem o culto de hoje e o
+// da semana passada; num sábado (culto de domingo) aparece só o de domingo
+// passado. Usa as datas cadastradas (ocorrencias); se o culto não tiver lista,
+// cai para a derivação pelo dia da semana — nada quebra em dados antigos.
+export function ocorrenciasParaVisitante(cultos: CultoDef[]): OcorrenciaCulto[] {
+  const hojeD = new Date()
+  hojeD.setHours(12, 0, 0, 0)
+  const hoje = isoDataLocal(hojeD)
+  const limite = new Date(hojeD)
+  limite.setDate(hojeD.getDate() - 7)
+  const inicio = isoDataLocal(limite)
+
+  const rotular = (culto: CultoDef, data: string): OcorrenciaCulto => ({
+    culto: culto.nome,
+    data,
+    horario: culto.horario,
+    rotulo: `${culto.nome} · ${fmtDataVisita(data)}${culto.horario ? ` · ${culto.horario}` : ''}`,
+  })
+
+  const out: OcorrenciaCulto[] = []
+  for (const culto of cultos) {
+    const lista = (culto.ocorrencias && culto.ocorrencias.length > 0)
+      ? culto.ocorrencias
+      : culto.diaSemana !== undefined
+        ? gerarOcorrencias(culto.diaSemana, 1, 0) // deriva a última semana
+        : []
+    for (const data of lista) {
+      if (data >= inicio && data <= hoje) out.push(rotular(culto, data))
+    }
+  }
+  return out.sort((a, b) => b.data.localeCompare(a.data)) // mais recentes primeiro
+}
+
+// Cultos que aconteceram de hoje até `dias` dias atrás, mais recentes primeiro.
+// Mantida para compatibilidade com telas que ainda derivam pelo dia da semana.
 export function ocorrenciasRecentes(cultos: CultoDef[], dias = 7): OcorrenciaCulto[] {
   const hoje = new Date()
   const out: OcorrenciaCulto[] = []

@@ -1,32 +1,35 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ativarNuvem, comExclusoes, desligarNuvem, GATILHOS_FIXOS, getEstado, lideres, setEstado,
   substituirEstado, testarNuvem, uid, useAppState, useNuvem, zerarDados,
 } from '../store'
 import { getConfigNuvem } from '../nuvem'
 import {
-  ETAPA_LABEL, PAPEL_LABEL, rotuloStatusPadrao,
+  PAPEL_LABEL, rotuloEtapa, rotuloStatusPadrao,
   type ConfigIgreja, type CultoDef, type EtapaFluxo, type Papel, type Status, type Template,
 } from '../types'
-import { DIA_SEMANA_LABEL, ocorrenciasRecentes } from '../cultos'
+import { DIA_SEMANA_LABEL, fmtDataComDia, gerarMaisOcorrencias, gerarOcorrencias } from '../cultos'
 import { PALETAS } from '../tema'
 import { registrarAuditoria } from '../auditoria'
+import { toast } from '../toast'
+import { BotaoSalvar, SeletorData } from '../campos'
 import { IcoCheck, IcoCopiar, IcoDownload, IcoEditar, IcoImpressora, IcoLixeira, IcoMais, IcoOlho, IcoX } from '../icones'
 
 type Aba = 'igreja' | 'jornada' | 'cultos' | 'grupos' | 'mensagens' | 'autocadastro' | 'dados'
 
-const ABAS: { id: Aba; rotulo: string }[] = [
-  { id: 'igreja', rotulo: '⛪ Minha igreja' },
-  { id: 'jornada', rotulo: '🗺️ Jornada' },
-  { id: 'cultos', rotulo: '📅 Cultos' },
-  { id: 'grupos', rotulo: '🏠 Grupos' },
-  { id: 'mensagens', rotulo: '💬 Mensagens' },
-  { id: 'autocadastro', rotulo: '📱 Autocadastro (QR)' },
-  { id: 'dados', rotulo: '💾 Dados' },
+const ABAS: { id: Aba; rotulo: string; dica: string }[] = [
+  { id: 'igreja', rotulo: '⛪ Igreja', dica: 'Identidade, cores e regras gerais' },
+  { id: 'jornada', rotulo: '🗺️ Jornada', dica: 'Nomes das etapas e datas marcadas' },
+  { id: 'cultos', rotulo: '📅 Cultos', dica: 'Cultos fixos e suas datas' },
+  { id: 'grupos', rotulo: '🏠 Grupos', dica: 'Conexões e seus líderes' },
+  { id: 'mensagens', rotulo: '💬 Mensagens', dica: 'Textos do fluxo de contato' },
+  { id: 'autocadastro', rotulo: '📱 Autocadastro', dica: 'Página pública do QR code' },
+  { id: 'dados', rotulo: '💾 Dados & Nuvem', dica: 'Backup e sincronização' },
 ]
 
 export default function Configuracoes() {
   const [aba, setAba] = useState<Aba>('igreja')
+  const atual = ABAS.find((a) => a.id === aba)!
 
   return (
     <div>
@@ -41,6 +44,8 @@ export default function Configuracoes() {
         ))}
       </div>
 
+      <p className="descricao-secao" style={{ margin: '0 0 16px', fontStyle: 'italic' }}>{atual.dica}</p>
+
       {aba === 'igreja' && <AbaIgreja />}
       {aba === 'jornada' && <AbaJornada />}
       {aba === 'cultos' && <AbaCultos />}
@@ -52,16 +57,87 @@ export default function Configuracoes() {
   )
 }
 
-/* ---------------- Cores: as três que mandam no sistema inteiro ----------------
-   Mesmo vocabulário da área de configuração do site da igreja (papel, escura,
-   primária). Os tons derivados — bordas, superfícies, texto — são calculados
-   sozinhos, então basta acertar estas três. */
+/* ---------------- Rascunho + Salvar ----------------
+   Guarda as edições localmente e só grava ao clicar em "Salvar" — assim a pessoa
+   tem certeza do que foi salvo. Adota mudanças externas (nuvem) só quando não há
+   edição pendente, para não descartar o que está sendo digitado. */
+function useRascunho<T extends object>(atual: T) {
+  const [d, setD] = useState<T>(atual)
+  const ref = useRef(JSON.stringify(atual))
+  const atualKey = JSON.stringify(atual)
+  useEffect(() => {
+    if (atualKey !== ref.current) {
+      setD((x) => (JSON.stringify(x) === ref.current ? atual : x))
+      ref.current = atualKey
+    }
+  }, [atualKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const pendente = JSON.stringify(d) !== atualKey
+  return { d, set: (p: Partial<T>) => setD((x) => ({ ...x, ...p })), pendente }
+}
+
+function salvarConfig(patch: Partial<ConfigIgreja>) {
+  setEstado((st) => ({ ...st, config: { ...st.config, ...patch } }))
+}
+
+/* ---------------- Aba: Igreja ---------------- */
+
+function AbaIgreja() {
+  const cfg = useAppState().config
+  const id = useRascunho({ nomeIgreja: cfg.nomeIgreja, subtitulo: cfg.subtitulo, termoGrupo: cfg.termoGrupo })
+  const regras = useRascunho({ prazoEsperaDias: cfg.prazoEsperaDias })
+
+  return (
+    <>
+      <div className="card">
+        <h3>Identidade</h3>
+        <p className="descricao-secao">Nome e termos que aparecem no menu, no formulário público de autocadastro e nos relatórios.</p>
+        <div className="linha-campos">
+          <label className="campo"><span>Nome da igreja</span>
+            <input type="text" value={id.d.nomeIgreja} onChange={(e) => id.set({ nomeIgreja: e.target.value })} />
+          </label>
+          <label className="campo"><span>Subtítulo</span>
+            <input type="text" value={id.d.subtitulo} onChange={(e) => id.set({ subtitulo: e.target.value })} />
+          </label>
+        </div>
+        <label className="campo"><span>Como vocês chamam o grupo pequeno?</span>
+          <input type="text" value={id.d.termoGrupo} onChange={(e) => id.set({ termoGrupo: e.target.value })} placeholder="Conexão, Célula, PG, GC…" />
+        </label>
+        <BotaoSalvar pendente={id.pendente} onSalvar={() => { salvarConfig(id.d); toast('Identidade salva') }} />
+      </div>
+
+      <Cores />
+
+      <div className="card">
+        <h3>Regras do fluxo</h3>
+        <p className="descricao-secao">Prazos que controlam as automações do acompanhamento.</p>
+        <label className="campo" style={{ maxWidth: 380 }}>
+          <span>Dias sem resposta até mover para "Em espera"</span>
+          <input
+            type="number" min={1} max={90} value={regras.d.prazoEsperaDias}
+            onChange={(e) => regras.set({ prazoEsperaDias: Math.max(1, Number(e.target.value) || 14) })}
+          />
+        </label>
+        <BotaoSalvar pendente={regras.pendente} onSalvar={() => { salvarConfig(regras.d); toast('Regras salvas') }} />
+      </div>
+
+      <ListaEditavel
+        titulo={'Opções de "Como conheceu a igreja?"'}
+        descricao="Aparecem no cadastro manual e no autocadastro do QR code. Ótimas para medir quais canais trazem mais visitantes."
+        itens={cfg.comoConheceuOpcoes}
+        placeholder="ex.: Rádio local"
+        onChange={(comoConheceuOpcoes) => { salvarConfig({ comoConheceuOpcoes }); toast('Opções salvas') }}
+      />
+    </>
+  )
+}
+
+/* ---------------- Cores (aplicadas na hora, com prévia ao vivo) ---------------- */
 
 function Cores() {
   const cfg = useAppState().config
 
   function mudar(patch: Partial<ConfigIgreja>) {
-    setEstado((st) => ({ ...st, config: { ...st.config, ...patch } }))
+    salvarConfig(patch)
   }
 
   const campos: { chave: 'corFundo' | 'corEscura' | 'corPrimaria'; rotulo: string; dica: string }[] = [
@@ -80,8 +156,8 @@ function Cores() {
     <div className="card">
       <h3>Cores</h3>
       <p className="descricao-secao">
-        As cores do sistema inteiro. Os tons derivados (mais claros/escuros) são calculados sozinhos —
-        inclusive a cor do texto em cima dos botões, para nunca ficar ilegível.
+        As cores do sistema inteiro — aplicadas e salvas na hora, para você ver o resultado ao vivo.
+        Os tons derivados (mais claros/escuros) são calculados sozinhos, inclusive a cor do texto sobre os botões.
       </p>
 
       <div className="ac-secao" style={{ paddingTop: 0, borderTop: 'none' }}>
@@ -91,7 +167,7 @@ function Cores() {
             <button
               type="button" key={p.nome} title={p.descricao}
               className={`ac-opcao ${paletaAtiva?.nome === p.nome ? 'sel' : ''}`}
-              onClick={() => mudar({ corFundo: p.corFundo, corEscura: p.corEscura, corPrimaria: p.corPrimaria })}
+              onClick={() => { mudar({ corFundo: p.corFundo, corEscura: p.corEscura, corPrimaria: p.corPrimaria }); toast(`Paleta "${p.nome}" aplicada`) }}
             >
               <span style={{ display: 'inline-flex', gap: 3, marginRight: 7, verticalAlign: '-2px' }}>
                 {[p.corFundo, p.corEscura, p.corPrimaria].map((c) => (
@@ -124,12 +200,8 @@ function Cores() {
   )
 }
 
-/* ---------------- Aba: Jornada (nomes das etapas + datas marcadas) ----------
-   Duas coisas que mudam de igreja para igreja e não deveriam exigir programador:
-   como cada etapa se chama, e em que datas acontecem batismo e recepção de
-   membros. */
+/* ---------------- Aba: Jornada (nomes das etapas + datas marcadas) ---------- */
 
-// Ordem de exibição: primeiro o caminho, depois as saídas do caminho.
 const STATUS_DA_JORNADA: Status[] = [
   'novo', 'em_contato', 'aguardando_resposta', 'encaminhado_lider',
   'visitou', 'transferido', 'batismo', 'integrado',
@@ -138,28 +210,30 @@ const STATUS_DE_PAUSA: Status[] = ['em_espera', 'recusou', 'encerrado']
 
 function AbaJornada() {
   const cfg = useAppState().config
+  const nomes = useRascunho({
+    rotulosStatus: cfg.rotulosStatus ?? {},
+    rotulosPapel: cfg.rotulosPapel ?? {},
+  })
+  const req = useRascunho({
+    mesesMinimosConexao: cfg.mesesMinimosConexao,
+    frequenciaMinimaConexao: cfg.frequenciaMinimaConexao,
+  })
 
-  function mudar(patch: Partial<ConfigIgreja>) {
-    setEstado((st) => ({ ...st, config: { ...st.config, ...patch } }))
-  }
   function renomearStatus(st: Status, nome: string) {
-    mudar({ rotulosStatus: { ...cfg.rotulosStatus, [st]: nome } })
+    nomes.set({ rotulosStatus: { ...nomes.d.rotulosStatus, [st]: nome } })
   }
   function renomearPapel(p: Papel, nome: string) {
-    mudar({ rotulosPapel: { ...cfg.rotulosPapel, [p]: nome } })
+    nomes.set({ rotulosPapel: { ...nomes.d.rotulosPapel, [p]: nome } })
   }
 
   const algumRenomeado =
-    Object.values(cfg.rotulosStatus ?? {}).some((x) => x?.trim()) ||
-    Object.values(cfg.rotulosPapel ?? {}).some((x) => x?.trim())
+    Object.values(nomes.d.rotulosStatus).some((x) => x?.trim()) ||
+    Object.values(nomes.d.rotulosPapel).some((x) => x?.trim())
 
   const linhaNome = (chave: string, padrao: string, valor: string, onMudar: (v: string) => void) => (
     <label className="campo" key={chave}>
       <span>{padrao}</span>
-      <input
-        type="text" value={valor} placeholder={padrao}
-        onChange={(e) => onMudar(e.target.value)}
-      />
+      <input type="text" value={valor} placeholder={padrao} onChange={(e) => onMudar(e.target.value)} />
     </label>
   )
 
@@ -173,7 +247,7 @@ function AbaJornada() {
               className="btn btn-sec btn-mini"
               onClick={() => {
                 if (!confirm('Voltar todos os nomes para o padrão do sistema?')) return
-                mudar({ rotulosStatus: {}, rotulosPapel: {} })
+                nomes.set({ rotulosStatus: {}, rotulosPapel: {} })
               }}
             >
               Restaurar padrão
@@ -181,7 +255,7 @@ function AbaJornada() {
           )}
         </div>
         <p className="descricao-secao">
-          Cada igreja fala do seu jeito. Troque aqui e o nome muda no sistema inteiro —
+          Cada igreja fala do seu jeito. Troque aqui e, ao salvar, o nome muda no sistema inteiro —
           filtros, painel, relatórios e histórico. Deixe em branco para usar o padrão
           (mostrado em cinza dentro do campo).
         </p>
@@ -190,7 +264,7 @@ function AbaJornada() {
           <div className="ac-secao-titulo">🗺️ O caminho do visitante</div>
           <div className="ac-grupo">
             {STATUS_DA_JORNADA.map((st) =>
-              linhaNome(st, rotuloStatusPadrao(st), cfg.rotulosStatus?.[st] ?? '', (v) => renomearStatus(st, v)))}
+              linhaNome(st, rotuloStatusPadrao(st), nomes.d.rotulosStatus[st] ?? '', (v) => renomearStatus(st, v)))}
           </div>
         </div>
 
@@ -198,7 +272,7 @@ function AbaJornada() {
           <div className="ac-secao-titulo">💤 Quando o caminho para</div>
           <div className="ac-grupo">
             {STATUS_DE_PAUSA.map((st) =>
-              linhaNome(st, rotuloStatusPadrao(st), cfg.rotulosStatus?.[st] ?? '', (v) => renomearStatus(st, v)))}
+              linhaNome(st, rotuloStatusPadrao(st), nomes.d.rotulosStatus[st] ?? '', (v) => renomearStatus(st, v)))}
           </div>
         </div>
 
@@ -206,49 +280,50 @@ function AbaJornada() {
           <div className="ac-secao-titulo">👥 Funções da equipe</div>
           <div className="ac-grupo">
             {(Object.keys(PAPEL_LABEL) as Papel[]).map((p) =>
-              linhaNome(p, PAPEL_LABEL[p], cfg.rotulosPapel?.[p] ?? '', (v) => renomearPapel(p, v)))}
+              linhaNome(p, PAPEL_LABEL[p], nomes.d.rotulosPapel[p] ?? '', (v) => renomearPapel(p, v)))}
           </div>
         </div>
+
+        <BotaoSalvar pendente={nomes.pendente} onSalvar={() => { salvarConfig(nomes.d); toast('Nomes das etapas salvos') }} />
       </div>
 
       <ListaDatas
         titulo="💧 Datas de batismo"
         descricao="As datas em que a igreja batiza. Na ficha do visitante a equipe escolhe uma delas, em vez de digitar — menos erro na pressa."
         datas={cfg.datasBatismo}
-        onMudar={(datasBatismo) => mudar({ datasBatismo })}
+        onMudar={(datasBatismo) => { salvarConfig({ datasBatismo }); toast('Datas de batismo salvas') }}
       />
 
       <ListaDatas
         titulo="🎉 Datas de recepção de membros"
         descricao="Os dias em que a igreja recebe novos membros. É a data que conclui a jornada do visitante."
         datas={cfg.datasMembresia}
-        onMudar={(datasMembresia) => mudar({ datasMembresia })}
+        onMudar={(datasMembresia) => { salvarConfig({ datasMembresia }); toast('Datas de recepção salvas') }}
       />
 
       <div className="card">
         <h3>✅ Requisitos para receber como membro</h3>
         <p className="descricao-secao">
           Antes de concluir a jornada, o líder de {cfg.termoGrupo || 'Conexão'} confirma que a pessoa
-          já frequenta o grupo há tempo suficiente e com boa presença. O tempo é calculado a partir da
-          data em que ela começou a frequentar; a frequência é uma confirmação do líder. Deixe em <b>0</b>
-          para não exigir aquele item.
+          já frequenta o grupo há tempo suficiente e com boa presença. Deixe em <b>0</b> para não exigir aquele item.
         </p>
         <div className="linha-campos">
           <label className="campo" style={{ maxWidth: 300 }}>
             <span>Tempo mínimo na {cfg.termoGrupo || 'Conexão'} (meses)</span>
             <input
-              type="number" min={0} max={36} value={cfg.mesesMinimosConexao}
-              onChange={(e) => mudar({ mesesMinimosConexao: Math.max(0, Math.floor(Number(e.target.value) || 0)) })}
+              type="number" min={0} max={36} value={req.d.mesesMinimosConexao}
+              onChange={(e) => req.set({ mesesMinimosConexao: Math.max(0, Math.floor(Number(e.target.value) || 0)) })}
             />
           </label>
           <label className="campo" style={{ maxWidth: 300 }}>
             <span>Frequência mínima esperada (%)</span>
             <input
-              type="number" min={0} max={100} value={cfg.frequenciaMinimaConexao}
-              onChange={(e) => mudar({ frequenciaMinimaConexao: Math.min(100, Math.max(0, Math.floor(Number(e.target.value) || 0))) })}
+              type="number" min={0} max={100} value={req.d.frequenciaMinimaConexao}
+              onChange={(e) => req.set({ frequenciaMinimaConexao: Math.min(100, Math.max(0, Math.floor(Number(e.target.value) || 0))) })}
             />
           </label>
         </div>
+        <BotaoSalvar pendente={req.pendente} onSalvar={() => { salvarConfig(req.d); toast('Requisitos salvos') }} />
       </div>
     </>
   )
@@ -301,68 +376,186 @@ function ListaDatas({ titulo, descricao, datas, onMudar }: {
       )}
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'end', flexWrap: 'wrap' }}>
-        <label className="campo" style={{ marginBottom: 0, maxWidth: 200 }}>
+        <div className="campo" style={{ marginBottom: 0, maxWidth: 200 }}>
           <span>Nova data</span>
-          <input type="date" value={nova} onChange={(e) => setNova(e.target.value)} />
-        </label>
+          <SeletorData value={nova} onChange={setNova} />
+        </div>
         <button className="btn" onClick={adicionar} disabled={!nova}><IcoMais size={15} /> Adicionar</button>
       </div>
     </div>
   )
 }
 
-/* ---------------- Aba: Minha igreja ---------------- */
+/* ---------------- Aba: Cultos (padrão do cadastro de culto do louvor) ----------
+   Cada culto tem nome + dia da semana + horário e uma lista de datas concretas.
+   Ao cadastrar, o sistema já gera as ocorrências recentes e as próximas; a equipe
+   adiciona datas avulsas e gera mais. No cadastro do visitante só aparecem as
+   ocorrências da última semana — mas todas ficam guardadas aqui. */
+function AbaCultos() {
+  const defs = useAppState().config.cultosDef
+  const [nome, setNome] = useState('')
+  const [dia, setDia] = useState(0)
+  const [horario, setHorario] = useState('10:00')
 
-function AbaIgreja() {
-  const s = useAppState()
-  const cfg = s.config
+  function salvar(novos: CultoDef[]) {
+    setEstado((st) => ({
+      ...st,
+      config: { ...st.config, cultosDef: novos, cultos: novos.map((c) => c.nome) },
+    }))
+  }
 
-  function mudar(patch: Partial<ConfigIgreja>) {
-    setEstado((st) => ({ ...st, config: { ...st.config, ...patch } }))
+  function cadastrar(e: React.FormEvent) {
+    e.preventDefault()
+    const n = nome.trim()
+    if (!n) return
+    if (defs.some((d) => d.nome === n)) {
+      alert('Já existe um culto com esse nome.')
+      return
+    }
+    salvar([...defs, { nome: n, diaSemana: dia, horario: horario || undefined, ocorrencias: gerarOcorrencias(dia) }])
+    setNome('')
+    setHorario('10:00')
+    setDia(0)
+    toast('Culto cadastrado com as datas geradas')
   }
 
   return (
-    <>
+    <div className="grid-cultos">
       <div className="card">
-        <h3>Identidade</h3>
-        <p className="descricao-secao">Nome e aparência que aparecem no menu, no formulário público de autocadastro e nos relatórios.</p>
-        <div className="linha-campos">
-          <label className="campo"><span>Nome da igreja</span>
-            <input type="text" value={cfg.nomeIgreja} onChange={(e) => mudar({ nomeIgreja: e.target.value })} />
+        <h3>📅 Cadastrar culto</h3>
+        <p className="descricao-secao">
+          Registre um culto fixo do calendário. O sistema já gera as datas recentes e as próximas —
+          você pode adicionar datas avulsas depois.
+        </p>
+        <form onSubmit={cadastrar}>
+          <label className="campo"><span>Nome do culto *</span>
+            <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="ex.: Celebração de Domingo" />
           </label>
-          <label className="campo"><span>Subtítulo</span>
-            <input type="text" value={cfg.subtitulo} onChange={(e) => mudar({ subtitulo: e.target.value })} />
-          </label>
-        </div>
-        <label className="campo"><span>Como vocês chamam o grupo pequeno?</span>
-          <input type="text" value={cfg.termoGrupo} onChange={(e) => mudar({ termoGrupo: e.target.value })} placeholder="Conexão, Célula, PG, GC…" />
-        </label>
+          <div className="linha-campos">
+            <label className="campo"><span>Dia da semana</span>
+              <select value={dia} onChange={(e) => setDia(Number(e.target.value))}>
+                {DIA_SEMANA_LABEL.map((d, i) => <option key={i} value={i}>{d}</option>)}
+              </select>
+            </label>
+            <label className="campo"><span>Horário</span>
+              <input type="time" value={horario} onChange={(e) => setHorario(e.target.value)} />
+            </label>
+          </div>
+          <button className="btn w100" type="submit"><IcoMais size={15} /> Cadastrar culto</button>
+        </form>
       </div>
 
-      <Cores />
-
       <div className="card">
-        <h3>Regras do fluxo</h3>
-        <p className="descricao-secao">Prazos que controlam as automações do acompanhamento.</p>
-        <label className="campo" style={{ maxWidth: 380 }}>
-          <span>Dias sem resposta até mover para "Em espera"</span>
-          <input
-            type="number" min={1} max={90} value={cfg.prazoEsperaDias}
-            onChange={(e) => mudar({ prazoEsperaDias: Math.max(1, Number(e.target.value) || 14) })}
-          />
-        </label>
+        <h3>Cultos cadastrados</h3>
+        {defs.length === 0 ? (
+          <div className="vazio">Nenhum culto cadastrado ainda.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {defs.map((c, i) => (
+              <CartaoCulto
+                key={i} culto={c}
+                onMudar={(patch) => salvar(defs.map((d, j) => (j === i ? { ...d, ...patch } : d)))}
+                onRemover={() => {
+                  if (!confirm(`Remover o culto "${c.nome}"? Visitantes já cadastrados nele não são alterados.`)) return
+                  salvar(defs.filter((_, j) => j !== i))
+                  toast('Culto removido', 'info')
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
-
-      <ListaEditavel
-        titulo={'Opções de "Como conheceu a igreja?"'}
-        descricao="Aparecem no cadastro manual e no autocadastro do QR code. Ótimas para medir quais canais trazem mais visitantes."
-        itens={cfg.comoConheceuOpcoes}
-        placeholder="ex.: Rádio local"
-        onChange={(comoConheceuOpcoes) => mudar({ comoConheceuOpcoes })}
-      />
-    </>
+    </div>
   )
 }
+
+function CartaoCulto({ culto, onMudar, onRemover }: {
+  culto: CultoDef
+  onMudar: (patch: Partial<CultoDef>) => void
+  onRemover: () => void
+}) {
+  const [novaData, setNovaData] = useState('')
+  const hoje = new Date().toISOString().slice(0, 10)
+  const ocorrencias = [...(culto.ocorrencias ?? [])].sort()
+
+  function adicionarData() {
+    if (!novaData) { toast('Selecione uma data', 'erro'); return }
+    onMudar({ ocorrencias: [...new Set([...(culto.ocorrencias ?? []), novaData])].sort() })
+    setNovaData('')
+    toast('Data adicionada')
+  }
+
+  function removerData(d: string) {
+    onMudar({ ocorrencias: (culto.ocorrencias ?? []).filter((x) => x !== d) })
+  }
+
+  function gerarMais() {
+    if (culto.diaSemana === undefined) { toast('Defina o dia da semana primeiro', 'erro'); return }
+    onMudar({ ocorrencias: gerarMaisOcorrencias(culto.diaSemana, culto.ocorrencias ?? [], 8) })
+    toast('Mais 8 datas geradas')
+  }
+
+  return (
+    <div className="culto-card">
+      <div className="culto-card-cab">
+        <div className="culto-avatar">📅</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="culto-nome">{culto.nome || 'Culto sem nome'}</div>
+          <div className="culto-sub">
+            {culto.diaSemana !== undefined ? DIA_SEMANA_LABEL[culto.diaSemana] : 'sem dia'}
+            {culto.horario ? ` · ${culto.horario}` : ''}
+          </div>
+        </div>
+        <button className="btn-icone perigo" onClick={onRemover} title="Remover culto"><IcoX size={14} /></button>
+      </div>
+
+      <div className="linha-campos" style={{ marginTop: 4 }}>
+        <label className="campo"><span>Nome</span>
+          <input type="text" value={culto.nome} onChange={(e) => onMudar({ nome: e.target.value })} />
+        </label>
+      </div>
+      <div className="linha-campos">
+        <label className="campo"><span>Dia da semana</span>
+          <select
+            value={culto.diaSemana ?? ''}
+            onChange={(e) => onMudar({ diaSemana: e.target.value === '' ? undefined : Number(e.target.value) })}
+          >
+            <option value="">— sem dia —</option>
+            {DIA_SEMANA_LABEL.map((d, j) => <option key={j} value={j}>{d}</option>)}
+          </select>
+        </label>
+        <label className="campo"><span>Horário</span>
+          <input type="time" value={culto.horario ?? ''} onChange={(e) => onMudar({ horario: e.target.value || undefined })} />
+        </label>
+      </div>
+
+      <div className="ac-secao-titulo" style={{ margin: '6px 0 8px' }}>Datas</div>
+      {ocorrencias.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: 'var(--text-3)', margin: '0 0 10px' }}>Nenhuma data agendada.</p>
+      ) : (
+        <div className="ac-opcoes" style={{ marginBottom: 12 }}>
+          {ocorrencias.map((d) => (
+            <span key={d} className={`tag ${d < hoje ? 'tag-passada' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {fmtDataComDia(d)}
+              <button className="btn-icone btn-icone-mini" title="Remover data" onClick={() => removerData(d)}><IcoX size={12} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'end', flexWrap: 'wrap' }}>
+        <div className="campo" style={{ marginBottom: 0, flex: 1, minWidth: 150 }}>
+          <span>Nova data</span>
+          <SeletorData value={novaData} onChange={setNovaData} />
+        </div>
+        <button className="btn btn-sec btn-mini" onClick={adicionarData}><IcoMais size={14} /> Adicionar</button>
+        <button className="btn btn-sec btn-mini" onClick={gerarMais}>🔄 Gerar mais 8</button>
+      </div>
+    </div>
+  )
+}
+
+/* ---------------- Lista editável (opções de texto) ---------------- */
 
 function ListaEditavel({ titulo, descricao, itens, placeholder, onChange }: {
   titulo: string
@@ -427,115 +620,6 @@ function ListaEditavel({ titulo, descricao, itens, placeholder, onChange }: {
   )
 }
 
-/* ---------------- Aba: Cultos ---------------- */
-
-// Cadastro estruturado de cultos (nome + dia da semana + horário), no mesmo
-// padrão do sistema do louvor. O dia da semana gera as datas dos últimos 7
-// dias oferecidas no cadastro do visitante — aqui não é preciso agendar datas
-// futuras, porque a visita registrada já aconteceu.
-function AbaCultos() {
-  const s = useAppState()
-  const defs = s.config.cultosDef
-  const [nome, setNome] = useState('')
-  const [dia, setDia] = useState(0)
-  const [horario, setHorario] = useState('')
-
-  // Mantém o cadastro estruturado e a lista de rótulos sempre juntos
-  function salvar(novos: CultoDef[]) {
-    setEstado((st) => ({
-      ...st,
-      config: { ...st.config, cultosDef: novos, cultos: novos.map((c) => c.nome) },
-    }))
-  }
-
-  function cadastrar(e: React.FormEvent) {
-    e.preventDefault()
-    const n = nome.trim()
-    if (!n) return
-    if (defs.some((d) => d.nome === n)) {
-      alert('Já existe um culto com esse nome.')
-      return
-    }
-    salvar([...defs, { nome: n, diaSemana: dia, horario: horario || undefined }])
-    setNome('')
-    setHorario('')
-  }
-
-  function mudarCulto(i: number, patch: Partial<CultoDef>) {
-    salvar(defs.map((d, j) => (j === i ? { ...d, ...patch } : d)))
-  }
-
-  function remover(i: number) {
-    if (!confirm(`Remover o culto "${defs[i].nome}"? Visitantes já cadastrados nele não são alterados.`)) return
-    salvar(defs.filter((_, j) => j !== i))
-  }
-
-  return (
-    <>
-      <div className="card">
-        <h3>📅 Cadastrar culto</h3>
-        <p className="descricao-secao">
-          Registre os cultos fixos do calendário. No cadastro do visitante, cada culto aparece com as
-          datas em que aconteceu nos últimos 7 dias (ex.: "{defs[0]?.nome ?? 'Domingo — manhã'} · dom 12/07").
-        </p>
-        <form onSubmit={cadastrar}>
-          <div className="linha-campos">
-            <label className="campo"><span>Nome do culto *</span>
-              <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="ex.: Celebração de Domingo" />
-            </label>
-            <label className="campo"><span>Dia da semana</span>
-              <select value={dia} onChange={(e) => setDia(Number(e.target.value))}>
-                {DIA_SEMANA_LABEL.map((d, i) => <option key={i} value={i}>{d}</option>)}
-              </select>
-            </label>
-            <label className="campo"><span>Horário (opcional)</span>
-              <input type="time" value={horario} onChange={(e) => setHorario(e.target.value)} />
-            </label>
-          </div>
-          <button className="btn" type="submit"><IcoMais size={15} /> Cadastrar culto</button>
-        </form>
-      </div>
-
-      <div className="card">
-        <h3>Cultos cadastrados</h3>
-        {defs.length === 0 ? (
-          <div className="vazio">Nenhum culto cadastrado ainda.</div>
-        ) : (
-          defs.map((c, i) => {
-            const ultima = ocorrenciasRecentes([c])[0]
-            return (
-              <div key={i} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none', padding: '12px 0' }}>
-                <div className="linha-campos" style={{ alignItems: 'flex-end' }}>
-                  <label className="campo"><span>Nome</span>
-                    <input type="text" value={c.nome} onChange={(e) => mudarCulto(i, { nome: e.target.value })} />
-                  </label>
-                  <label className="campo" style={{ maxWidth: 180 }}><span>Dia da semana</span>
-                    <select value={c.diaSemana ?? ''} onChange={(e) => mudarCulto(i, { diaSemana: e.target.value === '' ? undefined : Number(e.target.value) })}>
-                      <option value="">— sem dia —</option>
-                      {DIA_SEMANA_LABEL.map((d, j) => <option key={j} value={j}>{d}</option>)}
-                    </select>
-                  </label>
-                  <label className="campo" style={{ maxWidth: 130 }}><span>Horário</span>
-                    <input type="time" value={c.horario ?? ''} onChange={(e) => mudarCulto(i, { horario: e.target.value || undefined })} />
-                  </label>
-                  <button className="btn-icone perigo" onClick={() => remover(i)} title="Remover" style={{ marginBottom: 6 }}><IcoLixeira /></button>
-                </div>
-                <p style={{ fontSize: 12.5, color: 'var(--text-3)', margin: '6px 0 0' }}>
-                  {c.diaSemana === undefined
-                    ? '⚠️ Sem dia da semana — aparece no cadastro sem sugestão de data.'
-                    : ultima
-                      ? <>No cadastro aparece como: <b>{ultima.rotulo}</b></>
-                      : `Aparece no cadastro com as datas de ${DIA_SEMANA_LABEL[c.diaSemana].toLowerCase()} dos últimos 7 dias.`}
-                </p>
-              </div>
-            )
-          })
-        )}
-      </div>
-    </>
-  )
-}
-
 /* ---------------- Aba: Grupos ---------------- */
 
 function AbaGrupos() {
@@ -567,10 +651,6 @@ function AbaGrupos() {
   )
 }
 
-function nomeUsuario(s: ReturnType<typeof useAppState>, id?: string): string | undefined {
-  return s.usuarios.find((u) => u.id === id)?.nome
-}
-
 function CartaoConexao({ c }: { c: import('../types').Conexao }) {
   const s = useAppState()
   const [editando, setEditando] = useState(false)
@@ -593,6 +673,7 @@ function CartaoConexao({ c }: { c: import('../types').Conexao }) {
         : x),
     }))
     setEditando(false)
+    toast('Grupo salvo')
   }
 
   function mudarLider(campo: 'liderId' | 'lider2Id', novoId: string) {
@@ -613,6 +694,7 @@ function CartaoConexao({ c }: { c: import('../types').Conexao }) {
         ? st.usuarios.map((u) => u.id === novoId ? { ...u, conexaoId: c.id } : u)
         : st.usuarios,
     }))
+    toast('Líder atualizado')
   }
 
   function remover() {
@@ -622,6 +704,7 @@ function CartaoConexao({ c }: { c: import('../types').Conexao }) {
       conexoes: st.conexoes.filter((x) => x.id !== c.id),
       usuarios: st.usuarios.map((u) => u.conexaoId === c.id ? { ...u, conexaoId: undefined } : u),
     }, 'conexao', [c.id]))
+    toast('Grupo removido', 'info')
   }
 
   const opcoesLider = (excluirId?: string) => lideres(s).filter((l) => l.id !== excluirId)
@@ -689,9 +772,19 @@ function CartaoConexao({ c }: { c: import('../types').Conexao }) {
 
 function AbaAutocadastro() {
   const s = useAppState()
+  const cfg = s.config
   const [copiado, setCopiado] = useState(false)
-  const url = `${window.location.origin}${window.location.pathname}#/autocadastro`
+
+  const url = (cfg.autocadastroUrl || '').trim() || `${window.location.origin}${window.location.pathname}#/autocadastro`
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=16&data=${encodeURIComponent(url)}`
+
+  // Rascunhos: link, textos e campos visíveis
+  const link = useRascunho({ autocadastroUrl: cfg.autocadastroUrl })
+  const textos = useRascunho({
+    autocadastroTitulo: cfg.autocadastroTitulo,
+    autocadastroMensagem: cfg.autocadastroMensagem,
+    autocadastroMensagemFinal: cfg.autocadastroMensagemFinal,
+  })
 
   function copiar() {
     navigator.clipboard.writeText(url).then(() => {
@@ -704,15 +797,15 @@ function AbaAutocadastro() {
     const w = window.open('', '_blank')
     if (!w) return
     w.document.write(`
-      <html><head><title>QR Autocadastro — ${s.config.nomeIgreja}</title>
+      <html><head><title>Cadastro Visitante - ${cfg.nomeIgreja}</title>
       <style>
         body { font-family: sans-serif; text-align: center; padding: 40px; }
-        h1 { color: ${s.config.corPrimaria}; }
+        h1 { color: ${cfg.corPrimaria}; }
         img { width: 340px; height: 340px; margin: 24px 0; }
         p { font-size: 18px; color: #333; }
       </style></head>
       <body>
-        <h1>${s.config.nomeIgreja}</h1>
+        <h1>${cfg.nomeIgreja}</h1>
         <p>Foi uma alegria receber você! 🎉<br>Aponte a câmera e deixe seu contato:</p>
         <img src="${qrUrl}" />
         <p style="font-size:13px;color:#888">${url}</p>
@@ -721,17 +814,28 @@ function AbaAutocadastro() {
     setTimeout(() => w.print(), 500)
   }
 
-  function mudar(patch: Partial<ConfigIgreja>) {
-    setEstado((st) => ({ ...st, config: { ...st.config, ...patch } }))
-  }
+  // Campos que a igreja liga/desliga (nome, contato e nascimento são fixos)
+  const camposOpcionais: { chave: keyof ConfigIgreja; rotulo: string }[] = [
+    { chave: 'autocadastroMostrarSituacaoCivil', rotulo: 'Estado civil' },
+    { chave: 'autocadastroMostrarEndereco', rotulo: 'Endereço' },
+    { chave: 'autocadastroMostrarBairro', rotulo: 'Bairro' },
+    { chave: 'autocadastroMostrarCidade', rotulo: 'Cidade' },
+    { chave: 'autocadastroPerguntarPrimeiraVez', rotulo: 'É a primeira vez na igreja?' },
+    { chave: 'autocadastroPerguntarMembroOutra', rotulo: 'É membro de outra igreja?' },
+    { chave: 'autocadastroPerguntarBatismo', rotulo: 'Já é batizado(a)?' },
+    { chave: 'autocadastroPerguntarComoConheceu', rotulo: 'Como conheceu a igreja?' },
+    { chave: 'autocadastroPerguntarConexao', rotulo: `Quer fazer parte de uma ${cfg.termoGrupo || 'Conexão'}?` },
+    { chave: 'autocadastroPerguntarContato', rotulo: 'Quer que a equipe entre em contato? (+ horário)' },
+    { chave: 'autocadastroPerguntarOracao', rotulo: 'Pedido de oração' },
+  ]
 
   return (
     <>
       <div className="card">
-        <h3>QR code para o culto</h3>
+        <h3>QR code e link público</h3>
         <p className="descricao-secao">
-          Imprima e deixe nas mesas/telão. O visitante aponta a câmera, preenche sozinho, e o cadastro
-          cai direto no sistema com a triagem automática.
+          Imprima o QR e deixe nas mesas/telão, ou divulgue o link. O visitante preenche sozinho e o
+          cadastro cai direto no sistema com a triagem automática.
         </p>
         <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
           <img
@@ -739,10 +843,18 @@ function AbaAutocadastro() {
             style={{ width: 200, height: 200, border: '1px solid var(--border)', borderRadius: 12, background: '#fff' }}
           />
           <div style={{ flex: 1, minWidth: 240 }}>
-            <label className="campo"><span>Link do formulário público</span>
-              <input type="text" value={url} readOnly onFocus={(e) => e.target.select()} />
+            <label className="campo"><span>Link público divulgado</span>
+              <input
+                type="text" value={link.d.autocadastroUrl}
+                onChange={(e) => link.set({ autocadastroUrl: e.target.value })}
+                placeholder="https://visitante.suaigreja.com.br"
+              />
             </label>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <p className="descricao-secao" style={{ marginTop: -4 }}>
+              É o endereço que aparece no QR e no botão de copiar. Aponte esse domínio para este app na hospedagem (Netlify).
+            </p>
+            <BotaoSalvar pendente={link.pendente} onSalvar={() => { salvarConfig({ autocadastroUrl: link.d.autocadastroUrl.trim() }); toast('Link salvo') }} rotulo="Salvar link" />
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
               <button className="btn" onClick={imprimir}><IcoImpressora size={15} /> Imprimir QR</button>
               <button className="btn btn-sec" onClick={copiar}>{copiado ? <><IcoCheck size={15} /> Copiado!</> : <><IcoCopiar size={15} /> Copiar link</>}</button>
               <a className="btn btn-sec" href="#/autocadastro" target="_blank" rel="noreferrer"><IcoOlho size={15} /> Prévia</a>
@@ -752,49 +864,47 @@ function AbaAutocadastro() {
       </div>
 
       <div className="card">
-        <h3>Personalizar a página</h3>
-        <p className="descricao-secao">Textos e campos que aparecem para o visitante ao preencher o formulário.</p>
-        <label className="campo"><span>Título de boas-vindas</span>
-          <input type="text" value={s.config.autocadastroTitulo} onChange={(e) => mudar({ autocadastroTitulo: e.target.value })} />
-        </label>
-        <label className="campo"><span>Mensagem de introdução</span>
-          <textarea value={s.config.autocadastroMensagem} onChange={(e) => mudar({ autocadastroMensagem: e.target.value })} />
-        </label>
-        <label className="campo"><span>Mensagem final (após enviar)</span>
-          <textarea value={s.config.autocadastroMensagemFinal} onChange={(e) => mudar({ autocadastroMensagemFinal: e.target.value })} />
-        </label>
-        <label className="check">
-          <input type="checkbox" checked={s.config.autocadastroMostrarBairro} onChange={(e) => mudar({ autocadastroMostrarBairro: e.target.checked })} />
-          Perguntar o bairro
-        </label>
-        <label className="check">
-          <input type="checkbox" checked={s.config.autocadastroMostrarSituacaoCivil} onChange={(e) => mudar({ autocadastroMostrarSituacaoCivil: e.target.checked })} />
-          Perguntar a situação civil
-        </label>
-        <label className="check">
-          <input type="checkbox" checked={s.config.autocadastroPerguntarBatismo} onChange={(e) => mudar({ autocadastroPerguntarBatismo: e.target.checked })} />
-          Perguntar se já é batizado(a)
-        </label>
-        <p className="descricao-secao" style={{ marginTop: 6, marginBottom: 0 }}>
-          A pergunta do batismo é opcional e sem pressão — serve para a equipe não convidar ao
-          batismo quem já é batizado. Se preferir descobrir isso na conversa, desligue aqui: a
-          equipe pode registrar a qualquer momento na ficha da pessoa.
+        <h3>Campos do formulário</h3>
+        <p className="descricao-secao">
+          Escolha o que perguntar ao visitante. <b>Nome, contato e data de nascimento</b> são sempre exibidos —
+          o restante você liga ou desliga aqui.
+        </p>
+        <div className="grade-toggles">
+          {camposOpcionais.map((f) => (
+            <label className="check toggle-item" key={f.chave as string}>
+              <input
+                type="checkbox" checked={Boolean(cfg[f.chave])}
+                onChange={(e) => { salvarConfig({ [f.chave]: e.target.checked } as Partial<ConfigIgreja>); toast(e.target.checked ? `"${f.rotulo}" ativado` : `"${f.rotulo}" desativado`) }}
+              />
+              {f.rotulo}
+            </label>
+          ))}
+        </div>
+        <p className="descricao-secao" style={{ marginTop: 12, marginBottom: 0 }}>
+          A pergunta do batismo é sem pressão — serve para a equipe não convidar ao batismo quem já é batizado.
         </p>
       </div>
 
       <div className="card">
-        <h3>Dica de uso</h3>
-        <p className="descricao-secao" style={{ margin: 0 }}>
-          Quando publicar o sistema online (veja SUPABASE.md), este link passa a ser público e o mesmo QR
-          funciona de qualquer celular, sem depender de estar na mesma rede. Enquanto roda só na sua máquina,
-          o QR só abre em aparelhos conectados ao mesmo Wi-Fi.
-        </p>
+        <h3>Textos da página</h3>
+        <p className="descricao-secao">O que o visitante lê ao abrir e ao terminar o formulário.</p>
+        <label className="campo"><span>Título de boas-vindas</span>
+          <input type="text" value={textos.d.autocadastroTitulo} onChange={(e) => textos.set({ autocadastroTitulo: e.target.value })} />
+        </label>
+        <label className="campo"><span>Mensagem de introdução</span>
+          <textarea value={textos.d.autocadastroMensagem} onChange={(e) => textos.set({ autocadastroMensagem: e.target.value })} />
+        </label>
+        <label className="campo"><span>Mensagem final (após enviar)</span>
+          <textarea value={textos.d.autocadastroMensagemFinal} onChange={(e) => textos.set({ autocadastroMensagemFinal: e.target.value })} />
+        </label>
+        <BotaoSalvar pendente={textos.pendente} onSalvar={() => { salvarConfig(textos.d); toast('Textos salvos') }} />
       </div>
     </>
   )
 }
 
-/* Sincronização online (Supabase) — fase 1 do modo multi-dispositivo */
+/* ---------------- Sincronização online (Supabase) ---------------- */
+
 function CardNuvem() {
   const nuvem = useNuvem()
   const salva = getConfigNuvem()
@@ -898,6 +1008,7 @@ function FormConexao({ onPronto }: { onPronto: () => void }) {
       }],
       usuarios: st.usuarios.map((u) => (u.id === liderId || u.id === lider2Id) ? { ...u, conexaoId: id } : u),
     }))
+    toast('Grupo criado')
     onPronto()
   }
 
@@ -951,7 +1062,7 @@ function AbaMensagens() {
 
   const fixos = s.templates.filter((t) => (GATILHOS_FIXOS as readonly string[]).includes(t.gatilho))
   const extras = s.templates.filter((t) => !(GATILHOS_FIXOS as readonly string[]).includes(t.gatilho))
-  const etapasComExtra = (Object.keys(ETAPA_LABEL) as EtapaFluxo[]).filter((e) => extras.some((t) => t.etapa === e))
+  const etapasComExtra = (Object.keys(ETAPAS_ORDEM) as EtapaFluxo[]).filter((e) => extras.some((t) => t.etapa === e))
 
   function editar(id: string, patch: Partial<Template>) {
     setEstado((st) => ({
@@ -963,20 +1074,23 @@ function AbaMensagens() {
   return (
     <>
       <div className="card">
+        <h3>💡 Variáveis disponíveis</h3>
+        <p className="descricao-secao" style={{ marginBottom: 8 }}>
+          Escreva o texto e use estas marcações — elas são trocadas pelos dados reais na hora de enviar:
+        </p>
+        <div className="ac-opcoes">
+          <span className="tag" style={{ fontFamily: 'monospace' }}>{'{{nome}}'} → primeiro nome do visitante</span>
+          <span className="tag" style={{ fontFamily: 'monospace' }}>{'{{nome_conexão}}'} → nome da {s.config.termoGrupo || 'Conexão'} do visitante</span>
+        </div>
+      </div>
+
+      <div className="card">
         <h3>Mensagens do fluxo</h3>
         <p className="descricao-secao">
-          Usadas pelos botões "💬 Enviar" do sistema. Use {'{{nome}}'} para inserir o primeiro nome do visitante.
-          Estas não podem ser excluídas (fazem parte do fluxo), mas o texto é todo seu. Quando houver mais de uma
-          mensagem para a mesma etapa (veja "Minhas mensagens" abaixo), quem for enviar escolhe qual usar.
+          Usadas pelos botões "💬 Enviar" do sistema. Estas não podem ser excluídas (fazem parte do fluxo),
+          mas o texto é todo seu. Edite e clique em <b>Salvar</b> em cada uma.
         </p>
-        {fixos.map((t) => (
-          <div key={t.id} style={{ marginBottom: 10 }}>
-            <label className="campo" style={{ marginBottom: 4 }}>
-              <span>{t.titulo} <span className="tag" style={{ marginLeft: 6 }}>{ETAPA_LABEL[t.etapa]}</span></span>
-              <textarea value={t.texto} onChange={(e) => editar(t.id, { texto: e.target.value })} />
-            </label>
-          </div>
-        ))}
+        {fixos.map((t) => <MensagemFixaEditor key={t.id} t={t} onSalvar={editar} />)}
       </div>
 
       <div className="card">
@@ -991,7 +1105,7 @@ function AbaMensagens() {
         {etapasComExtra.map((etapa) => (
           <div key={etapa} style={{ marginBottom: 16 }}>
             <h4 style={{ fontSize: 12.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.03em', color: 'var(--text-2)', marginBottom: 8 }}>
-              {ETAPA_LABEL[etapa]}
+              {rotuloEtapa(etapa)}
             </h4>
             {extras.filter((t) => t.etapa === etapa).map((t) => (
               <div key={t.id} style={{ marginBottom: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 12 }}>
@@ -1001,17 +1115,17 @@ function AbaMensagens() {
                   </label>
                   <label className="campo"><span>Etapa do fluxo</span>
                     <select value={t.etapa} onChange={(e) => editar(t.id, { etapa: e.target.value as EtapaFluxo })}>
-                      {(Object.keys(ETAPA_LABEL) as EtapaFluxo[]).map((e) => <option key={e} value={e}>{ETAPA_LABEL[e]}</option>)}
+                      {(Object.keys(ETAPAS_ORDEM) as EtapaFluxo[]).map((e) => <option key={e} value={e}>{rotuloEtapa(e)}</option>)}
                     </select>
                   </label>
                 </div>
                 <label className="campo" style={{ marginBottom: 6 }}>
-                  <span>Texto (use {'{{nome}}'})</span>
+                  <span>Texto (use {'{{nome}}'} e {'{{nome_conexão}}'})</span>
                   <textarea value={t.texto} onChange={(e) => editar(t.id, { texto: e.target.value })} />
                 </label>
                 <button
                   className="btn btn-sec btn-mini"
-                  onClick={() => setEstado((st) => comExclusoes({ ...st, templates: st.templates.filter((x) => x.id !== t.id) }, 'template', [t.id]))}
+                  onClick={() => { setEstado((st) => comExclusoes({ ...st, templates: st.templates.filter((x) => x.id !== t.id) }, 'template', [t.id])); toast('Mensagem excluída', 'info') }}
                 >🗑️ Excluir</button>
               </div>
             ))}
@@ -1026,11 +1140,11 @@ function AbaMensagens() {
           </label>
           <label className="campo"><span>Etapa do fluxo</span>
             <select value={etapaNova} onChange={(e) => setEtapaNova(e.target.value as EtapaFluxo)}>
-              {(Object.keys(ETAPA_LABEL) as EtapaFluxo[]).map((e) => <option key={e} value={e}>{ETAPA_LABEL[e]}</option>)}
+              {(Object.keys(ETAPAS_ORDEM) as EtapaFluxo[]).map((e) => <option key={e} value={e}>{rotuloEtapa(e)}</option>)}
             </select>
           </label>
         </div>
-        <label className="campo"><span>Texto (use {'{{nome}}'})</span>
+        <label className="campo"><span>Texto (use {'{{nome}}'} e {'{{nome_conexão}}'})</span>
           <textarea value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Olá, {{nome}}! …" />
         </label>
         <button
@@ -1042,14 +1156,35 @@ function AbaMensagens() {
               templates: [...st.templates, { id: uid(), gatilho: `custom_${uid()}`, titulo: titulo.trim(), texto: texto.trim(), etapa: etapaNova }],
             }))
             setTitulo(''); setTexto(''); setEtapaNova('geral')
+            toast('Mensagem adicionada')
           }}
-        >➕ Adicionar mensagem</button>
+        ><IcoMais size={14} /> Adicionar mensagem</button>
       </div>
     </>
   )
 }
 
-/* ---------------- Aba: Dados ---------------- */
+// Ordem das etapas nos seletores (mantém o fluxo legível)
+const ETAPAS_ORDEM: Record<EtapaFluxo, true> = {
+  aproximacao: true, conexao: true, celebracao: true, pre_visita: true, aviso_lider: true, reengajamento: true, geral: true,
+}
+
+// Editor de uma mensagem fixa: rascunho + botão salvar (segurança de "salvou?")
+function MensagemFixaEditor({ t, onSalvar }: { t: Template; onSalvar: (id: string, patch: Partial<Template>) => void }) {
+  const [texto, setTexto] = useState(t.texto)
+  const pendente = texto !== t.texto
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label className="campo" style={{ marginBottom: 4 }}>
+        <span>{t.titulo} <span className="tag" style={{ marginLeft: 6 }}>{rotuloEtapa(t.etapa)}</span></span>
+        <textarea value={texto} onChange={(e) => setTexto(e.target.value)} />
+      </label>
+      <BotaoSalvar pendente={pendente} onSalvar={() => { onSalvar(t.id, { texto }); toast('Mensagem salva') }} rotulo="Salvar mensagem" />
+    </div>
+  )
+}
+
+/* ---------------- Aba: Dados & Nuvem ---------------- */
 
 function AbaDados() {
   const arquivoRef = useRef<HTMLInputElement>(null)
