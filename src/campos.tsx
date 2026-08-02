@@ -166,6 +166,16 @@ export function SeletorData({ value, onChange, min, max, placeholder = 'dd/mm/aa
   // Grade do mês visível (começa no domingo)
   const ano = mesVisivel.getFullYear()
   const mes = mesVisivel.getMonth()
+
+  // Intervalo de anos do seletor: usa min/max quando existem; senão, cobre um
+  // range amplo (data de nascimento precisa voltar ~120 anos). Sempre inclui o
+  // ano visível, para o valor do <select> nunca ficar sem opção.
+  const anoHoje = new Date().getFullYear()
+  const anoMin = Math.min(min ? Number(min.slice(0, 4)) : anoHoje - 120, ano)
+  const anoMax = Math.max(max ? Number(max.slice(0, 4)) : anoHoje + 15, ano)
+  const anos: number[] = []
+  for (let a = anoMax; a >= anoMin; a--) anos.push(a) // mais recentes no topo
+
   const primeiro = new Date(ano, mes, 1)
   const inicioGrade = new Date(primeiro)
   inicioGrade.setDate(1 - primeiro.getDay())
@@ -211,7 +221,7 @@ export function SeletorData({ value, onChange, min, max, placeholder = 'dd/mm/aa
                 {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
               <select value={ano} onChange={(e) => setMesVisivel(new Date(Number(e.target.value), mes, 1))}>
-                {Array.from({ length: 21 }, (_, i) => ano - 10 + i).map((a) => <option key={a} value={a}>{a}</option>)}
+                {anos.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
             <button type="button" className="cal-nav" onClick={() => setMesVisivel(new Date(ano, mes + 1, 1))} aria-label="Próximo mês">›</button>
