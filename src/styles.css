@@ -345,18 +345,18 @@ select::-ms-expand { display: none; }
    em pílula em vez de select para listas curtas. Definido aqui, sem escopo, para
    valer em TODO o sistema; .ife-site sobrescreve com a tipografia do site nas
    telas públicas. */
-.ac-secao { padding: 22px 0; border-top: 1px solid var(--border); }
+.ac-secao { padding: 28px 0; border-top: 1px solid var(--border); }
 .ac-secao:first-of-type { border-top: none; padding-top: 6px; }
-.ac-secao .campo { margin-bottom: 20px; }
+.ac-secao .campo { margin-bottom: 24px; }
 .ac-secao .campo:last-child { margin-bottom: 0; }
 .ac-secao-titulo {
   font-size: 14.5px; font-weight: 700; color: var(--text);
-  margin-bottom: 16px; letter-spacing: -0.01em;
+  margin-bottom: 18px; letter-spacing: -0.01em;
 }
-.ac-grupo { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; }
+.ac-grupo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
 
 /* Escolhas em pílula — Sim/Não e listas curtas. Um toque, sem abrir menu. */
-.ac-opcoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.ac-opcoes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
 .ac-opcao {
   font-family: inherit; font-size: 13.5px; font-weight: 600;
   color: var(--text); background: var(--surface); cursor: pointer;
@@ -1077,16 +1077,16 @@ details summary:hover { color: var(--primary); }
 .ife-site .ac-btn-enviar:hover { filter: brightness(1.07); }
 .ife-site .ac-cartao-lg { max-width: 560px; }
 /* Seções da tela de acolhimento — respiro e título por bloco */
-.ife-site .ac-secao { padding: 18px 0; border-top: 1px solid color-mix(in srgb, var(--escura) 10%, transparent); }
+.ife-site .ac-secao { padding: 28px 0; border-top: 1px solid color-mix(in srgb, var(--escura) 10%, transparent); }
 .ife-site .ac-secao:first-of-type { border-top: none; padding-top: 6px; }
-.ife-site .ac-secao .campo { margin-bottom: 12px; }
+.ife-site .ac-secao .campo { margin-bottom: 24px; }
 .ife-site .ac-secao .campo:last-child { margin-bottom: 0; }
 .ife-site .ac-secao-titulo {
   font-family: 'Fraunces', Georgia, serif; font-weight: 600;
-  color: var(--ife-azul); font-size: 17px; margin-bottom: 12px;
+  color: var(--ife-azul); font-size: 17px; margin-bottom: 18px;
 }
 /* Escolhas em pílula (Sim/Não, opções de Conexão, horário) */
-.ife-site .ac-opcoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.ife-site .ac-opcoes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
 .ife-site .ac-opcao {
   font-family: 'Manrope', system-ui, sans-serif; font-size: 13.5px; font-weight: 600;
   color: var(--ife-tinta); background: #fff; cursor: pointer;
