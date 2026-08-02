@@ -117,6 +117,13 @@ export default function Equipe() {
         <CardHierarquia />
       </details>
 
+      <details className="card">
+        <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 15 }}>
+          {s.config.termoGrupo || 'Conexões'} — grupos e líderes ({s.conexoes.length})
+        </summary>
+        <CardConexoes />
+      </details>
+
       <div className="card">
         <div className="card-cab">
           <h3>
@@ -212,6 +219,63 @@ function CardHierarquia() {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+// Consulta rápida das Conexões e seus líderes — para checar se um grupo já
+// existe. Só leitura; criar/editar continua em Configurações → Grupos.
+function CardConexoes() {
+  const s = useAppState()
+  const termo = s.config.termoGrupo || 'Conexão'
+  const [busca, setBusca] = useState('')
+  const nomeLider = (id?: string) => s.usuarios.find((u) => u.id === id)?.nome
+  const norm = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  const q = norm(busca.trim())
+  const lista = s.conexoes
+    .filter((c) => {
+      if (!q) return true
+      const alvo = norm(`${c.nome} ${c.regiao} ${c.perfil} ${c.diaHorario} ${nomeLider(c.liderId) ?? ''} ${nomeLider(c.lider2Id) ?? ''}`)
+      return alvo.includes(q)
+    })
+    .slice()
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <p className="descricao-secao">
+        Consulte os grupos e seus líderes — útil para checar se um já existe.
+        Para criar ou editar, vá em <a href="#/config">Configurações → Grupos</a>.
+      </p>
+      <div className="search-box" style={{ marginBottom: 12 }}>
+        <span className="search-icon"><IcoBusca /></span>
+        <input type="text" placeholder={`Buscar ${termo.toLowerCase()} por nome, região, perfil ou líder…`} value={busca} onChange={(e) => setBusca(e.target.value)} />
+      </div>
+      {s.conexoes.length === 0 ? (
+        <div className="vazio">Nenhum grupo cadastrado ainda.</div>
+      ) : lista.length === 0 ? (
+        <div className="vazio">Nenhum grupo encontrado para "{busca}".</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {lista.map((c) => {
+            const l1 = nomeLider(c.liderId), l2 = nomeLider(c.lider2Id)
+            return (
+              <div key={c.id} className="conexao-linha">
+                <div className="conexao-linha-icone">🏠</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>{c.nome}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                    {[c.regiao, c.perfil, c.diaHorario].filter(Boolean).join(' · ') || 'sem detalhes'}
+                  </div>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-2)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  {(l1 || l2) ? <>👤 {[l1, l2].filter(Boolean).join(' · ')}</> : <span style={{ color: 'var(--warn)' }}>sem líder</span>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

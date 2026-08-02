@@ -13,7 +13,7 @@ import { PALETAS } from '../tema'
 import { registrarAuditoria } from '../auditoria'
 import { toast } from '../toast'
 import { BotaoSalvar, SeletorData } from '../campos'
-import { IcoCheck, IcoCopiar, IcoDownload, IcoEditar, IcoImpressora, IcoLixeira, IcoMais, IcoOlho, IcoX } from '../icones'
+import { IcoBusca, IcoCheck, IcoCopiar, IcoDownload, IcoEditar, IcoImpressora, IcoLixeira, IcoMais, IcoOlho, IcoX } from '../icones'
 
 type Aba = 'igreja' | 'jornada' | 'cultos' | 'grupos' | 'mensagens' | 'autocadastro' | 'dados'
 
@@ -622,20 +622,48 @@ function ListaEditavel({ titulo, descricao, itens, placeholder, onChange }: {
 
 /* ---------------- Aba: Grupos ---------------- */
 
+// normaliza texto para busca (sem acento, minúsculo)
+function semAcento(t: string): string {
+  return t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+}
+
 function AbaGrupos() {
   const s = useAppState()
+  const termo = s.config.termoGrupo || 'Conexão'
   const [novo, setNovo] = useState(false)
+  const [busca, setBusca] = useState('')
+
+  const nomeLider = (id?: string) => s.usuarios.find((u) => u.id === id)?.nome
+  const q = semAcento(busca)
+  const filtradas = s.conexoes
+    .filter((c) => {
+      if (!q) return true
+      const alvo = semAcento(`${c.nome} ${c.regiao} ${c.perfil} ${c.diaHorario} ${nomeLider(c.liderId) ?? ''} ${nomeLider(c.lider2Id) ?? ''}`)
+      return alvo.includes(q)
+    })
+    .slice()
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+
+  const semLiderQtd = s.conexoes.filter((c) => !c.liderId && !c.lider2Id).length
+
   return (
     <div className="card">
       <div className="card-cab">
         <div>
-          <h3 style={{ marginBottom: 2 }}>{s.config.termoGrupo} — grupos cadastrados</h3>
+          <h3 style={{ marginBottom: 2 }}>Grupos de {termo}</h3>
           <p className="descricao-secao" style={{ margin: 0 }}>
-            O sistema sugere o grupo do visitante por proximidade (região) + situação civil (perfil).
+            O sistema sugere o grupo do visitante por proximidade (região) + perfil.
             Cada grupo pode ter até 2 líderes (ex.: um casal liderando junto).
           </p>
         </div>
-        <button className="btn" onClick={() => setNovo(!novo)}>{novo ? 'Fechar' : <><IcoMais size={15} /> Novo {s.config.termoGrupo.toLowerCase()}</>}</button>
+        <button className="btn" onClick={() => setNovo(!novo)}>
+          {novo ? 'Fechar' : <><IcoMais size={15} /> Novo grupo</>}
+        </button>
+      </div>
+
+      <div className="grupos-resumo">
+        <span><b>{s.conexoes.length}</b> {s.conexoes.length === 1 ? 'grupo' : 'grupos'}</span>
+        {semLiderQtd > 0 && <span className="grupos-resumo-warn">⚠️ {semLiderQtd} sem líder</span>}
       </div>
 
       {novo && <FormConexao onPronto={() => setNovo(false)} />}
@@ -643,9 +671,22 @@ function AbaGrupos() {
       {s.conexoes.length === 0 ? (
         <div className="vazio">Nenhum grupo cadastrado ainda.</div>
       ) : (
-        <div className="grade-cartoes">
-          {s.conexoes.map((c) => <CartaoConexao key={c.id} c={c} />)}
-        </div>
+        <>
+          <div className="search-box" style={{ margin: '4px 0 16px' }}>
+            <span className="search-icon"><IcoBusca /></span>
+            <input
+              type="text" value={busca} onChange={(e) => setBusca(e.target.value)}
+              placeholder={`Buscar ${termo.toLowerCase()} por nome, região, perfil ou líder…`}
+            />
+          </div>
+          {filtradas.length === 0 ? (
+            <div className="vazio">Nenhum grupo encontrado para "{busca}".</div>
+          ) : (
+            <div className="grade-cartoes">
+              {filtradas.map((c) => <CartaoConexao key={c.id} c={c} />)}
+            </div>
+          )}
+        </>
       )}
     </div>
   )
@@ -708,61 +749,73 @@ function CartaoConexao({ c }: { c: import('../types').Conexao }) {
   }
 
   const opcoesLider = (excluirId?: string) => lideres(s).filter((l) => l.id !== excluirId)
+  const lider1 = s.usuarios.find((u) => u.id === c.liderId)?.nome
+  const lider2 = s.usuarios.find((u) => u.id === c.lider2Id)?.nome
+  const semLider = !c.liderId && !c.lider2Id
 
-  return (
-    <div className="cartao-pessoa" style={{ alignItems: 'flex-start' }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {editando ? (
-          <div className="pessoa-edicao" style={{ marginTop: 0 }}>
-            <label className="campo"><span>Nome do grupo</span>
-              <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} autoFocus />
-            </label>
-            <div className="linha-campos">
-              <label className="campo"><span>Região</span>
-                <input type="text" value={regiao} onChange={(e) => setRegiao(e.target.value)} />
-              </label>
-              <label className="campo"><span>Perfil</span>
-                <input type="text" value={perfil} onChange={(e) => setPerfil(e.target.value)} placeholder="ex.: casais" />
-              </label>
-            </div>
-            <label className="campo"><span>Dia/horário</span>
-              <input type="text" value={dia} onChange={(e) => setDia(e.target.value)} />
-            </label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-mini" onClick={salvar}><IcoCheck size={14} /> Salvar</button>
-              <button className="btn btn-sec btn-mini" onClick={() => setEditando(false)}>Cancelar</button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="pessoa-nome">{c.nome}</div>
-            <div className="pessoa-sub">🧭 {c.regiao || '—'} · {c.perfil || '—'}{c.diaHorario && <> · 🗓️ {c.diaHorario}</>}</div>
-          </>
-        )}
-
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
-          <label className="campo" style={{ marginBottom: 0, minWidth: 170 }}>
-            <span>Líder 1</span>
+  if (editando) {
+    return (
+      <div className="grupo-card editando">
+        <label className="campo"><span>Nome do grupo</span>
+          <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} autoFocus />
+        </label>
+        <div className="linha-campos">
+          <label className="campo"><span>Região</span>
+            <input type="text" value={regiao} onChange={(e) => setRegiao(e.target.value)} />
+          </label>
+          <label className="campo"><span>Perfil</span>
+            <input type="text" value={perfil} onChange={(e) => setPerfil(e.target.value)} placeholder="ex.: casais" />
+          </label>
+        </div>
+        <label className="campo"><span>Dia/horário</span>
+          <input type="text" value={dia} onChange={(e) => setDia(e.target.value)} placeholder="ex.: Quinta, 20h" />
+        </label>
+        <div className="linha-campos">
+          <label className="campo" style={{ marginBottom: 0 }}><span>Líder 1</span>
             <select value={c.liderId ?? ''} onChange={(e) => mudarLider('liderId', e.target.value)}>
-              <option value="">—</option>
+              <option value="">— sem líder —</option>
               {opcoesLider(c.lider2Id).map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
             </select>
           </label>
-          <label className="campo" style={{ marginBottom: 0, minWidth: 170 }}>
-            <span>Líder 2 (opcional)</span>
+          <label className="campo" style={{ marginBottom: 0 }}><span>Líder 2 (opcional)</span>
             <select value={c.lider2Id ?? ''} onChange={(e) => mudarLider('lider2Id', e.target.value)}>
               <option value="">—</option>
               {opcoesLider(c.liderId).map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
             </select>
           </label>
         </div>
-        {!c.liderId && !c.lider2Id && (
-          <p style={{ fontSize: 11.5, color: 'var(--warn)', marginTop: 6 }}>⚠️ Grupo sem líder definido.</p>
-        )}
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <button className="btn btn-mini" onClick={salvar}><IcoCheck size={14} /> Salvar</button>
+          <button className="btn btn-sec btn-mini" onClick={() => setEditando(false)}>Fechar</button>
+        </div>
       </div>
-      <div className="cartao-acoes">
-        {!editando && <button className="btn-icone" onClick={abrirEdicao} title="Editar"><IcoEditar /></button>}
-        <button className="btn-icone perigo" onClick={remover} title="Remover"><IcoLixeira /></button>
+    )
+  }
+
+  return (
+    <div className={`grupo-card ${semLider ? 'sem-lider' : ''}`}>
+      <div className="grupo-card-top">
+        <div className="grupo-icone">🏠</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="grupo-nome">{c.nome}</div>
+          <div className="grupo-meta">
+            {c.regiao && <span>🧭 {c.regiao}</span>}
+            {c.perfil && <span>👥 {c.perfil}</span>}
+            {c.diaHorario && <span>🗓️ {c.diaHorario}</span>}
+            {!c.regiao && !c.perfil && !c.diaHorario && <span style={{ color: 'var(--text-3)' }}>sem detalhes</span>}
+          </div>
+        </div>
+        <div className="cartao-acoes">
+          <button className="btn-icone" onClick={abrirEdicao} title="Editar"><IcoEditar /></button>
+          <button className="btn-icone perigo" onClick={remover} title="Remover"><IcoLixeira /></button>
+        </div>
+      </div>
+      <div className="grupo-lideres">
+        {semLider ? (
+          <span className="grupo-semlider">⚠️ Sem líder definido</span>
+        ) : (
+          <span>👤 {[lider1, lider2].filter(Boolean).join(' · ')}</span>
+        )}
       </div>
     </div>
   )
@@ -996,9 +1049,17 @@ function FormConexao({ onPronto }: { onPronto: () => void }) {
   const [perfil, setPerfil] = useState(''); const [dia, setDia] = useState('')
   const [liderId, setLiderId] = useState(''); const [lider2Id, setLider2Id] = useState('')
 
+  // Já existe um grupo com esse nome? (checagem de duplicado, sem acento)
+  const nomeNorm = semAcento(nome)
+  const duplicado = nomeNorm ? s.conexoes.find((c) => semAcento(c.nome) === nomeNorm) : undefined
+  const parecidos = nomeNorm.length >= 3
+    ? s.conexoes.filter((c) => !duplicado && semAcento(c.nome).includes(nomeNorm))
+    : []
+
   function adicionar(e: React.FormEvent) {
     e.preventDefault()
     if (!nome.trim()) return
+    if (duplicado) { alert(`Já existe um grupo chamado "${duplicado.nome}". Escolha outro nome.`); return }
     const id = uid()
     setEstado((st) => ({
       ...st,
@@ -1022,6 +1083,16 @@ function FormConexao({ onPronto }: { onPronto: () => void }) {
           <input type="text" value={regiao} onChange={(e) => setRegiao(e.target.value)} />
         </label>
       </div>
+      {duplicado && (
+        <div className="alerta alerta-warn" style={{ marginTop: 0 }}>
+          ⚠️ <div>Já existe um grupo com esse nome: <b>{duplicado.nome}</b>. Escolha outro nome.</div>
+        </div>
+      )}
+      {!duplicado && parecidos.length > 0 && (
+        <div className="alerta alerta-info" style={{ marginTop: 0 }}>
+          💡 <div>Grupos parecidos já cadastrados: {parecidos.map((c) => c.nome).join(', ')}. Confira se não é o mesmo.</div>
+        </div>
+      )}
       <div className="linha-campos">
         <label className="campo"><span>Perfil</span>
           <input type="text" value={perfil} onChange={(e) => setPerfil(e.target.value)} placeholder="ex.: casais, jovens" />
@@ -1045,7 +1116,7 @@ function FormConexao({ onPronto }: { onPronto: () => void }) {
         </label>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn" type="submit">Adicionar grupo</button>
+        <button className="btn" type="submit" disabled={!nome.trim() || !!duplicado}>Adicionar grupo</button>
         <button className="btn btn-sec" type="button" onClick={onPronto}>Cancelar</button>
       </div>
     </form>
