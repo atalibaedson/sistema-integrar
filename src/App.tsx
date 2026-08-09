@@ -24,6 +24,7 @@ import AguardandoAprovacao from './pages/AguardandoAprovacao'
 import Aprovacoes from './pages/Aprovacoes'
 // EntrarProvisorio (login por nome, sem senha) foi aposentado com o login obrigatório.
 import Relatorios from './pages/Relatorios'
+import VisitanteDados from './pages/VisitanteDados'
 
 type ItemMenu = { rota: string; icone: (p: { size?: number }) => JSX.Element; rotulo: string }
 
@@ -200,6 +201,7 @@ export default function App() {
   if (rota === '/') pagina = paginaInicial
   else if (rota === '/jornada') pagina = <Jornada />
   else if (rota === '/visitantes') pagina = <Visitantes />
+  else if (rota.startsWith('/visitante/') && rota.endsWith('/dados')) pagina = <VisitanteDados id={rota.split('/')[2]} />
   else if (rota.startsWith('/visitante/')) pagina = <VisitanteDetalhe id={rota.split('/')[2]} />
   else if (rota === '/novo') pagina = <NovoVisitante />
   else if (rota === '/lideres') pagina = <PainelLider />

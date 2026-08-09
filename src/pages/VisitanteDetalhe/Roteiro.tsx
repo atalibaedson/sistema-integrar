@@ -11,9 +11,6 @@ import {
 import { IcoCheck, IcoDesfazer, IcoEditar, IcoWhats } from '../../icones'
 import { BotaoVirarMembro, CampoInicioConexao, fmtDia, SeletorData } from './comum'
 
-/* ================= Roteiro da jornada ================= */
-
-// Em qual passo (1-7) cada status se encontra
 const PASSO_DO_STATUS: Record<Status, number> = {
   novo: 2, em_contato: 2, aguardando_resposta: 2, em_espera: 2, recusou: 2, encerrado: 2,
   encaminhado_lider: 3, visitou: 4, transferido: 5, batismo: 6, integrado: 7,
@@ -22,72 +19,81 @@ const PASSO_DO_STATUS: Record<Status, number> = {
 export default function Roteiro({ v }: { v: Visitante }) {
   const passoAtual = PASSO_DO_STATUS[v.status]
   const concluido = v.status === 'integrado'
-
-  // Data em que cada passo foi concluído (pelo histórico)
   const dataDe = (para: Status) => v.historicoStatus.find((h) => h.para === para)?.data
 
-  const passos: { n: number; titulo: string; quandoFeito?: string; explicacao: string }[] = [
-    { n: 1, titulo: 'Cadastro realizado', quandoFeito: v.dataCadastro, explicacao: '' },
-    { n: 2, titulo: 'Primeira semana de contatos', quandoFeito: dataDe('encaminhado_lider'), explicacao: 'Mensagens de segunda, quarta e sábado até a pessoa aceitar o convite.' },
-    { n: 3, titulo: 'Entrega ao líder do grupo', quandoFeito: dataDe('visitou'), explicacao: 'Acontece quando a pessoa aceita visitar o grupo — o líder fala com ela ANTES da visita.' },
-    { n: 4, titulo: 'Visita ao grupo', quandoFeito: dataDe('visitou'), explicacao: 'A pessoa participa de um encontro do grupo, já esperada pelo líder.' },
-    { n: 5, titulo: 'Líder assume o acompanhamento', quandoFeito: dataDe('transferido'), explicacao: 'Depois da visita, o líder confirma que assumiu. A consolidação fica de apoio.' },
-    // Nestes dois passos vale a data do EVENTO (o batismo, a recepção como
-    // membro), não a do clique que moveu a ficha: alguém batizado dia 13 pode
-    // só ter sido registrado dia 20, e é o dia 13 que a igreja quer ver.
+  const passos = [
+    { n: 1, label: 'Cadastro', titulo: 'Cadastro realizado', quandoFeito: v.dataCadastro },
+    { n: 2, label: '1ª semana', titulo: 'Primeira semana de contatos', quandoFeito: dataDe('encaminhado_lider') },
+    { n: 3, label: 'Entrega', titulo: 'Entrega ao líder do grupo', quandoFeito: dataDe('visitou') },
+    { n: 4, label: 'Visita', titulo: 'Visita ao grupo', quandoFeito: dataDe('visitou') },
+    { n: 5, label: 'Líder assume', titulo: 'Líder assume o acompanhamento', quandoFeito: dataDe('transferido') },
     {
       n: 6,
-      // Sem isto, um passo "Batismo" marcado e sem data fica ambíguo: pulou de
-      // propósito, ou esqueceram de registrar? O texto diz qual dos dois é.
+      label: v.situacaoBatismo === 'ja_batizado' ? 'Batismo ✓' : 'Batismo',
       titulo: v.situacaoBatismo === 'ja_batizado' ? 'Batismo · dispensado' : 'Batismo',
       quandoFeito: v.dataBatismo ?? dataDe('batismo'),
-      explicacao: v.situacaoBatismo === 'ja_batizado'
-        ? 'Não precisou: já era batizado(a) quando chegou à igreja.'
-        : v.situacaoBatismo === 'batizado_aqui'
-          ? 'Batizado(a) aqui na igreja.'
-          : 'Etapa de quem ainda não é batizado. Quem já chegou batizado pula direto para o passo 7.',
     },
-    { n: 7, titulo: 'Membro 🎉', quandoFeito: v.dataMembresia ?? dataDe('integrado'), explicacao: 'Recebida como membro da igreja — é isso que conclui a jornada, com ou sem batismo pelo caminho.' },
+    { n: 7, label: 'Membro', titulo: 'Membro 🎉', quandoFeito: v.dataMembresia ?? dataDe('integrado') },
   ]
 
-  // "Voltar etapa" = desfazer a última mudança de status. Só faz sentido depois
-  // da 1ª semana (passo > 2) ou com a jornada concluída, e havendo o que desfazer.
+  const feito = (n: number) => concluido || n < passoAtual
+  const atual = (n: number) => !concluido && n === passoAtual
+  const passoAtualObj = passos[passoAtual - 1]
+
   const podeVoltar = (concluido || passoAtual > 2) && v.historicoStatus.length > 1
   const statusAnterior = v.historicoStatus[v.historicoStatus.length - 2]?.para
 
   return (
-    <div className="card">
-      <div className="card-cab">
-        <h3>Passo a passo da jornada</h3>
-        {concluido && <span className="badge" style={estiloStatus('integrado')}>Jornada concluída</span>}
+    <div className="card jornada-card">
+      {/* Cabeçalho */}
+      <div className="jornada-cab">
+        <h3>Jornada de integração</h3>
+        {concluido && <span className="badge" style={estiloStatus('integrado')}>Concluída 🎉</span>}
       </div>
-      {/* Chegar a "Membro" pelo quadro da Jornada ou por correção de status não
-          pede a data. Sem este aviso, o buraco só apareceria no relatório. */}
+
+      {/* Aviso de data de membresia faltando */}
       {concluido && !v.dataMembresia && (
-        <div className="alerta alerta-warn">
-          ⚠️ <div>
-            Falta registrar <b>a data em que {v.nome.split(' ')[0]} virou membro</b>.
-            Preencha na aba <b>Dados</b> — sem ela, a conclusão não entra nos relatórios por período.
-          </div>
+        <div className="alerta alerta-warn" style={{ marginBottom: 14 }}>
+          ⚠️ <div>Falta a <b>data em que {v.nome.split(' ')[0]} virou membro</b> — preencha em Dados abaixo.</div>
         </div>
       )}
-      {passos.map((p) => {
-        const feito = concluido || p.n < passoAtual
-        const atual = !concluido && p.n === passoAtual
-        return (
-          <div className={`rot-passo ${feito ? 'feito' : ''} ${atual ? 'atual' : ''} ${!feito && !atual ? 'futuro' : ''}`} key={p.n}>
-            <div className="rot-num">{feito ? <IcoCheck size={15} /> : p.n}</div>
-            <div className="rot-corpo">
-              <div className="rot-titulo">
-                {p.titulo}
-                {feito && p.quandoFeito && <span style={{ fontWeight: 500, color: 'var(--text-3)', fontSize: 12, marginLeft: 8 }}>{fmtDia(p.quandoFeito)}</span>}
-              </div>
-              {!atual && !feito && <div className="rot-sub">{p.explicacao}</div>}
-              {atual && <PassoAtual v={v} passo={p.n} />}
+
+      {/* Stepper horizontal */}
+      <div className="stepper" style={{ padding: '8px 0 4px' }}>
+        {passos.map((p, i) => (
+          <div key={p.n} className={`step ${feito(p.n) ? 'feito' : ''} ${atual(p.n) ? 'atual' : ''}`}>
+            <div className="step-bola">
+              {feito(p.n) ? <IcoCheck size={13} /> : p.n}
             </div>
+            <div className="step-rotulo">{p.label}</div>
+            {i < passos.length - 1 && <div className="step-linha" />}
           </div>
-        )
-      })}
+        ))}
+      </div>
+
+      {/* Card da ação atual */}
+      {!concluido && passoAtualObj && (
+        <div className="jornada-acao-card">
+          <div className="jornada-acao-etapa">Etapa {passoAtual} de {passos.length}</div>
+          <h4 className="jornada-acao-titulo">{passoAtualObj.titulo}</h4>
+          <PassoAtual v={v} passo={passoAtual} />
+        </div>
+      )}
+
+      {/* Histórico de conclusão dos passos */}
+      {passos.some((p) => feito(p.n) && p.quandoFeito) && (
+        <div className="jornada-historico">
+          {passos.filter((p) => feito(p.n) && p.quandoFeito).map((p) => (
+            <div key={p.n} className="jornada-hist-item">
+              <IcoCheck size={11} style={{ color: 'var(--ok)', flexShrink: 0 }} />
+              <span>{p.titulo}</span>
+              <span className="jornada-hist-data">{fmtDia(p.quandoFeito!)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Voltar etapa */}
       {podeVoltar && statusAnterior && (
         <button
           className="rot-voltar"
@@ -104,26 +110,23 @@ export default function Roteiro({ v }: { v: Visitante }) {
   )
 }
 
-/* Conteúdo do passo em andamento — as ações moram AQUI */
+/* ================= Conteúdo do passo atual ================= */
 function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
   const s = useAppState()
   const [registrando, setRegistrando] = useState(false)
-  // Vazias de propósito: quem preenche é o SeletorData, que sabe se a igreja tem
-  // calendário cadastrado (aí a data é escolhida) ou não (aí hoje é o padrão).
-  // A data da membresia mora dentro de BotaoVirarMembro (junto da checagem).
   const [dataBatismo, setDataBatismo] = useState('')
   const [msgIdx, setMsgIdx] = useState(0)
   const [avisoIdx, setAvisoIdx] = useState(0)
-  const [aguardando, setAguardando] = useState(false)   // líder: visitou mas ainda não assumiu
+  const [aguardando, setAguardando] = useState(false)
   const [motivoEspera, setMotivoEspera] = useState('')
-  const [parou, setParou] = useState(false)             // pessoa parou de frequentar após transferida
+  const [parou, setParou] = useState(false)
   const [motivoParou, setMotivoParou] = useState('')
   const lider = usuarioPorId(s, v.liderConexaoId)
   const primeiroNome = v.nome.split(' ')[0]
   const ints = interacoesDe(s, v.id)
   const fez = (t: TipoInteracao) => ints.some((i) => i.tipo === t)
 
-  // Passo 2 — semana de contatos (inclui pausas: em espera / recusou / encerrado)
+  // Passo 2 — semana de contatos
   if (passo === 2) {
     const tipoSugerido = proximoTipoContato(s, v)
     const etapa: EtapaFluxo = tipoSugerido === 'aproximacao' ? 'aproximacao' : tipoSugerido === 'conexao' ? 'conexao' : tipoSugerido === 'celebracao' ? 'celebracao' : 'conexao'
@@ -137,28 +140,29 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
     }
 
     return (
-      <div className="rot-caixa">
-        {/* Os 3 contatos da semana como sequência numerada */}
-        <div style={{ marginBottom: 10 }}>
+      <div>
+        {/* Progresso dos 3 contatos da semana */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
           <span className={`chip-num ${fez('aproximacao') ? 'feito' : ''}`}><span className="n">{fez('aproximacao') ? '✓' : '1'}</span>Seg · Aproximação</span>
           <span className={`chip-num ${fez('conexao') ? 'feito' : ''}`}><span className="n">{fez('conexao') ? '✓' : '2'}</span>Qua · Convite ao grupo</span>
           <span className={`chip-num ${fez('celebracao') ? 'feito' : ''}`}><span className="n">{fez('celebracao') ? '✓' : '3'}</span>Sáb · Celebração</span>
         </div>
 
         {v.status === 'em_espera' && (
-          <p className="rot-sub" style={{ marginBottom: 10 }}>⏸️ Em espera ({s.config.prazoEsperaDias} dias sem resposta). Envie só informativos; ao responder, registre o contato que o fluxo reativa sozinho.</p>
+          <div className="alerta alerta-warn" style={{ marginBottom: 10 }}>
+            ⏸️ <div>Em espera ({s.config.prazoEsperaDias} dias sem resposta). Envie só informativos; ao responder, registre o contato.</div>
+          </div>
         )}
         {v.status === 'recusou' && (
-          <p className="rot-sub" style={{ marginBottom: 10 }}>✋ Pediu para não ser contatada. Se ela retornar, registre o contato que o fluxo reabre.</p>
+          <div className="alerta alerta-warn" style={{ marginBottom: 10 }}>
+            ✋ <div>Pediu para não ser contatada. Se ela retornar, registre o contato.</div>
+          </div>
         )}
 
         {!registrando && (
-          <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {candidatos.length > 1 && v.status !== 'recusou' && (
-              <select
-                value={idxAtual} onChange={(e) => setMsgIdx(Number(e.target.value))}
-                style={{ marginBottom: 6, fontSize: 12.5, padding: '5px 8px', width: 'auto' }}
-              >
+              <select value={idxAtual} onChange={(e) => setMsgIdx(Number(e.target.value))} style={{ fontSize: 12.5, padding: '5px 8px', width: 'auto' }}>
                 {candidatos.map((t, i) => <option key={t.id} value={i}>{t.titulo}</option>)}
               </select>
             )}
@@ -173,28 +177,25 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
                 <IcoEditar size={14} /> {v.status === 'recusou' ? 'Ela respondeu — registrar' : '2. Registrar o contato'}
               </button>
             </div>
-          </>
+          </div>
         )}
         {registrando && <RegistroGuiado v={v} onFechar={() => setRegistrando(false)} />}
       </div>
     )
   }
 
-  // Passo 3 — entrega ao líder (contato pré-visita)
+  // Passo 3 — entrega ao líder
   if (passo === 3) {
     const candidatosAviso = templatesPorEtapa(s, 'aviso_lider')
     const idxAviso = Math.min(avisoIdx, Math.max(candidatosAviso.length - 1, 0))
     const avisoLider = candidatosAviso[idxAviso]
     return (
-      <div className="rot-caixa">
-        <p className="rot-sub" style={{ marginBottom: 10 }}>
+      <div>
+        <p className="rot-sub" style={{ marginBottom: 12 }}>
           {primeiroNome} aceitou o convite! Agora o líder {lider ? <b>{lider.nome}</b> : 'do grupo'} fala com ela <b>antes</b> da visita, para ela chegar esperada.
         </p>
         {candidatosAviso.length > 1 && (
-          <select
-            value={idxAviso} onChange={(e) => setAvisoIdx(Number(e.target.value))}
-            style={{ marginBottom: 8, fontSize: 12.5, padding: '5px 8px', width: 'auto' }}
-          >
+          <select value={idxAviso} onChange={(e) => setAvisoIdx(Number(e.target.value))} style={{ marginBottom: 8, fontSize: 12.5, padding: '5px 8px', width: 'auto' }}>
             {candidatosAviso.map((t, i) => <option key={t.id} value={i}>{t.titulo}</option>)}
           </select>
         )}
@@ -214,14 +215,12 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
     )
   }
 
-  // Passo 4 — visita feita; o líder confirma que assumiu OU sinaliza que ainda
-  // não assumiu (pessoa visitou mas não engajou/não respondeu) com o motivo.
+  // Passo 4 — confirmação do líder
   if (passo === 4) {
     return (
-      <div className="rot-caixa">
-        <p className="rot-sub" style={{ marginBottom: 10 }}>
-          {primeiroNome} já visitou o grupo ✔ — o líder confirma que assumiu o acompanhamento,
-          ou sinaliza que ainda está aguardando.
+      <div>
+        <p className="rot-sub" style={{ marginBottom: 12 }}>
+          {primeiroNome} já visitou o grupo ✔ — o líder confirma que assumiu o acompanhamento, ou sinaliza que ainda está aguardando.
         </p>
         {!aguardando && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -237,17 +236,13 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
           <div>
             <label className="campo" style={{ marginBottom: 8 }}>
               <span>Por que ainda está aguardando? *</span>
-              <textarea
-                rows={2} value={motivoEspera} onChange={(e) => setMotivoEspera(e.target.value)}
+              <textarea rows={2} value={motivoEspera} onChange={(e) => setMotivoEspera(e.target.value)}
                 placeholder="Ex.: visitou mas foi convidada para outras conexões, não retornou e não respondeu às mensagens."
-                autoFocus
-              />
+                autoFocus />
             </label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                className="btn" disabled={!motivoEspera.trim()}
-                onClick={() => mudarStatus(v.id, 'em_espera', `Aguardando (líder): ${motivoEspera.trim()}`)}
-              >
+              <button className="btn" disabled={!motivoEspera.trim()}
+                onClick={() => mudarStatus(v.id, 'em_espera', `Aguardando (líder): ${motivoEspera.trim()}`)}>
                 <IcoCheck size={14} /> Marcar como aguardando
               </button>
               <button className="btn btn-sec" onClick={() => { setAguardando(false); setMotivoEspera('') }}>Cancelar</button>
@@ -261,9 +256,7 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
     )
   }
 
-  // Passo 5 — o líder acompanha até o próximo marco. Qual marco é esse depende
-  // da situação de batismo: quem já é batizado não passa pelo batismo de novo,
-  // vai direto a membro. Por isso a ordem dos botões muda conforme o caso.
+  // Passo 5 — acompanhamento pelo líder
   if (passo === 5) {
     const jaBatizado = v.situacaoBatismo === 'ja_batizado' || v.situacaoBatismo === 'batizado_aqui'
     const receberComoMembro = <BotaoVirarMembro v={v} primaria={jaBatizado} />
@@ -274,8 +267,8 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
     )
 
     return (
-      <div className="rot-caixa">
-        <p className="rot-sub" style={{ marginBottom: 10 }}>
+      <div>
+        <p className="rot-sub" style={{ marginBottom: 12 }}>
           O líder cuida de {primeiroNome}; a consolidação fica de apoio.{' '}
           {jaBatizado
             ? <>Como {primeiroNome} <b>já é batizado(a)</b>, o próximo marco é ser recebido(a) como membro.</>
@@ -283,20 +276,13 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
               ? <>{primeiroNome} <b>ainda não é batizado(a)</b> — o próximo marco costuma ser o batismo.</>
               : <>Ainda <b>não sabemos</b> se {primeiroNome} é batizado(a). Vale perguntar: é isso que define o próximo passo.</>}
         </p>
-
-        {/* Preenchido pelo líder: base do tempo mínimo para virar membro. */}
         <div style={{ marginBottom: 12 }}>
           <CampoInicioConexao v={v} />
         </div>
-
         {jaBatizado ? receberComoMembro : encaminharBatismo}
-
         <div className="rot-ou">ou</div>
-
         {jaBatizado ? encaminharBatismo : receberComoMembro}
-
         <div className="rot-ou">ou</div>
-
         {!parou ? (
           <button className="btn btn-sec" onClick={() => setParou(true)}>
             <IcoDesfazer size={14} /> {primeiroNome} parou de frequentar
@@ -304,50 +290,36 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
         ) : (
           <div>
             <label className="campo" style={{ marginBottom: 8 }}>
-              <span>O que aconteceu? <em className="campo-dica">(opcional — ajuda o time a retomar)</em></span>
-              <textarea
-                rows={2} value={motivoParou} onChange={(e) => setMotivoParou(e.target.value)}
+              <span>O que aconteceu? <em className="campo-dica">(opcional)</em></span>
+              <textarea rows={2} value={motivoParou} onChange={(e) => setMotivoParou(e.target.value)}
                 placeholder="Ex.: deixou de aparecer nos encontros e não respondeu aos contatos do líder."
-                autoFocus
-              />
+                autoFocus />
             </label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                className="btn"
-                onClick={() => mudarStatus(
-                  v.id, 'em_contato',
-                  motivoParou.trim() ? `Parou de frequentar: ${motivoParou.trim()}` : 'Parou de frequentar — o time retoma o contato',
-                )}
-              >
+              <button className="btn"
+                onClick={() => mudarStatus(v.id, 'em_contato', motivoParou.trim() ? `Parou de frequentar: ${motivoParou.trim()}` : 'Parou de frequentar — o time retoma o contato')}>
                 <IcoCheck size={14} /> Voltar ao time para retomar o contato
               </button>
               <button className="btn btn-sec" onClick={() => { setParou(false); setMotivoParou('') }}>Cancelar</button>
             </div>
-            <p className="rot-sub" style={{ marginTop: 8 }}>
-              A pessoa volta para <b>Em contato</b> e reaparece nas ações do time, que retoma a conversa para entender o que aconteceu.
-            </p>
           </div>
         )}
       </div>
     )
   }
 
-  // Passo 6 — batismo: primeiro registra que aconteceu, depois recebe como
-  // membro (é a membresia que fecha a jornada, não o batismo).
+  // Passo 6 — batismo
   if (passo === 6) {
     const batizado = v.situacaoBatismo === 'batizado_aqui' || v.situacaoBatismo === 'ja_batizado'
     return (
-      <div className="rot-caixa">
+      <div>
         {!batizado ? (
           <>
-            <p className="rot-sub" style={{ marginBottom: 10 }}>
+            <p className="rot-sub" style={{ marginBottom: 12 }}>
               {primeiroNome} está encaminhado(a) para o batismo. Quando acontecer, registre a data aqui.
             </p>
             <div style={{ display: 'flex', gap: 8, alignItems: 'end', flexWrap: 'wrap' }}>
-              <SeletorData
-                datas={s.config.datasBatismo} valor={dataBatismo} onMudar={setDataBatismo}
-                rotulo="Data do batismo"
-              />
+              <SeletorData datas={s.config.datasBatismo} valor={dataBatismo} onMudar={setDataBatismo} rotulo="Data do batismo" />
               <button className="btn" disabled={!dataBatismo} onClick={() => registrarBatismoRealizado(v.id, dataBatismo)}>
                 💧 Batizado(a)!
               </button>
@@ -355,25 +327,14 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
             <div className="rot-ou">ou</div>
           </>
         ) : (
-          <p className="rot-sub" style={{ marginBottom: 10 }}>
-            ✅ Batismo registrado{v.dataBatismo ? ` em ${fmtDia(v.dataBatismo)}` : ''}. Falta receber
-            {' '}{primeiroNome} como membro — é isso que conclui a jornada.
+          <p className="rot-sub" style={{ marginBottom: 12 }}>
+            ✅ Batismo registrado{v.dataBatismo ? ` em ${fmtDia(v.dataBatismo)}` : ''}. Falta receber {primeiroNome} como membro.
           </p>
         )}
-
         <BotaoVirarMembro v={v} primaria={batizado} />
-
         <div className="rot-ou">ou</div>
-
-        {/* Depois de batizada não faz sentido oferecer "adiou o batismo" — o que
-            pode acontecer é a membresia demorar e a pessoa seguir com o líder. */}
-        <button
-          className="btn btn-sec"
-          onClick={() => mudarStatus(
-            v.id, 'transferido',
-            batizado ? 'Membresia adiada — segue com o líder' : 'Batismo adiado — segue com o líder',
-          )}
-        >
+        <button className="btn btn-sec"
+          onClick={() => mudarStatus(v.id, 'transferido', batizado ? 'Membresia adiada — segue com o líder' : 'Batismo adiado — segue com o líder')}>
           <IcoDesfazer size={14} />{' '}
           {batizado ? 'Membresia vai demorar — volta ao acompanhamento do líder' : 'Adiou o batismo — volta ao acompanhamento do líder'}
         </button>
@@ -384,7 +345,7 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
   return null
 }
 
-/* Assistente de registro: uma pergunta por vez, status muda sozinho */
+/* ================= Assistente de registro de contato ================= */
 function RegistroGuiado({ v, onFechar }: { v: Visitante; onFechar: () => void }) {
   const s = useAppState()
   const [classif, setClassif] = useState<Classificacao | null>(null)

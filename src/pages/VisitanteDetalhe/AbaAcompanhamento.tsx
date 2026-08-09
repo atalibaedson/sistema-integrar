@@ -15,8 +15,6 @@ export default function AbaAcompanhamento({ v }: { v: Visitante }) {
   const transicoes = transicoesDisponiveis(v.status)
   const [mostrarCorrecao, setMostrarCorrecao] = useState(false)
 
-  // Cobrança de atualização: mensagem pronta para o consolidador responsável,
-  // com o link que abre direto esta ficha para ele registrar o contato.
   const linkFicha = `${window.location.origin}${window.location.pathname}#/visitante/${v.id}`
   const msgCobranca = responsavel
     ? `Oi, ${responsavel.nome.split(' ')[0]}! Tudo bem? Como está o acompanhamento de ${v.nome}? Quando puder, registra a atualização na ficha: ${linkFicha}`
@@ -32,12 +30,19 @@ export default function AbaAcompanhamento({ v }: { v: Visitante }) {
 
   return (
     <div className="card">
-      <h3>Quem acompanha</h3>
+      <div className="secao-header" style={{ marginBottom: 14 }}>
+        <span>⚙️ Acompanhamento</span>
+      </div>
+
+      {/* Quem cuida */}
       <div className="linha-campos">
         <label className="campo"><span>Responsável (consolidador)</span>
           <select value={v.responsavelId ?? ''} onChange={(e) => atualizarVisitante(v.id, { responsavelId: e.target.value || undefined })}>
             <option value="">— sem responsável —</option>
-            {consolidadoresAtivos(s).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            {consolidadoresAtivos(s)
+              .slice()
+              .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+              .map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
           </select>
         </label>
         <label className="campo"><span>{s.config.termoGrupo} designada</span>
@@ -49,10 +54,23 @@ export default function AbaAcompanhamento({ v }: { v: Visitante }) {
             }}
           >
             <option value="">— sem grupo —</option>
-            {s.conexoes.map((c) => {
-              const loc = [c.bairro, c.cidade].filter(Boolean).join(' · ')
-              return <option key={c.id} value={c.id}>{c.nome}{loc ? ` (${loc})` : ''}</option>
-            })}
+            {(() => {
+              const sorted = [...s.conexoes].sort((a, b) => {
+                const ba = a.bairro ?? '', bb = b.bairro ?? ''
+                if (!ba && bb) return 1
+                if (ba && !bb) return -1
+                const bc = ba.localeCompare(bb, 'pt-BR')
+                return bc !== 0 ? bc : a.nome.localeCompare(b.nome, 'pt-BR')
+              })
+              const bairros = [...new Set(sorted.map((c) => c.bairro ?? ''))]
+              return bairros.map((bairro) => (
+                <optgroup key={bairro || '__sem__'} label={bairro || 'Sem bairro'}>
+                  {sorted.filter((c) => (c.bairro ?? '') === bairro).map((c) => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </optgroup>
+              ))
+            })()}
           </select>
         </label>
       </div>
@@ -61,18 +79,27 @@ export default function AbaAcompanhamento({ v }: { v: Visitante }) {
         <div className="campo" />
       </div>
       <p className="descricao-secao" style={{ marginTop: 0 }}>
-        Data em que a pessoa passou a frequentar a {s.config.termoGrupo} — preenchida pelo líder.
-        É a base do tempo mínimo exigido para receber como membro.
+        Data em que a pessoa passou a frequentar a {s.config.termoGrupo} — a base do tempo mínimo para virar membro.
       </p>
-      {responsavel && (
-        <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span>Integrador(a) pós-culto: <b>{responsavel.nome}</b> · {responsavel.whatsapp}</span>
-          <a className="btn btn-whats btn-mini" href={linkWhatsApp(responsavel.whatsapp, msgCobranca)} target="_blank" rel="noreferrer">
-            <IcoWhats size={13} /> Pedir atualização
-          </a>
-        </p>
+
+      {(responsavel || lider) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+          {responsavel && (
+            <div style={{ fontSize: 13, color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span>Integrador(a): <b>{responsavel.nome}</b> · {responsavel.whatsapp}</span>
+              <a className="btn btn-whats btn-mini" href={linkWhatsApp(responsavel.whatsapp, msgCobranca)} target="_blank" rel="noreferrer">
+                <IcoWhats size={13} /> Pedir atualização
+              </a>
+            </div>
+          )}
+          {lider && (
+            <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
+              Líder do grupo: <b>{lider.nome}</b> · {lider.whatsapp}
+            </div>
+          )}
+        </div>
       )}
-      {lider && <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12 }}>Líder do grupo: <b>{lider.nome}</b> · {lider.whatsapp}</p>}
+
       <label className="campo" style={{ maxWidth: 420 }}><span>Perfil de abordagem</span>
         <select value={v.perfilAbordagem ?? ''} onChange={(e) => atualizarVisitante(v.id, { perfilAbordagem: (e.target.value || undefined) as PerfilAbordagem | undefined })}>
           <option value="">— não classificado —</option>
@@ -80,41 +107,43 @@ export default function AbaAcompanhamento({ v }: { v: Visitante }) {
         </select>
       </label>
 
-      <details>
-        <summary>Avançado: mudar status manualmente</summary>
-        <p className="descricao-secao" style={{ marginTop: 8 }}>
-          No dia a dia você não precisa disto — o registro de contato move o status sozinho.
-        </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {transicoes.map((t) => (
-            <button key={t} className="btn btn-sec btn-mini" style={{ justifyContent: 'flex-start' }}
-              onClick={() => mudarStatus(v.id, t, MOTIVO[t] ?? 'Mudança manual')}>
-              → {rotuloStatus(t)}
-            </button>
-          ))}
-          {transicoes.length === 0 && <span style={{ color: 'var(--text-3)', fontSize: 13 }}>Estado final — sem transições normais.</span>}
+      {/* Mover status manualmente */}
+      {transicoes.length > 0 && (
+        <div style={{ marginTop: 18, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+          <div className="dados-secao-titulo">Mover status</div>
+          <p className="descricao-secao">No dia a dia, o registro de contato move o status sozinho. Use apenas para correções.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {transicoes.map((t) => (
+              <button key={t} className="btn btn-sec btn-mini" style={{ justifyContent: 'flex-start' }}
+                onClick={() => mudarStatus(v.id, t, MOTIVO[t] ?? 'Mudança manual')}>
+                → {rotuloStatus(t)}
+              </button>
+            ))}
+          </div>
         </div>
-      </details>
+      )}
 
-      <details>
-        <summary>Marcou errado? Corrija aqui</summary>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+      {/* Correções */}
+      <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+        <div className="dados-secao-titulo">Marcou errado?</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {v.historicoStatus.length > 1 && (
-            <button className="btn btn-sec btn-mini" style={{ justifyContent: 'flex-start' }} onClick={() => desfazerUltimaMudanca(v.id)}>
+            <button className="btn btn-sec btn-mini" style={{ justifyContent: 'flex-start' }}
+              onClick={() => desfazerUltimaMudanca(v.id)}>
               <IcoDesfazer size={13} /> Desfazer última mudança (voltar para "{rotuloStatus(v.historicoStatus[v.historicoStatus.length - 2].para)}")
             </button>
           )}
-          <button className="btn btn-sec btn-mini" style={{ justifyContent: 'flex-start' }} onClick={() => setMostrarCorrecao(!mostrarCorrecao)}>
+          <button className="btn btn-sec btn-mini" style={{ justifyContent: 'flex-start' }}
+            onClick={() => setMostrarCorrecao(!mostrarCorrecao)}>
             <IcoEditar size={13} /> Corrigir para outro status…
           </button>
           {mostrarCorrecao && <FormCorrecao visitanteId={v.id} statusAtual={v.status} onFechar={() => setMostrarCorrecao(false)} />}
         </div>
-      </details>
+      </div>
     </div>
   )
 }
 
-// Correção manual de status: qualquer destino, com motivo registrado na auditoria
 function FormCorrecao({ visitanteId, statusAtual, onFechar }: { visitanteId: string; statusAtual: Status; onFechar: () => void }) {
   const [para, setPara] = useState<Status>('novo')
   const [motivo, setMotivo] = useState('')

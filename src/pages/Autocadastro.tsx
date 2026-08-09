@@ -17,6 +17,9 @@ export default function Autocadastro() {
   const [whatsapp, setWhatsapp] = useState('')
   const [dataNascimento, setDataNascimento] = useState('')
   const [situacao, setSituacao] = useState<SituacaoCivil | ''>('')
+  const [cep, setCep] = useState('')
+  const [buscandoCep, setBuscandoCep] = useState(false)
+  const [numero, setNumero] = useState('')
   const [endereco, setEndereco] = useState('')
   const [bairro, setBairro] = useState('')
   const [cidade, setCidade] = useState('')
@@ -45,6 +48,20 @@ export default function Autocadastro() {
     cfg.autocadastroPerguntarBatismo || cfg.autocadastroPerguntarComoConheceu || cfg.autocadastroPerguntarConexao
   const temContato = cfg.autocadastroPerguntarContato || cfg.autocadastroPerguntarOracao
 
+  async function buscarCep(nums: string) {
+    setBuscandoCep(true)
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${nums}/json/`)
+      const d = await r.json()
+      if (!d.erro) {
+        setEndereco(d.logradouro || '')
+        setBairro(d.bairro || '')
+        setCidade(d.localidade || '')
+      }
+    } catch {}
+    setBuscandoCep(false)
+  }
+
   function enviar(e: React.FormEvent) {
     e.preventDefault()
     if (!nome.trim() || !whatsapp.trim()) {
@@ -62,7 +79,7 @@ export default function Autocadastro() {
       origem: 'qr_code',
       dataNascimento: dataNascimento || undefined,
       situacaoCivil: situacao || undefined,
-      endereco: endereco || undefined,
+      endereco: endereco ? `${endereco}${numero ? ', ' + numero : ''}` : undefined,
       bairro: bairro || undefined,
       cidade: cidade || undefined,
       primeiraVez: primeiraVez ? primeiraVez === 'sim' : undefined,
@@ -134,10 +151,40 @@ export default function Autocadastro() {
           {temEndereco && (
             <div className="ac-secao">
               <div className="ac-secao-titulo">📍 Onde você mora</div>
-              {cfg.autocadastroMostrarEndereco && (
-                <label className="campo"><span>Endereço <em className="campo-dica">(opcional)</em></span>
-                  <input type="text" value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Rua e número" />
+              <div className="ac-grupo">
+                <label className="campo">
+                  <span>CEP <em className="campo-dica">(preenche automaticamente)</em></span>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      value={cep}
+                      maxLength={9}
+                      placeholder="00000-000"
+                      onChange={(e) => {
+                        const nums = e.target.value.replace(/\D/g, '').slice(0, 8)
+                        const fmt = nums.length > 5 ? `${nums.slice(0, 5)}-${nums.slice(5)}` : nums
+                        setCep(fmt)
+                        if (nums.length === 8) buscarCep(nums)
+                      }}
+                    />
+                    {buscandoCep && (
+                      <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--text-3)', pointerEvents: 'none' }}>
+                        buscando…
+                      </span>
+                    )}
+                  </div>
                 </label>
+                <div />
+              </div>
+              {cfg.autocadastroMostrarEndereco && (
+                <div className="ac-grupo">
+                  <label className="campo"><span>Endereço <em className="campo-dica">(opcional)</em></span>
+                    <input type="text" value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Rua, avenida..." />
+                  </label>
+                  <label className="campo" style={{ maxWidth: 160 }}><span>Número <em className="campo-dica">(opcional)</em></span>
+                    <input type="text" value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="123, apto 4" />
+                  </label>
+                </div>
               )}
               <div className="ac-grupo">
                 {cfg.autocadastroMostrarBairro && (

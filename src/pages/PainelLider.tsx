@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { lideres, templatePorGatilho, useAppState } from '../store'
 import { estiloStatus, rotuloStatus, type Status, type Visitante } from '../types'
 import { aplicarTemplate, linkWhatsApp, mudarStatus } from '../actions'
@@ -7,7 +7,6 @@ import { iniciais } from './Equipe'
 import { useUsuarioAtualId, usuarioAtual } from '../acesso'
 import { IcoBusca, IcoCheck, IcoWhats } from '../icones'
 
-// Filtros por tarefa do líder (mesmo padrão de chips da página Visitantes)
 const GRUPOS: { id: string; rotulo: string; statuses: Status[] }[] = [
   { id: 'todos', rotulo: 'Todos', statuses: ['encaminhado_lider', 'visitou', 'transferido', 'batismo', 'integrado'] },
   { id: 'antes', rotulo: '🤝 Falar antes da visita', statuses: ['encaminhado_lider'] },
@@ -15,8 +14,6 @@ const GRUPOS: { id: string; rotulo: string; statuses: Status[] }[] = [
   { id: 'acompanhando', rotulo: '🌱 Acompanhando', statuses: ['transferido', 'batismo', 'integrado'] },
 ]
 
-// O que o líder precisa fazer. Depende do status e, na etapa do batismo, também
-// de o batismo já ter acontecido ou não — são dois momentos bem diferentes.
 function oQueFazer(v: Visitante): string | undefined {
   if (v.status === 'batismo') {
     const jaFoi = v.situacaoBatismo === 'batizado_aqui' || v.situacaoBatismo === 'ja_batizado'
@@ -30,17 +27,86 @@ function oQueFazer(v: Visitante): string | undefined {
   } as Partial<Record<Status, string>>)[v.status]
 }
 
-// Painel do líder de Conexão (requisito 11): seus visitantes encaminhados/transferidos
+// Combobox de busca de líder (por nome ou nome da conexão)
+function ComboLider({ ls, liderId, onSelecionar }: {
+  ls: ReturnType<typeof lideres>
+  liderId: string
+  onSelecionar: (id: string) => void
+}) {
+  const s = useAppState()
+  const liderAtual = ls.find((l) => l.id === liderId)
+  const [texto, setTexto] = useState(liderAtual?.nome ?? '')
+  const [aberto, setAberto] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  // Fecha ao clicar fora
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setAberto(false)
+        setTexto(liderAtual?.nome ?? '')
+      }
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [liderAtual?.nome])
+
+  // Atualiza texto quando muda externamente
+  useEffect(() => { setTexto(liderAtual?.nome ?? '') }, [liderAtual?.nome])
+
+  const filtrados = ls.filter((l) => {
+    if (!texto) return true
+    const cx = s.conexoes.find((c) => c.id === l.conexaoId)?.nome ?? ''
+    return `${l.nome} ${cx}`.toLowerCase().includes(texto.toLowerCase())
+  }).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <div className="search-box" style={{ width: '100%' }}>
+        <span className="search-icon"><IcoBusca /></span>
+        <input
+          type="text"
+          value={texto}
+          placeholder="Buscar líder ou conexão…"
+          style={{ fontWeight: 600 }}
+          onChange={(e) => { setTexto(e.target.value); setAberto(true) }}
+          onFocus={() => { setTexto(''); setAberto(true) }}
+        />
+      </div>
+      {aberto && filtrados.length > 0 && (
+        <div className="combo-dropdown">
+          {filtrados.map((l) => {
+            const cx = s.conexoes.find((c) => c.id === l.conexaoId)?.nome
+            return (
+              <button
+                key={l.id}
+                className={`combo-item ${l.id === liderId ? 'sel' : ''}`}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onSelecionar(l.id)
+                  setTexto(l.nome)
+                  setAberto(false)
+                }}
+              >
+                <span className="combo-item-nome">{l.nome}</span>
+                {cx && <span className="combo-item-sub">{cx}</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function PainelLider() {
   const s = useAppState()
   const eu = usuarioAtual(s, useUsuarioAtualId())
-  // Um líder só vê o próprio painel — os demais líderes não aparecem na lista.
   const ls = eu?.papeis.includes('lider') ? lideres(s).filter((l) => l.id === eu.id) : lideres(s)
   const [liderId, setLiderId] = useState(ls[0]?.id ?? '')
   const [grupo, setGrupo] = useState('todos')
   const [busca, setBusca] = useState('')
 
-  // Se a identidade "Vendo como" mudar (ou a lista ficar restrita a 1 líder), acompanha.
   useEffect(() => {
     if (ls.length > 0 && !ls.some((l) => l.id === liderId)) setLiderId(ls[0].id)
   }, [ls, liderId])
@@ -77,13 +143,11 @@ export default function PainelLider() {
               {eu?.papeis.includes('lider') ? (
                 <input type="text" value={lider?.nome ?? ''} readOnly style={{ fontWeight: 600, background: 'var(--surface2)' }} />
               ) : (
-                <select value={liderId} onChange={(e) => { setLiderId(e.target.value); setGrupo('todos') }} style={{ fontWeight: 600 }}>
-                  {ls.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.nome}{s.conexoes.find((c) => c.id === l.conexaoId) ? ` — ${s.conexoes.find((c) => c.id === l.conexaoId)!.nome}` : ''}
-                    </option>
-                  ))}
-                </select>
+                <ComboLider
+                  ls={ls}
+                  liderId={liderId}
+                  onSelecionar={(id) => { setLiderId(id); setGrupo('todos') }}
+                />
               )}
             </label>
             {lider && (

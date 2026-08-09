@@ -215,7 +215,9 @@ export interface Conexao {
   bairro?: string
   cidade?: string
   perfil: string // ex.: solteiros, casais, jovens
-  diaHorario: string
+  diaHorario: string // derivado de diasSemana + horario, ou texto livre legado
+  diasSemana?: string[] // ex.: ['quinta', 'sábado']
+  horario?: string // ex.: '20:00'
   /** @deprecated Campo antigo — migrado para `bairro`. Mantido só para leitura de estados salvos. */
   regiao?: string
 }

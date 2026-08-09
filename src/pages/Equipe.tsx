@@ -118,13 +118,6 @@ export default function Equipe() {
         <CardHierarquia />
       </details>
 
-      <details className="card">
-        <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 15 }}>
-          {s.config.termoGrupo || 'Conexões'} — grupos e líderes ({s.conexoes.length})
-        </summary>
-        <CardConexoes />
-      </details>
-
       <div className="card">
         <div className="card-cab">
           <h3>

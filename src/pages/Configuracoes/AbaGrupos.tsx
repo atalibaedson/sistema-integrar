@@ -7,6 +7,22 @@ import { semAcento } from './comum'
 
 /* ---------------- Aba: Grupos ---------------- */
 
+const DIAS_SEMANA = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
+
+function parsearDiaHorario(diaHorario: string): { dias: string[]; horario: string } {
+  const partes = diaHorario.split('·')
+  const diasStr = (partes[0] ?? '').trim()
+  const horario = (partes[1] ?? '').trim()
+  const dias = DIAS_SEMANA.filter((d) => diasStr.toLowerCase().includes(d.toLowerCase()))
+  return { dias, horario }
+}
+
+function derivarDiaHorario(dias: string[], hora: string): string {
+  const label = dias.map((d) => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')
+  if (label && hora) return `${label} · ${hora}`
+  return label || hora
+}
+
 export default function AbaGrupos() {
   const s = useAppState()
   const termo = s.config.termoGrupo || 'Conexão'
@@ -72,6 +88,40 @@ export default function AbaGrupos() {
   )
 }
 
+function CamposDiaHorario({ diasSemana, horario, onDias, onHorario }: {
+  diasSemana: string[]
+  horario: string
+  onDias: (v: string[]) => void
+  onHorario: (v: string) => void
+}) {
+  function toggleDia(d: string) {
+    onDias(diasSemana.includes(d) ? diasSemana.filter((x) => x !== d) : [...diasSemana, d])
+  }
+  return (
+    <div>
+      <div className="campo">
+        <span>Dias da semana</span>
+        <div className="dias-chips">
+          {DIAS_SEMANA.map((d) => (
+            <button
+              key={d}
+              type="button"
+              className={`chip ${diasSemana.includes(d) ? 'sel' : ''}`}
+              onClick={() => toggleDia(d)}
+            >
+              {d.charAt(0).toUpperCase() + d.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="campo">
+        <span>Horário</span>
+        <input type="time" value={horario} onChange={(e) => onHorario(e.target.value)} />
+      </label>
+    </div>
+  )
+}
+
 function CartaoConexao({ c }: { c: Conexao }) {
   const s = useAppState()
   const [editando, setEditando] = useState(false)
@@ -80,20 +130,43 @@ function CartaoConexao({ c }: { c: Conexao }) {
   const [bairro, setBairro] = useState(c.bairro ?? '')
   const [cidade, setCidade] = useState(c.cidade ?? '')
   const [perfil, setPerfil] = useState(c.perfil)
-  const [dia, setDia] = useState(c.diaHorario)
+  const [diasSemana, setDiasSemana] = useState<string[]>(() => {
+    if (c.diasSemana && c.diasSemana.length > 0) return c.diasSemana
+    if (c.diaHorario) return parsearDiaHorario(c.diaHorario).dias
+    return []
+  })
+  const [horario, setHorario] = useState(() => {
+    if (c.horario) return c.horario
+    if (c.diaHorario) return parsearDiaHorario(c.diaHorario).horario
+    return ''
+  })
 
   function abrirEdicao() {
     setNome(c.nome); setEndereco(c.endereco ?? ''); setBairro(c.bairro ?? '')
-    setCidade(c.cidade ?? ''); setPerfil(c.perfil); setDia(c.diaHorario)
+    setCidade(c.cidade ?? ''); setPerfil(c.perfil)
+    const parsed = parsearDiaHorario(c.diaHorario ?? '')
+    setDiasSemana(c.diasSemana && c.diasSemana.length > 0 ? c.diasSemana : parsed.dias)
+    setHorario(c.horario ?? parsed.horario)
     setEditando(true)
   }
 
   function salvar() {
     if (!nome.trim()) return
+    const diaHorario = derivarDiaHorario(diasSemana, horario)
     setEstado((st) => ({
       ...st,
       conexoes: st.conexoes.map((x) => x.id === c.id
-        ? { ...x, nome: nome.trim(), endereco: endereco.trim() || undefined, bairro: bairro.trim() || undefined, cidade: cidade.trim() || undefined, perfil: perfil.trim(), diaHorario: dia.trim() }
+        ? {
+            ...x,
+            nome: nome.trim(),
+            endereco: endereco.trim() || undefined,
+            bairro: bairro.trim() || undefined,
+            cidade: cidade.trim() || undefined,
+            perfil: perfil.trim(),
+            diaHorario,
+            diasSemana: diasSemana.length > 0 ? diasSemana : undefined,
+            horario: horario || undefined,
+          }
         : x),
     }))
     setEditando(false)
@@ -131,11 +204,12 @@ function CartaoConexao({ c }: { c: Conexao }) {
     toast('Grupo removido', 'info')
   }
 
-  const opcoesLider = (excluirId?: string) => lideres(s).filter((l) => l.id !== excluirId)
+  const opcoesLider = (excluirId?: string) => lideres(s)
+    .filter((l) => l.id !== excluirId)
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
   const lider1 = s.usuarios.find((u) => u.id === c.liderId)?.nome
   const lider2 = s.usuarios.find((u) => u.id === c.lider2Id)?.nome
   const semLider = !c.liderId && !c.lider2Id
-  // Linha de local: "Endereço — Bairro · Cidade" (só o que estiver preenchido)
   const local = [c.endereco, [c.bairro, c.cidade].filter(Boolean).join(' · ')].filter(Boolean).join(' — ')
 
   if (editando) {
@@ -155,14 +229,19 @@ function CartaoConexao({ c }: { c: Conexao }) {
             <input type="text" value={cidade} onChange={(e) => setCidade(e.target.value)} />
           </label>
         </div>
-        <div className="linha-campos">
-          <label className="campo"><span>Perfil</span>
-            <input type="text" value={perfil} onChange={(e) => setPerfil(e.target.value)} placeholder="ex.: casais, jovens" />
-          </label>
-          <label className="campo"><span>Dia/horário</span>
-            <input type="text" value={dia} onChange={(e) => setDia(e.target.value)} placeholder="ex.: Quinta, 20h" />
-          </label>
-        </div>
+        <label className="campo"><span>Perfil</span>
+          <input type="text" value={perfil} onChange={(e) => setPerfil(e.target.value)} placeholder="ex.: casais, jovens" />
+        </label>
+        <CamposDiaHorario
+          diasSemana={diasSemana} horario={horario}
+          onDias={setDiasSemana} onHorario={setHorario}
+        />
+        {/* Mostrar valor legado se ainda não houver estruturado */}
+        {c.diaHorario && diasSemana.length === 0 && !horario && (
+          <p className="descricao-secao" style={{ marginTop: 0 }}>
+            Valor anterior: <b>{c.diaHorario}</b> — selecione os dias acima para substituir.
+          </p>
+        )}
         <div className="linha-campos">
           <label className="campo" style={{ marginBottom: 0 }}><span>Líder 1</span>
             <select value={c.liderId ?? ''} onChange={(e) => mudarLider('liderId', e.target.value)}>
@@ -213,11 +292,15 @@ function CartaoConexao({ c }: { c: Conexao }) {
 function FormConexao({ onPronto }: { onPronto: () => void }) {
   const s = useAppState()
   const [nome, setNome] = useState('')
-  const [endereco, setEndereco] = useState(''); const [bairro, setBairro] = useState(''); const [cidade, setCidade] = useState('')
-  const [perfil, setPerfil] = useState(''); const [dia, setDia] = useState('')
-  const [liderId, setLiderId] = useState(''); const [lider2Id, setLider2Id] = useState('')
+  const [endereco, setEndereco] = useState('')
+  const [bairro, setBairro] = useState('')
+  const [cidade, setCidade] = useState('')
+  const [perfil, setPerfil] = useState('')
+  const [diasSemana, setDiasSemana] = useState<string[]>([])
+  const [horario, setHorario] = useState('')
+  const [liderId, setLiderId] = useState('')
+  const [lider2Id, setLider2Id] = useState('')
 
-  // Já existe um grupo com esse nome? (checagem de duplicado, sem acento)
   const nomeNorm = semAcento(nome)
   const duplicado = nomeNorm ? s.conexoes.find((c) => semAcento(c.nome) === nomeNorm) : undefined
   const parecidos = nomeNorm.length >= 3
@@ -229,13 +312,20 @@ function FormConexao({ onPronto }: { onPronto: () => void }) {
     if (!nome.trim()) return
     if (duplicado) { alert(`Já existe um grupo chamado "${duplicado.nome}". Escolha outro nome.`); return }
     const id = uid()
+    const diaHorario = derivarDiaHorario(diasSemana, horario)
     setEstado((st) => ({
       ...st,
       conexoes: [...st.conexoes, {
         id, nome: nome.trim(),
-        endereco: endereco.trim() || undefined, bairro: bairro.trim() || undefined, cidade: cidade.trim() || undefined,
-        perfil: perfil.trim(), diaHorario: dia.trim(),
-        liderId: liderId || undefined, lider2Id: lider2Id || undefined,
+        endereco: endereco.trim() || undefined,
+        bairro: bairro.trim() || undefined,
+        cidade: cidade.trim() || undefined,
+        perfil: perfil.trim(),
+        diaHorario,
+        diasSemana: diasSemana.length > 0 ? diasSemana : undefined,
+        horario: horario || undefined,
+        liderId: liderId || undefined,
+        lider2Id: lider2Id || undefined,
       }],
       usuarios: st.usuarios.map((u) => (u.id === liderId || u.id === lider2Id) ? { ...u, conexaoId: id } : u),
     }))
@@ -269,25 +359,24 @@ function FormConexao({ onPronto }: { onPronto: () => void }) {
           <input type="text" value={cidade} onChange={(e) => setCidade(e.target.value)} />
         </label>
       </div>
-      <div className="linha-campos">
-        <label className="campo"><span>Perfil</span>
-          <input type="text" value={perfil} onChange={(e) => setPerfil(e.target.value)} placeholder="ex.: casais, jovens" />
-        </label>
-        <label className="campo"><span>Dia/horário</span>
-          <input type="text" value={dia} onChange={(e) => setDia(e.target.value)} placeholder="ex.: Quinta, 20h" />
-        </label>
-      </div>
+      <label className="campo"><span>Perfil</span>
+        <input type="text" value={perfil} onChange={(e) => setPerfil(e.target.value)} placeholder="ex.: casais, jovens" />
+      </label>
+      <CamposDiaHorario
+        diasSemana={diasSemana} horario={horario}
+        onDias={setDiasSemana} onHorario={setHorario}
+      />
       <div className="linha-campos">
         <label className="campo"><span>Líder 1</span>
           <select value={liderId} onChange={(e) => setLiderId(e.target.value)}>
             <option value="">— definir depois —</option>
-            {lideres(s).filter((l) => l.id !== lider2Id).map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+            {lideres(s).filter((l) => l.id !== lider2Id).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
           </select>
         </label>
         <label className="campo"><span>Líder 2 (opcional)</span>
           <select value={lider2Id} onChange={(e) => setLider2Id(e.target.value)}>
             <option value="">—</option>
-            {lideres(s).filter((l) => l.id !== liderId).map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+            {lideres(s).filter((l) => l.id !== liderId).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
           </select>
         </label>
       </div>
