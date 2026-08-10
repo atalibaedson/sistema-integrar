@@ -166,6 +166,7 @@ function CartaoConexao({ c }: { c: Conexao }) {
             diaHorario,
             diasSemana: diasSemana.length > 0 ? diasSemana : undefined,
             horario: horario || undefined,
+            atualizadoEm: new Date().toISOString(),
           }
         : x),
     }))
@@ -186,7 +187,7 @@ function CartaoConexao({ c }: { c: Conexao }) {
     }
     setEstado((st) => ({
       ...st,
-      conexoes: st.conexoes.map((x) => x.id === c.id ? { ...x, [campo]: novoId || undefined } : x),
+      conexoes: st.conexoes.map((x) => x.id === c.id ? { ...x, [campo]: novoId || undefined, atualizadoEm: new Date().toISOString() } : x),
       usuarios: novoId
         ? st.usuarios.map((u) => u.id === novoId ? { ...u, conexaoId: c.id } : u)
         : st.usuarios,
@@ -326,6 +327,7 @@ function FormConexao({ onPronto }: { onPronto: () => void }) {
         horario: horario || undefined,
         liderId: liderId || undefined,
         lider2Id: lider2Id || undefined,
+        atualizadoEm: new Date().toISOString(),
       }],
       usuarios: st.usuarios.map((u) => (u.id === liderId || u.id === lider2Id) ? { ...u, conexaoId: id } : u),
     }))

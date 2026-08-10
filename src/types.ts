@@ -218,6 +218,7 @@ export interface Conexao {
   diaHorario: string // derivado de diasSemana + horario, ou texto livre legado
   diasSemana?: string[] // ex.: ['quinta', 'sábado']
   horario?: string // ex.: '20:00'
+  atualizadoEm?: string // ISO — para resolver conflito de merge (quem editou por último ganha)
   /** @deprecated Campo antigo — migrado para `bairro`. Mantido só para leitura de estados salvos. */
   regiao?: string
 }

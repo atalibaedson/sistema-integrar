@@ -420,7 +420,7 @@ function agendarEnvioNuvem() {
 // Atualização contínua: puxa novidades dos outros computadores de tempos em
 // tempos e sempre que a janela volta ao foco.
 if (typeof window !== 'undefined') {
-  setInterval(() => { void sincronizarComNuvem() }, 60_000)
+  setInterval(() => { void sincronizarComNuvem() }, 30_000)
   window.addEventListener('focus', () => { void sincronizarComNuvem() })
 }
 

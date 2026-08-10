@@ -73,7 +73,8 @@ export function mesclarEstados(local: AppState, remoto: AppState): AppState {
     .sort((a, b) => b.data.localeCompare(a.data))
 
   const usuarios = unir(local.usuarios, remoto.usuarios, 'usuario', mesclarUsuario)
-  const conexoes = unir(local.conexoes, remoto.conexoes, 'conexao')
+  const conexoes = unir(local.conexoes, remoto.conexoes, 'conexao',
+    (l, r) => ((r.atualizadoEm ?? '') > (l.atualizadoEm ?? '') ? r : l))
   const templates = unir(local.templates, remoto.templates, 'template')
 
   // Auditoria é só-acrescenta: união por id, mais recente primeiro
