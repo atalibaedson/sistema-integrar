@@ -127,6 +127,14 @@ export interface ConfigIgreja {
   // equipe escolhe numa lista em vez de digitar — menos erro de digitação.
   datasBatismo: string[]
   datasMembresia: string[]
+
+  // Palavras-chave que definem o perfil de cada tipo de grupo (separadas por vírgula).
+  // Usadas pela sugestão automática: o sistema lê o campo "Perfil" do grupo e verifica
+  // se alguma dessas palavras está presente para pontuar a compatibilidade com o visitante.
+  sugestaoInfantil?: string // grupos de crianças/adolescentes — exclui adultos (padrão: "crianças, adolescentes")
+  sugestaoCasais?: string   // grupos de casais — favorecido para visitantes casados (padrão: "casais")
+  sugestaoJovens?: string   // grupos de jovens/solteiros — favorecido para solteiros (padrão: "solteiros, jovens")
+  sugestaoCoringa?: string  // grupos que acolhem qualquer perfil, leve preferência (padrão: "família")
 }
 
 export interface MudancaStatus {

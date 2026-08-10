@@ -3,7 +3,7 @@ import { comExclusoes, lideres, setEstado, uid, useAppState } from '../../store'
 import { type Conexao } from '../../types'
 import { toast } from '../../toast'
 import { IcoBusca, IcoCheck, IcoEditar, IcoLixeira, IcoMais } from '../../icones'
-import { semAcento } from './comum'
+import { salvarConfig, semAcento, useRascunho } from './comum'
 
 /* ---------------- Aba: Grupos ---------------- */
 
@@ -43,48 +43,135 @@ export default function AbaGrupos() {
   const semLiderQtd = s.conexoes.filter((c) => !c.liderId && !c.lider2Id).length
 
   return (
-    <div className="card">
-      <div className="card-cab">
-        <div>
-          <h3 style={{ marginBottom: 2 }}>Grupos de {termo}</h3>
-          <p className="descricao-secao" style={{ margin: 0 }}>
-            O sistema sugere o grupo do visitante por proximidade (região) + perfil.
-            Cada grupo pode ter até 2 líderes (ex.: um casal liderando junto).
-          </p>
+    <>
+      <ConfigSugestao />
+
+      <div className="card">
+        <div className="card-cab">
+          <div>
+            <h3 style={{ marginBottom: 2 }}>Grupos de {termo}</h3>
+            <p className="descricao-secao" style={{ margin: 0 }}>
+              Cada grupo pode ter até 2 líderes (ex.: um casal liderando junto).
+            </p>
+          </div>
+          <button className="btn" onClick={() => setNovo(!novo)}>
+            {novo ? 'Fechar' : <><IcoMais size={15} /> Novo grupo</>}
+          </button>
         </div>
-        <button className="btn" onClick={() => setNovo(!novo)}>
-          {novo ? 'Fechar' : <><IcoMais size={15} /> Novo grupo</>}
+
+        <div className="grupos-resumo">
+          <span><b>{s.conexoes.length}</b> {s.conexoes.length === 1 ? 'grupo' : 'grupos'}</span>
+          {semLiderQtd > 0 && <span className="grupos-resumo-warn">⚠️ {semLiderQtd} sem líder</span>}
+        </div>
+
+        {novo && <FormConexao onPronto={() => setNovo(false)} />}
+
+        {s.conexoes.length === 0 ? (
+          <div className="vazio">Nenhum grupo cadastrado ainda.</div>
+        ) : (
+          <>
+            <div className="search-box" style={{ margin: '4px 0 16px' }}>
+              <span className="search-icon"><IcoBusca /></span>
+              <input
+                type="text" value={busca} onChange={(e) => setBusca(e.target.value)}
+                placeholder={`Buscar ${termo.toLowerCase()} por nome, região, perfil ou líder…`}
+              />
+            </div>
+            {filtradas.length === 0 ? (
+              <div className="vazio">Nenhum grupo encontrado para "{busca}".</div>
+            ) : (
+              <div className="grade-cartoes">
+                {filtradas.map((c) => <CartaoConexao key={c.id} c={c} />)}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </>
+  )
+}
+
+/* ---- Sugestão automática: palavras-chave de perfil configuráveis ---- */
+
+function ConfigSugestao() {
+  const cfg = useAppState().config
+  const r = useRascunho({
+    sugestaoInfantil: cfg.sugestaoInfantil ?? 'crianças, adolescentes',
+    sugestaoCasais:   cfg.sugestaoCasais   ?? 'casais',
+    sugestaoJovens:   cfg.sugestaoJovens   ?? 'solteiros, jovens',
+    sugestaoCoringa:  cfg.sugestaoCoringa  ?? 'família',
+  })
+
+  return (
+    <details className="card">
+      <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 15 }}>
+        Sugestão automática de grupo
+      </summary>
+      <p className="descricao-secao" style={{ marginTop: 10 }}>
+        Quando um visitante é cadastrado, o sistema pontua cada grupo pelo campo <b>Perfil</b> e
+        sugere o mais compatível. Configure aqui quais palavras identificam cada tipo de grupo.
+        Separe múltiplas opções por vírgula.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 4 }}>
+        <label className="campo" style={{ marginBottom: 0 }}>
+          <span>Grupo infantil / adolescente</span>
+          <input
+            type="text"
+            value={r.d.sugestaoInfantil}
+            onChange={(e) => r.set({ sugestaoInfantil: e.target.value })}
+            placeholder="crianças, adolescentes"
+          />
+          <span style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3, display: 'block' }}>
+            Exclui adultos; favorece menores de idade.
+          </span>
+        </label>
+        <label className="campo" style={{ marginBottom: 0 }}>
+          <span>Grupo de casais</span>
+          <input
+            type="text"
+            value={r.d.sugestaoCasais}
+            onChange={(e) => r.set({ sugestaoCasais: e.target.value })}
+            placeholder="casais"
+          />
+          <span style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3, display: 'block' }}>
+            Favorece visitantes casados.
+          </span>
+        </label>
+        <label className="campo" style={{ marginBottom: 0 }}>
+          <span>Grupo de jovens / solteiros</span>
+          <input
+            type="text"
+            value={r.d.sugestaoJovens}
+            onChange={(e) => r.set({ sugestaoJovens: e.target.value })}
+            placeholder="solteiros, jovens"
+          />
+          <span style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3, display: 'block' }}>
+            Favorece visitantes solteiros.
+          </span>
+        </label>
+        <label className="campo" style={{ marginBottom: 0 }}>
+          <span>Grupo coringa (acolhe qualquer perfil)</span>
+          <input
+            type="text"
+            value={r.d.sugestaoCoringa}
+            onChange={(e) => r.set({ sugestaoCoringa: e.target.value })}
+            placeholder="família"
+          />
+          <span style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3, display: 'block' }}>
+            Leve preferência quando nenhum outro grupo pontua.
+          </span>
+        </label>
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <button
+          className="btn"
+          disabled={!r.pendente}
+          onClick={() => { salvarConfig(r.d); toast('Sugestão automática salva') }}
+        >
+          Salvar
         </button>
       </div>
-
-      <div className="grupos-resumo">
-        <span><b>{s.conexoes.length}</b> {s.conexoes.length === 1 ? 'grupo' : 'grupos'}</span>
-        {semLiderQtd > 0 && <span className="grupos-resumo-warn">⚠️ {semLiderQtd} sem líder</span>}
-      </div>
-
-      {novo && <FormConexao onPronto={() => setNovo(false)} />}
-
-      {s.conexoes.length === 0 ? (
-        <div className="vazio">Nenhum grupo cadastrado ainda.</div>
-      ) : (
-        <>
-          <div className="search-box" style={{ margin: '4px 0 16px' }}>
-            <span className="search-icon"><IcoBusca /></span>
-            <input
-              type="text" value={busca} onChange={(e) => setBusca(e.target.value)}
-              placeholder={`Buscar ${termo.toLowerCase()} por nome, região, perfil ou líder…`}
-            />
-          </div>
-          {filtradas.length === 0 ? (
-            <div className="vazio">Nenhum grupo encontrado para "{busca}".</div>
-          ) : (
-            <div className="grade-cartoes">
-              {filtradas.map((c) => <CartaoConexao key={c.id} c={c} />)}
-            </div>
-          )}
-        </>
-      )}
-    </div>
+    </details>
   )
 }
 

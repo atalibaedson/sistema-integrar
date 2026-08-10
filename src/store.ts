@@ -60,6 +60,10 @@ export const CONFIG_PADRAO: ConfigIgreja = {
   rotulosPapel: {},
   datasBatismo: [],
   datasMembresia: [],
+  sugestaoInfantil: 'crianças, adolescentes',
+  sugestaoCasais: 'casais',
+  sugestaoJovens: 'solteiros, jovens',
+  sugestaoCoringa: 'família',
 }
 
 // Gatilhos usados pelos botões do fluxo — estes templates não podem ser excluídos

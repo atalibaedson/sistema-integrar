@@ -47,8 +47,18 @@ function normalizarTexto(t: string): string {
   return t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 }
 
+// Converte string de palavras-chave separadas por vírgula em lista normalizada.
+function termosDe(cfg?: string, padrao = ''): string[] {
+  return (cfg ?? padrao).split(/[,;]+/).map((t) => normalizarTexto(t.trim())).filter((t) => t.length > 0)
+}
+
+function bateTermos(perfil: string, cfg?: string, padrao = ''): boolean {
+  return termosDe(cfg, padrao).some((t) => perfil.includes(t))
+}
+
 // Sugestão de Conexão por pontuação: proximidade (bairro/região) pesa mais,
 // depois compatibilidade de público com a situação civil / idade (regra 4).
+// As palavras-chave de cada categoria são configuráveis em Configurações → Grupos.
 export function sugerirConexao(
   s: AppState,
   bairro?: string,
@@ -59,6 +69,7 @@ export function sugerirConexao(
     .split(/[\s,]+/)
     .filter((w) => w.length > 3)
 
+  const cfg = s.config
   let melhor = s.conexoes[0]
   let melhorPts = -Infinity
 
@@ -71,17 +82,17 @@ export function sugerirConexao(
     if (palavrasBairro.some((w) => local.includes(w))) pts += 4
 
     // 2) Público-alvo compatível
-    const infantil = /crianc|adolesc/.test(perfil)
+    const infantil = bateTermos(perfil, cfg.sugestaoInfantil, 'crianças, adolescentes')
     if (menorIdade) {
       if (infantil) pts += 3
     } else if (infantil) {
       pts -= 10 // nunca sugerir grupo infantil para adulto
     }
-    if (situacao === 'casado' && /casa/.test(perfil)) pts += 2
-    if (situacao === 'solteiro' && /solteir|jovem|jovens/.test(perfil)) pts += 2
+    if (situacao === 'casado' && bateTermos(perfil, cfg.sugestaoCasais, 'casais')) pts += 2
+    if (situacao === 'solteiro' && bateTermos(perfil, cfg.sugestaoJovens, 'solteiros, jovens')) pts += 2
 
-    // 3) "Família" acolhe qualquer perfil — leve preferência como coringa
-    if (/famil/.test(perfil)) pts += 1
+    // 3) Coringa: acolhe qualquer perfil com leve preferência
+    if (bateTermos(perfil, cfg.sugestaoCoringa, 'família')) pts += 1
 
     if (pts > melhorPts) {
       melhorPts = pts
