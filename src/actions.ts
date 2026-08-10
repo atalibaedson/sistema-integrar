@@ -78,8 +78,22 @@ export function sugerirConexao(
     const perfil = normalizarTexto(c.perfil ?? '')
     let pts = 0
 
-    // 1) Proximidade: bairro do visitante aparece no endereço/bairro/cidade do grupo
-    if (palavrasBairro.some((w) => local.includes(w))) pts += 4
+    // 1a) Mesmo bairro exato: pontuação máxima
+    const bairroVisNorm = normalizarTexto(bairro ?? '').trim()
+    const bairroConnNorm = normalizarTexto(c.bairro ?? '').trim()
+    const mesmoBairro = bairroVisNorm && bairroConnNorm && bairroVisNorm === bairroConnNorm
+    // 1b) Bairros na mesma zona de proximidade configurada
+    const mesmaZona = !mesmoBairro && bairroVisNorm && bairroConnNorm &&
+      (cfg.zonasBairro ?? []).some((z) => {
+        const bNorm = z.bairros.map((b) => normalizarTexto(b.trim()))
+        return bNorm.includes(bairroVisNorm) && bNorm.includes(bairroConnNorm)
+      })
+    // 1c) Palavra do bairro do visitante aparece no texto do local do grupo (fallback)
+    const palavraMatch = !mesmoBairro && palavrasBairro.some((w) => local.includes(w))
+
+    if (mesmoBairro) pts += 5
+    else if (mesmaZona) pts += 3
+    else if (palavraMatch) pts += 2
 
     // 2) Público-alvo compatível
     const infantil = bateTermos(perfil, cfg.sugestaoInfantil, 'crianças, adolescentes')

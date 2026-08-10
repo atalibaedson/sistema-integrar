@@ -135,6 +135,10 @@ export interface ConfigIgreja {
   sugestaoCasais?: string   // grupos de casais — favorecido para visitantes casados (padrão: "casais")
   sugestaoJovens?: string   // grupos de jovens/solteiros — favorecido para solteiros (padrão: "solteiros, jovens")
   sugestaoCoringa?: string  // grupos que acolhem qualquer perfil, leve preferência (padrão: "família")
+
+  // Zonas de proximidade entre bairros: bairros da mesma zona pontuam como "próximos"
+  // mesmo que os nomes sejam completamente diferentes (ex.: Centro e Batel na mesma zona).
+  zonasBairro?: { nome: string; bairros: string[] }[]
 }
 
 export interface MudancaStatus {
