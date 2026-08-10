@@ -64,7 +64,7 @@ export const CONFIG_PADRAO: ConfigIgreja = {
   sugestaoCasais: 'casais',
   sugestaoJovens: 'solteiros, jovens',
   sugestaoCoringa: 'família',
-  zonasBairro: [],
+  proximidadeBairros: [],
 }
 
 // Gatilhos usados pelos botões do fluxo — estes templates não podem ser excluídos

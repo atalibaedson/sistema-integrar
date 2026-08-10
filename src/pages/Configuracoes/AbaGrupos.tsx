@@ -44,7 +44,7 @@ export default function AbaGrupos() {
 
   return (
     <>
-      <ZonasBairro />
+      <ProximidadeBairros />
       <ConfigSugestao />
 
       <div className="card">
@@ -92,106 +92,130 @@ export default function AbaGrupos() {
   )
 }
 
-/* ---- Zonas de proximidade entre bairros ---- */
+/* ---- Proximidade entre bairros ---- */
 
-function ZonasBairro() {
+function ProximidadeBairros() {
   const s = useAppState()
-  const zonas = s.config.zonasBairro ?? []
+  const lista = s.config.proximidadeBairros ?? []
 
-  // bairros já cadastrados nos grupos — usados como sugestão no input
   const bairrosCadastrados = [...new Set(
     s.conexoes.map((c) => c.bairro).filter((b): b is string => !!b?.trim()),
   )].sort((a, b) => a.localeCompare(b, 'pt-BR'))
 
-  const [novaZona, setNovaZona] = useState(false)
-  const [nomeNova, setNomeNova] = useState('')
+  const [novoAberto, setNovoAberto] = useState(false)
+  const [novoBairro, setNovoBairro] = useState('')
+  const [mostrarSugNovo, setMostrarSugNovo] = useState(false)
+  const novoInputRef = useRef<HTMLInputElement>(null)
 
-  function addZona() {
-    const nome = nomeNova.trim()
-    if (!nome) return
-    salvarConfig({ zonasBairro: [...zonas, { nome, bairros: [] }] })
-    setNomeNova('')
-    setNovaZona(false)
-    toast('Zona criada')
+  const bairrosJaCadastrados = new Set(lista.map((p) => p.bairro.toLowerCase()))
+
+  const sugNovo = novoBairro.trim()
+    ? bairrosCadastrados.filter(
+        (b) => b.toLowerCase().includes(novoBairro.toLowerCase()) && !bairrosJaCadastrados.has(b.toLowerCase()),
+      )
+    : bairrosCadastrados.filter((b) => !bairrosJaCadastrados.has(b.toLowerCase()))
+
+  function adicionarEntrada(b: string) {
+    const bairro = b.trim() || novoBairro.trim()
+    if (!bairro) return
+    if (lista.some((p) => p.bairro.toLowerCase() === bairro.toLowerCase())) return
+    salvarConfig({ proximidadeBairros: [...lista, { bairro, proximos: [] }] })
+    setNovoBairro('')
+    setNovoAberto(false)
+    toast('Bairro adicionado')
   }
 
-  function removerZona(idx: number) {
-    if (!confirm(`Remover a zona "${zonas[idx].nome}"?`)) return
-    salvarConfig({ zonasBairro: zonas.filter((_, i) => i !== idx) })
-    toast('Zona removida', 'info')
+  function removerEntrada(idx: number) {
+    if (!confirm(`Remover "${lista[idx].bairro}" e seus vizinhos?`)) return
+    salvarConfig({ proximidadeBairros: lista.filter((_, i) => i !== idx) })
+    toast('Removido', 'info')
   }
 
-  function renomearZona(idx: number, nome: string) {
-    salvarConfig({ zonasBairro: zonas.map((z, i) => i === idx ? { ...z, nome } : z) })
-  }
-
-  function addBairro(idx: number, bairro: string) {
-    const b = bairro.trim()
-    if (!b || zonas[idx].bairros.some((x) => x.toLowerCase() === b.toLowerCase())) return
-    salvarConfig({ zonasBairro: zonas.map((z, i) => i === idx ? { ...z, bairros: [...z.bairros, b] } : z) })
-  }
-
-  function removerBairro(zIdx: number, bIdx: number) {
+  function addProximo(idx: number, prox: string) {
+    const p = prox.trim()
+    if (!p || lista[idx].proximos.some((x) => x.toLowerCase() === p.toLowerCase())) return
     salvarConfig({
-      zonasBairro: zonas.map((z, i) => i === zIdx
-        ? { ...z, bairros: z.bairros.filter((_, j) => j !== bIdx) }
-        : z),
+      proximidadeBairros: lista.map((e, i) => i === idx ? { ...e, proximos: [...e.proximos, p] } : e),
+    })
+  }
+
+  function removerProximo(eIdx: number, pIdx: number) {
+    salvarConfig({
+      proximidadeBairros: lista.map((e, i) => i === eIdx
+        ? { ...e, proximos: e.proximos.filter((_, j) => j !== pIdx) }
+        : e),
     })
   }
 
   return (
     <details className="card">
       <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 15 }}>
-        Zonas de proximidade entre bairros
+        Proximidade entre bairros
       </summary>
       <p className="descricao-secao" style={{ marginTop: 10 }}>
-        Bairros da mesma zona valem como "próximos" na sugestão automática — mesmo que
-        os nomes não se pareçam. Ex.: <em>Centro</em> e <em>Batel</em> na zona "Região Central".
-        Um grupo nessa zona ganha +3 pontos para visitantes do mesmo agrupamento.
+        Configure quais bairros são vizinhos. Um grupo em bairro próximo ao do visitante
+        ganha +3 pontos na sugestão automática. A relação é bidirecional: basta cadastrar
+        de um lado.
       </p>
 
-      {zonas.length === 0 && (
+      {lista.length === 0 && (
         <div className="vazio" style={{ padding: '16px 0' }}>
-          Nenhuma zona cadastrada. Crie zonas para melhorar a sugestão automática.
+          Nenhum bairro cadastrado. Adicione um bairro e liste os vizinhos dele.
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: zonas.length > 0 ? 12 : 0 }}>
-        {zonas.map((z, zIdx) => (
-          <ZonaCard
-            key={zIdx}
-            zona={z}
-            sugestoes={bairrosCadastrados.filter((b) => !z.bairros.includes(b))}
-            onRenomear={(nome) => renomearZona(zIdx, nome)}
-            onAddBairro={(b) => addBairro(zIdx, b)}
-            onRemoverBairro={(bIdx) => removerBairro(zIdx, bIdx)}
-            onRemoverZona={() => removerZona(zIdx)}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: lista.length > 0 ? 12 : 0 }}>
+        {lista.map((entrada, eIdx) => (
+          <ProximidadeCard
+            key={eIdx}
+            entrada={entrada}
+            sugestoes={bairrosCadastrados.filter(
+              (b) => b.toLowerCase() !== entrada.bairro.toLowerCase() && !entrada.proximos.some((p) => p.toLowerCase() === b.toLowerCase()),
+            )}
+            onAddProximo={(p) => addProximo(eIdx, p)}
+            onRemoverProximo={(pIdx) => removerProximo(eIdx, pIdx)}
+            onRemover={() => removerEntrada(eIdx)}
           />
         ))}
       </div>
 
       <div style={{ marginTop: 16 }}>
-        {novaZona ? (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input
-              type="text"
-              value={nomeNova}
-              onChange={(e) => setNomeNova(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addZona()}
-              placeholder="Nome da zona (ex.: Região Central)"
-              style={{ flex: 1, minWidth: 200 }}
-              autoFocus
-            />
-            <button className="btn btn-mini" onClick={addZona} disabled={!nomeNova.trim()}>
-              <IcoCheck size={13} /> Criar
-            </button>
-            <button className="btn btn-sec btn-mini" onClick={() => { setNovaZona(false); setNomeNova('') }}>
-              Cancelar
-            </button>
+        {novoAberto ? (
+          <div style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                ref={novoInputRef}
+                type="text"
+                value={novoBairro}
+                onChange={(e) => { setNovoBairro(e.target.value); setMostrarSugNovo(true) }}
+                onFocus={() => setMostrarSugNovo(true)}
+                onBlur={() => setTimeout(() => setMostrarSugNovo(false), 150)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { adicionarEntrada(novoBairro); e.preventDefault() } }}
+                placeholder="Nome do bairro"
+                style={{ flex: 1, minWidth: 180 }}
+                autoFocus
+              />
+              <button className="btn btn-mini" onClick={() => adicionarEntrada(novoBairro)} disabled={!novoBairro.trim()}>
+                <IcoCheck size={13} /> Adicionar
+              </button>
+              <button className="btn btn-sec btn-mini" onClick={() => { setNovoAberto(false); setNovoBairro('') }}>
+                Cancelar
+              </button>
+            </div>
+            {mostrarSugNovo && sugNovo.length > 0 && (
+              <div className="combo-dropdown" style={{ top: 'calc(100% + 2px)' }}>
+                {sugNovo.slice(0, 8).map((b) => (
+                  <button key={b} className="combo-item" onMouseDown={() => adicionarEntrada(b)}>
+                    <span className="combo-item-nome">{b}</span>
+                    <span className="combo-item-sub">bairro cadastrado nos grupos</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
-          <button className="btn btn-sec" onClick={() => setNovaZona(true)}>
-            <IcoMais size={14} /> Nova zona
+          <button className="btn btn-sec" onClick={() => setNovoAberto(true)}>
+            <IcoMais size={14} /> Adicionar bairro
           </button>
         )}
       </div>
@@ -199,96 +223,73 @@ function ZonasBairro() {
   )
 }
 
-function ZonaCard({
-  zona, sugestoes, onRenomear, onAddBairro, onRemoverBairro, onRemoverZona,
+function ProximidadeCard({
+  entrada, sugestoes, onAddProximo, onRemoverProximo, onRemover,
 }: {
-  zona: { nome: string; bairros: string[] }
+  entrada: { bairro: string; proximos: string[] }
   sugestoes: string[]
-  onRenomear: (nome: string) => void
-  onAddBairro: (b: string) => void
-  onRemoverBairro: (i: number) => void
-  onRemoverZona: () => void
+  onAddProximo: (p: string) => void
+  onRemoverProximo: (i: number) => void
+  onRemover: () => void
 }) {
-  const [editandoNome, setEditandoNome] = useState(false)
-  const [nomeEdit, setNomeEdit] = useState(zona.nome)
-  const [novoBairro, setNovoBairro] = useState('')
+  const [novoProx, setNovoProx] = useState('')
   const [mostrarSug, setMostrarSug] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  function salvarNome() {
-    if (nomeEdit.trim()) onRenomear(nomeEdit.trim())
-    setEditandoNome(false)
-  }
-
-  function adicionar(b: string) {
-    onAddBairro(b)
-    setNovoBairro('')
+  function adicionar(p: string) {
+    onAddProximo(p)
+    setNovoProx('')
     setMostrarSug(false)
     inputRef.current?.focus()
   }
 
-  const sugFiltradas = novoBairro.trim()
-    ? sugestoes.filter((b) => b.toLowerCase().includes(novoBairro.toLowerCase()))
+  const sugFiltradas = novoProx.trim()
+    ? sugestoes.filter((b) => b.toLowerCase().includes(novoProx.toLowerCase()))
     : sugestoes
 
   return (
     <div style={{ background: 'var(--surface2)', borderRadius: 'var(--radius-sm)', padding: '12px 14px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-        {editandoNome ? (
-          <>
-            <input
-              type="text" value={nomeEdit} onChange={(e) => setNomeEdit(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && salvarNome()}
-              style={{ fontWeight: 700, fontSize: 13.5, flex: 1, minWidth: 160 }}
-              autoFocus
-            />
-            <button className="btn btn-mini" onClick={salvarNome}><IcoCheck size={13} /> OK</button>
-          </>
-        ) : (
-          <>
-            <span style={{ fontWeight: 700, fontSize: 13.5, flex: 1 }}>{zona.nome}</span>
-            <button className="btn-icone" title="Renomear zona" onClick={() => { setNomeEdit(zona.nome); setEditandoNome(true) }}><IcoEditar /></button>
-            <button className="btn-icone perigo" title="Remover zona" onClick={onRemoverZona}><IcoLixeira /></button>
-          </>
-        )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={{ fontWeight: 700, fontSize: 13.5, flex: 1 }}>{entrada.bairro}</span>
+        <button className="btn-icone perigo" title="Remover bairro" onClick={onRemover}><IcoLixeira /></button>
       </div>
 
-      {/* Chips dos bairros */}
+      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 6 }}>Bairros próximos:</div>
+
       <div className="filtros" style={{ marginBottom: 10, gap: 6 }}>
-        {zona.bairros.length === 0 && (
-          <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Nenhum bairro ainda — adicione abaixo.</span>
+        {entrada.proximos.length === 0 && (
+          <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Nenhum vizinho ainda.</span>
         )}
-        {zona.bairros.map((b, i) => (
+        {entrada.proximos.map((p, i) => (
           <span key={i} style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
             padding: '3px 10px', borderRadius: 999, border: '1px solid var(--border)',
             background: 'var(--surface)', fontSize: 12.5, fontWeight: 600,
           }}>
-            {b}
+            {p}
             <button
-              onClick={() => onRemoverBairro(i)}
+              onClick={() => onRemoverProximo(i)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: 'var(--text-3)', fontSize: 14 }}
-              title="Remover bairro"
+              title="Remover vizinho"
             >×</button>
           </span>
         ))}
       </div>
 
-      {/* Input para adicionar bairro */}
       <div style={{ position: 'relative' }}>
         <div style={{ display: 'flex', gap: 6 }}>
           <input
             ref={inputRef}
             type="text"
-            value={novoBairro}
-            onChange={(e) => { setNovoBairro(e.target.value); setMostrarSug(true) }}
+            value={novoProx}
+            onChange={(e) => { setNovoProx(e.target.value); setMostrarSug(true) }}
             onFocus={() => setMostrarSug(true)}
             onBlur={() => setTimeout(() => setMostrarSug(false), 150)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { adicionar(novoBairro); e.preventDefault() } }}
-            placeholder="Adicionar bairro…"
+            onKeyDown={(e) => { if (e.key === 'Enter') { adicionar(novoProx); e.preventDefault() } }}
+            placeholder="Adicionar bairro vizinho…"
             style={{ flex: 1, fontSize: 13 }}
           />
-          <button className="btn btn-sec btn-mini" onClick={() => adicionar(novoBairro)} disabled={!novoBairro.trim()}>
+          <button className="btn btn-sec btn-mini" onClick={() => adicionar(novoProx)} disabled={!novoProx.trim()}>
             Adicionar
           </button>
         </div>
@@ -297,7 +298,7 @@ function ZonaCard({
             {sugFiltradas.slice(0, 8).map((b) => (
               <button key={b} className="combo-item" onMouseDown={() => adicionar(b)}>
                 <span className="combo-item-nome">{b}</span>
-                <span className="combo-item-sub">já cadastrado nos grupos</span>
+                <span className="combo-item-sub">bairro cadastrado nos grupos</span>
               </button>
             ))}
           </div>

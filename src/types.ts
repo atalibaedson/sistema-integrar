@@ -136,9 +136,9 @@ export interface ConfigIgreja {
   sugestaoJovens?: string   // grupos de jovens/solteiros — favorecido para solteiros (padrão: "solteiros, jovens")
   sugestaoCoringa?: string  // grupos que acolhem qualquer perfil, leve preferência (padrão: "família")
 
-  // Zonas de proximidade entre bairros: bairros da mesma zona pontuam como "próximos"
-  // mesmo que os nomes sejam completamente diferentes (ex.: Centro e Batel na mesma zona).
-  zonasBairro?: { nome: string; bairros: string[] }[]
+  // Mapa de proximidade entre bairros: para cada bairro, a lista dos que ficam perto.
+  // A relação é bidirecional — se A lista B, B também vale como próximo de A.
+  proximidadeBairros?: { bairro: string; proximos: string[] }[]
 }
 
 export interface MudancaStatus {

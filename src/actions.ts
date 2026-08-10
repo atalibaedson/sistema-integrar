@@ -82,11 +82,13 @@ export function sugerirConexao(
     const bairroVisNorm = normalizarTexto(bairro ?? '').trim()
     const bairroConnNorm = normalizarTexto(c.bairro ?? '').trim()
     const mesmoBairro = bairroVisNorm && bairroConnNorm && bairroVisNorm === bairroConnNorm
-    // 1b) Bairros na mesma zona de proximidade configurada
+    // 1b) Bairros listados como próximos (relação bidirecional)
     const mesmaZona = !mesmoBairro && bairroVisNorm && bairroConnNorm &&
-      (cfg.zonasBairro ?? []).some((z) => {
-        const bNorm = z.bairros.map((b) => normalizarTexto(b.trim()))
-        return bNorm.includes(bairroVisNorm) && bNorm.includes(bairroConnNorm)
+      (cfg.proximidadeBairros ?? []).some((p) => {
+        const pNorm = normalizarTexto(p.bairro.trim())
+        const proxNorm = p.proximos.map((x) => normalizarTexto(x.trim()))
+        return (pNorm === bairroVisNorm && proxNorm.includes(bairroConnNorm)) ||
+               (pNorm === bairroConnNorm && proxNorm.includes(bairroVisNorm))
       })
     // 1c) Palavra do bairro do visitante aparece no texto do local do grupo (fallback)
     const palavraMatch = !mesmoBairro && palavrasBairro.some((w) => local.includes(w))
