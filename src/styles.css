@@ -822,6 +822,11 @@ details summary:hover { color: var(--primary); }
 
 /* ---- Mobile ---- */
 @media (max-width: 960px) {
+  /* iOS Safari faz zoom automático em inputs com font-size < 16px ao focar */
+  input[type="text"], input[type="tel"], input[type="email"],
+  input[type="date"], input[type="number"], input[type="password"],
+  input[type="time"], select, textarea { font-size: 16px; }
+
   .layout { flex-direction: column; }
 
   /* No celular a barra superior mostra só a marca; a navegação vai para baixo */
