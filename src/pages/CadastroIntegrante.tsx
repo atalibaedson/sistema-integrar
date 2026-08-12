@@ -103,12 +103,11 @@ export default function CadastroIntegrante() {
     return (
       <div className="ac-tela">
         <div className="ac-cartao ac-cartao-ok">
-          <div className="ac-check">📬</div>
-          <h1 className="ac-titulo-ok">Quase lá!</h1>
+          <div className="ac-check">🤝</div>
+          <h1 className="ac-titulo-ok">Cadastro recebido!</h1>
           <p className="ac-texto-ok">
-            Enviamos um link de confirmação para <b>{email}</b>. Abra o e-mail e clique no link para
-            confirmar sua conta. Depois disso, a liderança vai revisar e liberar o seu acesso — você
-            será avisado(a) quando estiver tudo pronto.
+            Seu cadastro foi enviado para a liderança. Assim que for aprovado, você já poderá
+            entrar no sistema com o e-mail <b>{email}</b> e a senha escolhida.
           </p>
         </div>
       </div>

@@ -17,14 +17,10 @@ export default function AguardandoAprovacao({ usuario }: { usuario?: Usuario }) 
   let texto: React.ReactNode =
     'Sua conta foi criada, mas ainda não está liberada. Se você acabou de se cadastrar, aguarde alguns instantes — os dados podem estar sincronizando.'
 
-  if (usuario?.statusAcesso === 'pendente_confirmacao_email') {
-    icone = '📬'
-    titulo = 'Confirme seu e-mail'
-    texto = <>Enviamos um link de confirmação para <b>{usuario.email}</b>. Abra o e-mail e clique no link para continuar.</>
-  } else if (usuario?.statusAcesso === 'pendente_aprovacao') {
+  if (usuario?.statusAcesso === 'pendente_aprovacao') {
     icone = '🤝'
     titulo = `Quase lá, ${usuario.nome.split(' ')[0]}!`
-    texto = 'Seu e-mail foi confirmado. Agora a liderança (Pastores e Gestão Ministerial ou Gestão Integração) precisa aprovar o seu acesso — você será liberado(a) em breve.'
+    texto = 'Seu cadastro foi recebido! A liderança (Pastores e Gestão Ministerial ou Gestão Integração) precisa aprovar o seu acesso — você será liberado(a) em breve.'
   } else if (usuario?.statusAcesso === 'rejeitado') {
     icone = '🚫'
     titulo = 'Acesso não liberado'

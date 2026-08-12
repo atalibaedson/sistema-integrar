@@ -533,7 +533,7 @@ export interface ResultadoCadastroIntegrante {
 }
 
 // Autocadastro completo: cria/atualiza o Usuario, sobe a foto, cria a conta no
-// Supabase Auth (que envia o e-mail de confirmação) e deixa o acesso pendente.
+// Supabase Auth e deixa o acesso pendente de aprovação pela liderança.
 export async function cadastrarIntegrante(input: NovoIntegranteInput): Promise<ResultadoCadastroIntegrante> {
   if (!supabase) return { ok: false, erro: 'Sincronização online não configurada — o cadastro com senha precisa dela.' }
   const s = getEstado()
@@ -551,13 +551,11 @@ export async function cadastrarIntegrante(input: NovoIntegranteInput): Promise<R
     return { ok: false, erro: 'Já existe uma conta com esse WhatsApp ou e-mail. Use a tela "Entrar" — ou "Esqueci a senha".' }
   }
 
-  // 1) Conta no Supabase Auth — dispara o e-mail de confirmação.
-  //    O redirect volta para a RAIZ do site (sem #/rota): o token vem no hash
-  //    e o supabase-js o consome antes de o roteador enxergar.
+  // 1) Conta no Supabase Auth — confirmação de e-mail desabilitada no projeto;
+  //    a conta fica pendente de aprovação da liderança.
   const { data, error } = await supabase.auth.signUp({
     email,
     password: input.senha,
-    options: { emailRedirectTo: window.location.origin },
   })
   if (error) {
     const msg = /already registered/i.test(error.message)
@@ -589,7 +587,7 @@ export async function cadastrarIntegrante(input: NovoIntegranteInput): Promise<R
     conexaoId: input.conexaoId || undefined,
     fotoUrl,
     authUserId: data.user?.id,
-    statusAcesso: 'pendente_confirmacao_email' as StatusAcesso,
+    statusAcesso: 'pendente_aprovacao' as StatusAcesso,
     loginPreferido: input.loginPreferido,
     cadastroCompletoEm: agora,
   }
@@ -619,7 +617,7 @@ export async function cadastrarIntegrante(input: NovoIntegranteInput): Promise<R
   }
   registrarAuditoria('📝 Integrante fez o autocadastro', {
     alvoTipo: 'usuario', alvoId: usuarioId, alvoNome: input.nome.trim(),
-    detalhe: `Funções: ${input.papeis.join(', ')} · aguardando confirmação de e-mail`,
+    detalhe: `Funções: ${input.papeis.join(', ')} · aguardando aprovação da liderança`,
   })
   return { ok: true, usuarioId }
 }

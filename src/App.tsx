@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useRota } from './router'
 import { useAppState, useNuvem } from './store'
 import { getUsuarioAtualId, setUsuarioAtualId, useUsuarioAtualId, usuarioAtual, podeVerCuidado, podeAcessarRota, soAcolhedor, useSessaoReal, useSessaoCarregada, usuarioDaSessao } from './acesso'
-import { marcarEmailConfirmado } from './actions'
 import { garantirSessao, sairDaConta } from './supabaseClient'
 import { aplicarRotulos, rotuloPapel, type Usuario } from './types'
 import { corDeContraste } from './tema'
@@ -158,15 +157,10 @@ export default function App() {
   // Fecha a folha "Mais" ao navegar
   useEffect(() => { setMaisAberto(false) }, [rota])
 
-  // Login real: quando uma sessão com e-mail confirmado aparece, avança o
-  // status; quando a conta está aprovada, assume a identidade automaticamente.
+  // Login real: quando a conta aprovada aparece na sessão, assume a identidade.
   const usuarioSessao = usuarioDaSessao(estado, sessao)
   useEffect(() => {
     if (!sessao || !usuarioSessao) return
-    if (usuarioSessao.statusAcesso === 'pendente_confirmacao_email') {
-      // Com a confirmação de e-mail ligada, só existe sessão APÓS confirmar
-      marcarEmailConfirmado(usuarioSessao.id)
-    }
     if (usuarioSessao.statusAcesso === 'aprovado' && usuarioSessao.ativo && getUsuarioAtualId() !== usuarioSessao.id) {
       setUsuarioAtualId(usuarioSessao.id)
     }
