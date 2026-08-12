@@ -325,6 +325,57 @@ select::-ms-expand { display: none; }
   gap: 0 12px; align-items: end;
 }
 .pessoa-edicao .btn { margin-bottom: 12px; }
+
+/* ---- Modal de edição de membro ---- */
+.modal-fundo {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(15, 23, 42, .5);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  animation: fade-in .15s ease;
+}
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+.modal {
+  background: var(--bg);
+  border-radius: 16px;
+  width: 100%; max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 48px rgba(15, 23, 42, .28);
+  animation: slide-up .18s ease;
+  display: flex; flex-direction: column;
+}
+@keyframes slide-up { from { transform: translateY(16px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+.modal-cab {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg); z-index: 1;
+  border-radius: 16px 16px 0 0;
+}
+.modal-cab h3 { margin: 0; font-size: 16px; font-weight: 700; flex: 1; }
+.modal-corpo {
+  padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 14px;
+  flex: 1;
+}
+.modal-rodape {
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 8px;
+  position: sticky; bottom: 0; background: var(--bg);
+  border-radius: 0 0 16px 16px;
+}
+.modal-separador {
+  border: none; border-top: 1px solid var(--border); margin: 4px 0;
+}
+.modal-perigo {
+  background: var(--danger-bg, #fee2e2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.modal-perigo span { font-size: 13px; color: var(--danger); font-weight: 500; }
 .barra-lista { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
 .barra-lista input { flex: 1; }
 .kpi-btn { cursor: pointer; text-align: left; font-family: inherit; }

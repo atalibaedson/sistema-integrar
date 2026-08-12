@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { comExclusoes, primeiraGestaoIntegracao, setEstado, uid, useAppState } from '../store'
 import { PAPEL_COR, PAPEL_LABEL, rotuloPapel, STATUS_ACESSO_LABEL, type AppState, type Papel, type Usuario } from '../types'
 import { linkWhatsApp } from '../actions'
@@ -6,9 +6,10 @@ import { criariCiclo } from '../acesso'
 import { registrarAuditoria } from '../auditoria'
 import { toast } from '../toast'
 import { IcoBusca, IcoCheck, IcoEditar, IcoLixeira, IcoMais, IcoWhats } from '../icones'
+import { supabase } from '../supabaseClient'
 
 // Muda o supervisor de `alvo`, com validação de ciclo e registro em auditoria.
-// Usado tanto na seção de Hierarquia quanto no card de edição da pessoa.
+// Usado tanto na seção de Hierarquia quanto no modal de edição.
 export function definirSupervisor(s: AppState, alvo: Usuario, novoSupervisorId: string) {
   if (novoSupervisorId && criariCiclo(s, alvo.id, novoSupervisorId)) {
     alert(`⚠️ Não é possível: ${alvo.nome} já supervisiona (direta ou indiretamente) essa pessoa. Isso criaria um ciclo na hierarquia.`)
@@ -30,7 +31,6 @@ export function iniciais(nome: string): string {
   return (partes[0][0] + (partes[1]?.[0] ?? '')).toUpperCase()
 }
 
-// Rótulos de todas as funções da pessoa, como tags coloridas
 function TagsPapeis({ u }: { u: Usuario }) {
   return (
     <>
@@ -43,11 +43,10 @@ function TagsPapeis({ u }: { u: Usuario }) {
   )
 }
 
-// Grupo de checkboxes para escolher as funções (uma pessoa pode ter várias)
 function EscolherPapeis({ papeis, onMudar }: { papeis: Papel[]; onMudar: (novos: Papel[]) => void }) {
   function alternar(p: Papel) {
     const novos = papeis.includes(p) ? papeis.filter((x) => x !== p) : [...papeis, p]
-    if (novos.length === 0) return // sempre pelo menos uma função
+    if (novos.length === 0) return
     onMudar(novos)
   }
   return (
@@ -62,8 +61,204 @@ function EscolherPapeis({ papeis, onMudar }: { papeis: Papel[]; onMudar: (novos:
   )
 }
 
-// Área de usuários do sistema, dividida em abas por categoria. Quem exerce
-// mais de uma função aparece em cada aba correspondente.
+// ---- Modal de edição de membro ----
+
+function ModalEditarMembro({ u, onFechar }: { u: Usuario; onFechar: () => void }) {
+  const s = useAppState()
+  const [dNome, setDNome] = useState(u.nome)
+  const [dWhats, setDWhats] = useState(u.whatsapp)
+  const [dPapeis, setDPapeis] = useState<Papel[]>(u.papeis)
+
+  // Fecha com Escape
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') onFechar() }
+    document.addEventListener('keydown', fn)
+    return () => document.removeEventListener('keydown', fn)
+  }, [onFechar])
+
+  function salvar() {
+    if (!dNome.trim() || !dWhats.trim() || dPapeis.length === 0) return
+    setEstado((st) => ({
+      ...st,
+      usuarios: st.usuarios.map((x) =>
+        x.id === u.id ? { ...x, nome: dNome.trim(), whatsapp: dWhats.trim(), papeis: dPapeis } : x,
+      ),
+    }))
+    toast('Membro salvo')
+    onFechar()
+  }
+
+  function mudarConexao(novaId: string) {
+    if (u.conexaoId && novaId && novaId !== u.conexaoId) {
+      const atual = s.conexoes.find((c) => c.id === u.conexaoId)?.nome ?? 'outro grupo'
+      const nova = s.conexoes.find((c) => c.id === novaId)?.nome ?? ''
+      if (!confirm(`⚠️ ${u.nome} já é líder de "${atual}".\n\nConfirmar a mudança para "${nova}"?`)) return
+    }
+    setEstado((st) => ({
+      ...st,
+      usuarios: st.usuarios.map((x) => x.id === u.id ? { ...x, conexaoId: novaId || undefined } : x),
+      conexoes: st.conexoes.map((c) => {
+        let cx = c
+        if (c.id === u.conexaoId) {
+          if (cx.liderId === u.id) cx = { ...cx, liderId: undefined }
+          if (cx.lider2Id === u.id) cx = { ...cx, lider2Id: undefined }
+        }
+        if (c.id === novaId) {
+          if (!cx.liderId) cx = { ...cx, liderId: u.id }
+          else if (!cx.lider2Id) cx = { ...cx, lider2Id: u.id }
+        }
+        return cx
+      }),
+    }))
+  }
+
+  function alternarAtivo() {
+    setEstado((st) => ({
+      ...st,
+      usuarios: st.usuarios.map((x) => x.id === u.id ? { ...x, ativo: !u.ativo } : x),
+    }))
+    toast(u.ativo ? 'Membro desativado' : 'Membro reativado', 'info')
+    onFechar()
+  }
+
+  async function remover() {
+    if (!confirm(`Remover ${u.nome} da equipe? Esta ação não pode ser desfeita.`)) return
+    const authUserId = u.authUserId
+    setEstado((st) => comExclusoes({
+      ...st,
+      usuarios: st.usuarios.filter((x) => x.id !== u.id),
+      conexoes: st.conexoes.map((c) => {
+        let cx = c
+        if (cx.liderId === u.id) cx = { ...cx, liderId: undefined }
+        if (cx.lider2Id === u.id) cx = { ...cx, lider2Id: undefined }
+        return cx
+      }),
+    }, 'usuario', [u.id]))
+    if (authUserId && supabase) {
+      try {
+        await supabase.functions.invoke('deletar-usuario-auth', { body: { authUserId } })
+      } catch {
+        // falha silenciosa: o usuário já foi removido do app
+      }
+    }
+    onFechar()
+  }
+
+  const conexao = s.conexoes.find((c) => c.id === u.conexaoId)
+
+  return (
+    <div className="modal-fundo" onClick={onFechar}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+
+        {/* Cabeçalho */}
+        <div className="modal-cab">
+          <div className="avatar" style={{ background: PAPEL_COR[u.papeis[0]], width: 36, height: 36, fontSize: 13, flexShrink: 0 }}>
+            {u.fotoUrl
+              ? <img src={u.fotoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+              : iniciais(u.nome)}
+          </div>
+          <h3>{u.nome}</h3>
+          <button className="btn-icone" onClick={onFechar} title="Fechar" style={{ fontSize: 16, marginLeft: 4 }}>✕</button>
+        </div>
+
+        {/* Corpo */}
+        <div className="modal-corpo">
+
+          {/* Status de acesso */}
+          {u.statusAcesso && u.statusAcesso !== 'sem_login' && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <TagsPapeis u={u} />
+              {!u.ativo && <span className="tag">Inativo</span>}
+              {(u.statusAcesso === 'pendente_aprovacao' || u.statusAcesso === 'pendente_confirmacao_email') && (
+                <span className="tag" style={{ background: '#f59e0b18', borderColor: '#f59e0b40', color: '#b47207' }}>
+                  {STATUS_ACESSO_LABEL[u.statusAcesso]}
+                </span>
+              )}
+              {u.statusAcesso === 'aprovado' && (
+                <span className="tag" style={{ background: '#22c55e18', borderColor: '#22c55e40', color: '#15803d' }}>🔑 Com login</span>
+              )}
+            </div>
+          )}
+
+          {/* Campos com rascunho (salvos ao clicar Salvar) */}
+          <label className="campo">
+            <span>Nome</span>
+            <input type="text" value={dNome} onChange={(e) => setDNome(e.target.value)} autoFocus />
+          </label>
+
+          <label className="campo">
+            <span>WhatsApp</span>
+            <input type="tel" value={dWhats} onChange={(e) => setDWhats(e.target.value)} />
+          </label>
+
+          <div className="campo">
+            <span>Funções (marque todas que se aplicam)</span>
+            <EscolherPapeis papeis={dPapeis} onMudar={setDPapeis} />
+          </div>
+
+          <hr className="modal-separador" />
+
+          {/* Campos com efeito imediato */}
+          {dPapeis.includes('lider') && (
+            <label className="campo">
+              <span>
+                Grupo que lidera{' '}
+                <em style={{ fontStyle: 'normal', color: 'var(--text-3)', fontWeight: 500 }}>(salvo na hora)</em>
+              </span>
+              <select value={u.conexaoId ?? ''} onChange={(e) => mudarConexao(e.target.value)}>
+                <option value="">— sem grupo —</option>
+                {s.conexoes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+              {conexao && <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Atual: {conexao.nome}</span>}
+            </label>
+          )}
+
+          <label className="campo">
+            <span>
+              Supervisor{' '}
+              <em style={{ fontStyle: 'normal', color: 'var(--text-3)', fontWeight: 500 }}>(salvo na hora)</em>
+            </span>
+            <select value={u.supervisorId ?? ''} onChange={(e) => definirSupervisor(s, u, e.target.value)}>
+              <option value="">— ninguém acima —</option>
+              {s.usuarios.filter((x) => x.id !== u.id && x.ativo).map((x) => (
+                <option key={x.id} value={x.id}>{x.nome} · {x.papeis.map((p) => rotuloPapel(p)).join(', ')}</option>
+              ))}
+            </select>
+          </label>
+
+          <hr className="modal-separador" />
+
+          {/* Zona de perigo */}
+          <div className="modal-perigo">
+            <span>{u.ativo ? 'Desativar bloqueia o acesso sem excluir o histórico.' : 'Membro está inativo.'}</span>
+            <button className="btn btn-sec btn-mini" onClick={alternarAtivo}>
+              {u.ativo ? '⏸ Desativar' : '▶ Reativar'}
+            </button>
+          </div>
+
+          <div className="modal-perigo" style={{ marginTop: 0 }}>
+            <span>Excluir remove permanentemente e libera o e-mail.</span>
+            <button className="btn btn-mini" style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }} onClick={remover}>
+              <IcoLixeira size={13} /> Excluir
+            </button>
+          </div>
+
+        </div>
+
+        {/* Rodapé */}
+        <div className="modal-rodape">
+          <button className="btn" onClick={salvar} disabled={!dNome.trim() || !dWhats.trim() || dPapeis.length === 0}>
+            <IcoCheck size={14} /> Salvar alterações
+          </button>
+          <button className="btn btn-sec" onClick={onFechar}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---- Área de equipe ----
+
 export default function Equipe() {
   const s = useAppState()
   const papeis = Object.keys(PAPEL_LABEL) as Papel[]
@@ -71,6 +266,7 @@ export default function Equipe() {
   const [busca, setBusca] = useState('')
   const [mostrarInativos, setMostrarInativos] = useState(false)
   const [novo, setNovo] = useState(false)
+  const [pessoaEditando, setPessoaEditando] = useState<Usuario | null>(null)
 
   const nomeConexao = (id?: string) => s.conexoes.find((c) => c.id === id)?.nome
 
@@ -91,6 +287,11 @@ export default function Equipe() {
         .map((p) => ({ papel: p, membros: lista.filter((u) => u.papeis.includes(p)) }))
         .filter((g) => g.membros.length > 0)
     : [{ papel: aba, membros: lista }]
+
+  // Ao abrir o modal, usa o dado mais recente do estado global
+  const pessoaAtualizada = pessoaEditando
+    ? s.usuarios.find((u) => u.id === pessoaEditando.id) ?? null
+    : null
 
   return (
     <div>
@@ -162,19 +363,22 @@ export default function Equipe() {
                 </div>
               )}
               <div className="grade-cartoes">
-                {g.membros.map((u) => <CartaoPessoa key={u.id} u={u} />)}
+                {g.membros.map((u) => (
+                  <CartaoPessoa key={u.id} u={u} onEditar={() => setPessoaEditando(u)} />
+                ))}
               </div>
             </div>
           ))
         )}
       </div>
+
+      {pessoaAtualizada && (
+        <ModalEditarMembro u={pessoaAtualizada} onFechar={() => setPessoaEditando(null)} />
+      )}
     </div>
   )
 }
 
-// Configuração explícita de quem supervisiona quem — nada fixo no código,
-// tudo definido aqui pela coordenação. Quem supervisiona também acompanha
-// o fluxo dos visitantes de quem está abaixo (veja Ajuda → Papéis da equipe).
 function CardHierarquia() {
   const s = useAppState()
   const ativos = s.usuarios.filter((u) => u.ativo).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
@@ -217,8 +421,6 @@ function CardHierarquia() {
   )
 }
 
-// Consulta rápida das Conexões e seus líderes — para checar se um grupo já
-// existe. Só leitura; criar/editar continua em Configurações → Grupos.
 function CardConexoes() {
   const s = useAppState()
   const termo = s.config.termoGrupo || 'Conexão'
@@ -274,75 +476,9 @@ function CardConexoes() {
   )
 }
 
-function CartaoPessoa({ u }: { u: Usuario }) {
+function CartaoPessoa({ u, onEditar }: { u: Usuario; onEditar: () => void }) {
   const s = useAppState()
-  const [editando, setEditando] = useState(false)
   const conexao = s.conexoes.find((c) => c.id === u.conexaoId)
-
-  // Rascunho dos campos simples (nome, WhatsApp, funções) — só gravam ao Salvar,
-  // mesmo padrão dos grupos. Grupo, supervisor e ativar seguem imediatos, pois
-  // têm efeitos relacionais e confirmação própria.
-  const [dNome, setDNome] = useState(u.nome)
-  const [dWhats, setDWhats] = useState(u.whatsapp)
-  const [dPapeis, setDPapeis] = useState<Papel[]>(u.papeis)
-
-  function abrirEdicao() {
-    setDNome(u.nome); setDWhats(u.whatsapp); setDPapeis(u.papeis)
-    setEditando(true)
-  }
-
-  function salvar() {
-    if (!dNome.trim() || !dWhats.trim() || dPapeis.length === 0) return
-    setEstado((st) => ({
-      ...st,
-      usuarios: st.usuarios.map((x) => x.id === u.id ? { ...x, nome: dNome.trim(), whatsapp: dWhats.trim(), papeis: dPapeis } : x),
-    }))
-    setEditando(false)
-    toast('Membro salvo')
-  }
-
-  // Mover líder de grupo pede confirmação (evita troca acidental)
-  function mudarConexao(novaId: string) {
-    if (u.conexaoId && novaId && novaId !== u.conexaoId) {
-      const atual = s.conexoes.find((c) => c.id === u.conexaoId)?.nome ?? 'outro grupo'
-      const nova = s.conexoes.find((c) => c.id === novaId)?.nome ?? ''
-      if (!confirm(`⚠️ ${u.nome} já é líder de "${atual}".\n\nConfirmar a mudança para "${nova}"?`)) return
-    }
-    setEstado((st) => ({
-      ...st,
-      usuarios: st.usuarios.map((x) => x.id === u.id ? { ...x, conexaoId: novaId || undefined } : x),
-      conexoes: st.conexoes.map((c) => {
-        let cx = c
-        if (c.id === u.conexaoId) {
-          if (cx.liderId === u.id) cx = { ...cx, liderId: undefined }
-          if (cx.lider2Id === u.id) cx = { ...cx, lider2Id: undefined }
-        }
-        if (c.id === novaId) {
-          if (!cx.liderId) cx = { ...cx, liderId: u.id }
-          else if (!cx.lider2Id) cx = { ...cx, lider2Id: u.id }
-        }
-        return cx
-      }),
-    }))
-  }
-
-  function mudar(patch: Partial<Usuario>) {
-    setEstado((st) => ({ ...st, usuarios: st.usuarios.map((x) => x.id === u.id ? { ...x, ...patch } : x) }))
-  }
-
-  function remover() {
-    if (!confirm(`Remover ${u.nome} da equipe? Esta ação não pode ser desfeita.`)) return
-    setEstado((st) => comExclusoes({
-      ...st,
-      usuarios: st.usuarios.filter((x) => x.id !== u.id),
-      conexoes: st.conexoes.map((c) => {
-        let cx = c
-        if (cx.liderId === u.id) cx = { ...cx, liderId: undefined }
-        if (cx.lider2Id === u.id) cx = { ...cx, lider2Id: undefined }
-        return cx
-      }),
-    }, 'usuario', [u.id]))
-  }
 
   return (
     <div className="cartao-pessoa" style={{ opacity: u.ativo ? 1 : 0.55 }}>
@@ -367,51 +503,10 @@ function CartaoPessoa({ u }: { u: Usuario }) {
           📱 {u.whatsapp}
           {u.papeis.includes('lider') && (conexao ? <> · 🏠 {conexao.nome}</> : <> · <span style={{ color: 'var(--warn)' }}>sem grupo</span></>)}
         </div>
-
-        {editando && (
-          <div className="pessoa-edicao" style={{ marginTop: 10 }}>
-            <label className="campo"><span>Nome</span>
-              <input type="text" value={dNome} onChange={(e) => setDNome(e.target.value)} autoFocus />
-            </label>
-            <div className="campo"><span>Funções (marque todas que se aplicam)</span>
-              <EscolherPapeis papeis={dPapeis} onMudar={setDPapeis} />
-            </div>
-            <label className="campo"><span>WhatsApp</span>
-              <input type="tel" value={dWhats} onChange={(e) => setDWhats(e.target.value)} />
-            </label>
-
-            <div style={{ display: 'flex', gap: 8, margin: '4px 0 14px' }}>
-              <button className="btn btn-mini" onClick={salvar}><IcoCheck size={14} /> Salvar</button>
-              <button className="btn btn-sec btn-mini" onClick={() => setEditando(false)}>Fechar</button>
-            </div>
-
-            {dPapeis.includes('lider') && (
-              <label className="campo"><span>Grupo que lidera <em style={{ fontStyle: 'normal', color: 'var(--text-3)', fontWeight: 500 }}>(salvo na hora)</em></span>
-                <select value={u.conexaoId ?? ''} onChange={(e) => mudarConexao(e.target.value)}>
-                  <option value="">— sem grupo —</option>
-                  {s.conexoes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
-              </label>
-            )}
-            <label className="campo"><span>Supervisor (quem está acima) <em style={{ fontStyle: 'normal', color: 'var(--text-3)', fontWeight: 500 }}>(salvo na hora)</em></span>
-              <select value={u.supervisorId ?? ''} onChange={(e) => definirSupervisor(s, u, e.target.value)}>
-                <option value="">— ninguém acima —</option>
-                {s.usuarios.filter((x) => x.id !== u.id && x.ativo).map((x) => (
-                  <option key={x.id} value={x.id}>{x.nome} · {x.papeis.map((p) => rotuloPapel(p)).join(', ')}</option>
-                ))}
-              </select>
-              <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>Também editável na seção "Hierarquia" acima.</span>
-            </label>
-            <button className="btn btn-sec btn-mini" onClick={() => { mudar({ ativo: !u.ativo }); toast(u.ativo ? 'Membro desativado' : 'Membro reativado', 'info') }}>
-              {u.ativo ? '⏸️ Desativar' : '▶️ Reativar'}
-            </button>
-          </div>
-        )}
       </div>
       <div className="cartao-acoes">
         <a className="btn-icone whats" href={linkWhatsApp(u.whatsapp)} target="_blank" rel="noreferrer" title="WhatsApp"><IcoWhats /></a>
-        <button className="btn-icone" onClick={() => editando ? setEditando(false) : abrirEdicao()} title="Editar"><IcoEditar /></button>
-        <button className="btn-icone perigo" onClick={remover} title="Remover"><IcoLixeira /></button>
+        <button className="btn-icone" onClick={onEditar} title="Editar"><IcoEditar /></button>
       </div>
     </div>
   )
@@ -429,7 +524,6 @@ function FormUsuario({ onPronto }: { onPronto: () => void }) {
     e.preventDefault()
     if (!nome.trim() || !whats.trim() || papeis.length === 0) return
     const id = uid()
-    // Integrador pós-culto novo já entra supervisionado pela Gestão Integração
     const gestorPadrao = papeis.includes('consolidador') ? primeiraGestaoIntegracao(s) : undefined
     setEstado((st) => ({
       ...st,
