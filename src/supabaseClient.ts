@@ -33,7 +33,7 @@ let sessaoReal: SessaoReal | null = null
 let sessaoCarregada = !supabase
 const ouvintes = new Set<() => void>()
 
-supabase?.auth.onAuthStateChange((_evento, sessao) => {
+supabase?.auth.onAuthStateChange((evento, sessao) => {
   // O token (anônimo ou real) é injetado no nuvem.ts, que o usa em cada
   // requisição de sync para satisfazer o RLS "somente autenticado".
   sessaoCarregada = true
@@ -43,6 +43,9 @@ supabase?.auth.onAuthStateChange((_evento, sessao) => {
     ? { userId: sessao.user.id, email: sessao.user.email ?? undefined }
     : null
   ouvintes.forEach((f) => f())
+  // Link "Esqueci a senha": o token do e-mail já virou sessão (consumido do #
+  // da URL acima); leva a pessoa direto para a tela de definir a nova senha.
+  if (evento === 'PASSWORD_RECOVERY') window.location.hash = '/nova-senha'
 })
 
 export function getSessaoReal(): SessaoReal | null {
