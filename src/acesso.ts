@@ -87,9 +87,21 @@ export function soAcolhedor(u: Usuario | undefined): boolean {
   return !!u && u.papeis.includes('acolhedor') && u.papeis.every((p) => p === 'acolhedor')
 }
 
+// Líder "puro" (só acompanha os visitantes encaminhados a ele): também tem uma
+// allow-list — sua área reservada é o painel do líder, as fichas dos seus
+// visitantes (podeVerVisitante limita quais) e a ajuda.
+const ROTAS_LIDER = ['/lideres', '/visitante', '/ajuda']
+
+export function soLider(u: Usuario | undefined): boolean {
+  return !!u && u.papeis.includes('lider') && u.papeis.every((p) => p === 'lider')
+}
+
 export function podeAcessarRota(rota: string, u: Usuario | undefined): boolean {
   if (soAcolhedor(u)) {
     return ROTAS_ACOLHEDOR.some((r) => rota === r || rota.startsWith(r + '/'))
+  }
+  if (soLider(u)) {
+    return ROTAS_LIDER.some((r) => rota === r || rota.startsWith(r + '/'))
   }
   const regra = ACESSO_ROTA.find((r) => rota === r.prefixo || rota.startsWith(r.prefixo + '/'))
   if (!regra) return true // rota livre para a equipe
