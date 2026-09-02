@@ -1,0 +1,16 @@
+{
+  "name": "Consolidação — Sistema Integrar",
+  "short_name": "Integrar",
+  "description": "Gestão da consolidação de visitantes da igreja.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF7F1",
+  "theme_color": "#0042AA",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
+    { "src": "icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "maskable" }
+  ]
+}

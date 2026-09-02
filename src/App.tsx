@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useRota } from './router'
-import { useAppState, useNuvem } from './store'
+import { useAppState, useNuvem, tentarSincronizarAgora } from './store'
 import { setUsuarioAtualId, useUsuarioAtualId, podeVerCuidado, podeAcessarRota, soAcolhedor, useRecuperandoSenha, useSessaoReal, useSessaoCarregada, usuarioDaSessao } from './acesso'
 import { garantirSessao, sairDaConta } from './supabaseClient'
 import { aplicarRotulos, rotuloPapel, type Usuario } from './types'
@@ -100,8 +100,11 @@ function ChipsTopo({ eu }: { eu?: Usuario }) {
     desligada: { classe: '', ponto: '#93A1B0', rotulo: 'Somente neste aparelho' },
     sincronizando: { classe: 'st-sincronizando', ponto: '#f59e0b', rotulo: 'Sincronizando…' },
     ok: { classe: 'st-ok', ponto: '#22c55e', rotulo: 'Sincronizado' },
-    erro: { classe: 'st-erro', ponto: '#ef4444', rotulo: 'Erro de sincronização' },
+    erro: { classe: 'st-erro', ponto: '#ef4444', rotulo: 'Sem conexão' },
   }[nuvem.status]
+  const ultimo = nuvem.ultimoSync
+    ? `Última sincronização: ${new Date(nuvem.ultimoSync).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`
+    : ''
   function sair() {
     if (!confirm('Sair da sua conta?')) return
     setUsuarioAtualId(null)
@@ -113,7 +116,23 @@ function ChipsTopo({ eu }: { eu?: Usuario }) {
         👤 <b style={{ color: 'var(--primary)' }}>{eu?.nome ?? 'Você'}</b>
         {eu && <span style={{ color: 'var(--text-3)', fontWeight: 500 }}>· {eu.papeis.map((p) => rotuloPapel(p)).join(', ')}</span>}
       </span>
-      <span className={`chip-status ${chip.classe}`}><span className="ponto" style={{ background: chip.ponto }} />{chip.rotulo}</span>
+      {nuvem.status === 'erro' ? (
+        // Erro tem saída: mostra o motivo e um "tentar de novo" (antes o chip
+        // vermelho não dizia o que fazer).
+        <button
+          type="button"
+          className={`chip-status ${chip.classe}`}
+          onClick={tentarSincronizarAgora}
+          title={`Não foi possível sincronizar. ${ultimo || 'Toque para tentar de novo.'}`}
+          style={{ cursor: 'pointer' }}
+        >
+          <span className="ponto" style={{ background: chip.ponto }} />{chip.rotulo} · tentar de novo ⟳
+        </button>
+      ) : (
+        <span className={`chip-status ${chip.classe}`} title={ultimo}>
+          <span className="ponto" style={{ background: chip.ponto }} />{chip.rotulo}
+        </span>
+      )}
       <span className="chip-status">📅 {dataFmt}</span>
       <button type="button" className="chip-sair" onClick={sair}>🚪 Sair</button>
     </div>

@@ -487,6 +487,12 @@ function agendarEnvioNuvem() {
   timerNuvem = setTimeout(() => { void sincronizarComNuvem() }, 1200)
 }
 
+// Dispara uma sincronização sem esperar o resultado — usado pelo botão "tentar
+// de novo" do chip de status quando a última sincronização deu erro.
+export function tentarSincronizarAgora(): void {
+  void sincronizarComNuvem()
+}
+
 // Sincroniza AGORA e informa se as alterações locais chegaram à nuvem. Usado
 // onde perder o envio é grave (ex.: autocadastro de integrante, que a pessoa
 // fecha logo depois de enviar).
