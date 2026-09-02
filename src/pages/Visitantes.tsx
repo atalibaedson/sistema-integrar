@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { consolidadoresAtivos, diasSemAtualizacao, semAtualizacao, useAppState, ultimaRespostaOuCadastro } from '../store'
+import { consolidadoresAtivos, diasSemAtualizacao, semAtualizacao, semResponsavel, useAppState, ultimaRespostaOuCadastro } from '../store'
 import { diasDesde } from '../machine'
 import { estiloStatus, rotuloStatus, type Status, type Visitante } from '../types'
-import { linkWhatsApp, proximaAcao } from '../actions'
+import { linkWhatsApp, normalizarTexto, proximaAcao } from '../actions'
 import { navegar } from '../router'
 import { IcoBusca, IcoMais, IcoWhats } from '../icones'
 import { useUsuarioAtualId, usuarioAtual, visitantesVisiveis } from '../acesso'
@@ -32,8 +32,10 @@ export default function Visitantes() {
   const base = visitantesVisiveis(s, eu)
 
   const g = GRUPOS.find((x) => x.id === grupo)!
+  // "Sem responsável" inclui quem tem um responsável removido/inativo — a
+  // ficha já mostra "sem responsável" nesses casos; o filtro tem de bater.
   const passaConsolidador = (v: Visitante) =>
-    consolidador === '' || (consolidador === 'sem' ? !v.responsavelId : v.responsavelId === consolidador)
+    consolidador === '' || (consolidador === 'sem' ? semResponsavel(s, v) : v.responsavelId === consolidador)
   const contaGrupo = (gr: typeof GRUPOS[number]) =>
     base.filter((v) => {
       if (!passaConsolidador(v)) return false
@@ -48,7 +50,7 @@ export default function Visitantes() {
       if (g.soParados && !semAtualizacao(s, v)) return false
       if (g.statuses && !g.statuses.includes(v.status)) return false
       if (!passaConsolidador(v)) return false
-      if (busca && !v.nome.toLowerCase().includes(busca.toLowerCase()) && !v.whatsapp.includes(busca)) return false
+      if (busca && !normalizarTexto(v.nome).includes(normalizarTexto(busca)) && !v.whatsapp.includes(busca)) return false
       return true
     })
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))

@@ -63,12 +63,13 @@ export default function AbaDados() {
       <div className="card" style={{ borderColor: '#fecaca' }}>
         <h3 style={{ color: 'var(--danger)' }}>Zona de perigo</h3>
         <p className="descricao-secao">
-          Apaga todos os visitantes, contatos e cadastros deste navegador. Não tem volta (a menos que você tenha um backup).
+          Apaga todos os visitantes, contatos e cadastros da igreja — <b>em todos os aparelhos sincronizados</b>, não só neste.
+          Não tem volta (a menos que você tenha um backup).
         </p>
         <button
           className="btn btn-perigo"
           onClick={() => {
-            if (confirm('Tem certeza? Todos os dados serão apagados. Exportou um backup antes?')) {
+            if (confirm('Tem certeza? TODOS os dados da igreja serão apagados, em todos os aparelhos que sincronizam. Exportou um backup antes?')) {
               zerarDados()
               setMsg('Dados zerados.')
             }

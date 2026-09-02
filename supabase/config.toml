@@ -1,0 +1,14 @@
+# Configuração da CLI do Supabase para este projeto.
+project_id = "yzexsklhixqcbmnbrtdl"
+
+# Autocadastro público do visitante: a verificação de JWT fica DESLIGADA porque
+# o formulário é público e o projeto usa chave "publishable" (não é um JWT). A
+# função protege o acesso por dentro (valida a entrada e grava com a service
+# role). Com isto, `supabase functions deploy cadastrar-visitante` já sai com a
+# configuração certa — sem depender de lembrar a flag --no-verify-jwt.
+[functions.cadastrar-visitante]
+verify_jwt = false
+
+# A função de administração (excluir conta no Auth) continua exigindo JWT: só é
+# chamada por quem está logado. Sem stanza aqui, ela mantém o padrão (verify_jwt
+# ligado) — não mexa.

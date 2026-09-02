@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { semAtualizacao, useAppState, ultimaRespostaOuCadastro } from '../store'
+import { semAtualizacao, semResponsavel as semResponsavelDef, useAppState, ultimaRespostaOuCadastro } from '../store'
 import { diasDesde } from '../machine'
 import { estiloStatus, rotuloStatus, STATUS_COR, type Status } from '../types'
 import { aplicarTemplate, linkWhatsApp, proximaAcao } from '../actions'
@@ -123,7 +123,7 @@ export default function Dashboard() {
   // Alertas (seção 13) — cuidado respeita a restrição extra do pastor/responsável
   const cuidado = vs.filter((v) => v.flagCuidado && podeVerCuidado(s, eu, v))
   const semResponsavel = vs.filter(
-    (v) => !v.responsavelId && !['encerrado', 'recusou', 'integrado', 'batismo', 'transferido'].includes(v.status),
+    (v) => semResponsavelDef(s, v) && !['encerrado', 'recusou', 'integrado', 'batismo', 'transferido'].includes(v.status),
   )
   const transferenciaPendente = vs.filter((v) => v.status === 'visitou' && !v.transferenciaConfirmada)
   const semAtualizar = vs.filter((v) => semAtualizacao(s, v))

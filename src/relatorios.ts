@@ -10,9 +10,24 @@ export interface Periodo {
   ate: string // AAAA-MM-DD (inclusive) ou ''
 }
 
+// Dia (AAAA-MM-DD) de um instante ISO, no fuso LOCAL. Os registros são gravados
+// em UTC: às 22h no Brasil já é o dia seguinte em UTC, e um corte pelo texto
+// do ISO jogava cadastros da noite para o dia errado nos relatórios.
+export function diaLocal(iso: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+export function hojeLocal(): string {
+  return diaLocal(new Date().toISOString())
+}
+
 export function dentroDoPeriodo(iso: string | undefined, p: Periodo): boolean {
   if (!iso) return false
-  const dia = iso.slice(0, 10)
+  const dia = diaLocal(iso)
   if (p.de && dia < p.de) return false
   if (p.ate && dia > p.ate) return false
   return true
@@ -289,12 +304,12 @@ export function atividadePorDia(vs: Visitante[], is: Interacao[], dias = 14): Di
   for (let i = dias - 1; i >= 0; i--) {
     const d = new Date(hoje)
     d.setDate(hoje.getDate() - i)
-    const chave = d.toISOString().slice(0, 10)
+    const chave = diaLocal(d.toISOString())
     out.push({
       dia: chave,
       rotulo: `${chave.slice(8, 10)}/${chave.slice(5, 7)}`,
-      cadastros: vs.filter((v) => v.dataCadastro.slice(0, 10) === chave).length,
-      interacoes: is.filter((x) => x.data.slice(0, 10) === chave).length,
+      cadastros: vs.filter((v) => diaLocal(v.dataCadastro) === chave).length,
+      interacoes: is.filter((x) => diaLocal(x.data) === chave).length,
     })
   }
   return out

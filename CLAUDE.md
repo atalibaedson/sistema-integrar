@@ -9,10 +9,12 @@ etapas e papéis) vêm da configuração da igreja. Sincroniza na nuvem via Supa
 ```bash
 npm run dev      # servidor de desenvolvimento (Vite)
 npm run build    # tsc -b && vite build  → use isto para VERIFICAR que nada quebrou
+npm test         # vitest run — módulos puros (máquina, mesclagem, relatórios…)
 ```
 
-Não há testes automatizados nem linter. A verificação de referência é `npm run build`
-(faz typecheck completo + build). Rode-o depois de qualquer mudança em código.
+Não há linter. A verificação de referência é `npm run build` (typecheck completo +
+build) e `npm test`. Rode ambos depois de qualquer mudança em código; o build do
+Netlify roda `npm test && npm run build`, então um teste quebrado barra o deploy.
 
 ## ⚠️ Avisos críticos
 
@@ -50,7 +52,9 @@ aprovação de conta e aplica a identidade da igreja (cores + rótulos).
 
 ### Nuvem / auth
 - `nuvem.ts` — sync via Supabase (fetch puro/PostgREST); estado inteiro como 1 JSON
-  por igreja, com mesclagem registro a registro.
+  por igreja, com mesclagem registro a registro. Gravação condicional por versão
+  (`gravarEstadoCondicional`) e canais públicos do visitante (`baixarConfigPublica`,
+  `cadastrarVisitantePublico`) — a página pública NÃO baixa o estado da igreja.
 - `mesclar.ts` — mescla estado local × nuvem por id (evita sobrescrita entre aparelhos).
 - `supabaseClient.ts` — cliente Supabase (auth + storage; sessão para o RLS).
 - `acesso.ts` — controle de acesso por papel/hierarquia (quem vê/acessa o quê).
@@ -66,7 +70,30 @@ aprovação de conta e aplica a identidade da igreja (cores + rótulos).
 Painel (`Dashboard`), `Jornada`, `Visitantes` (lista) → `VisitanteDetalhe` (ficha,
 grande), `NovoVisitante`, `PainelLider`, `Equipe`, `Aprovacoes`, `Auditoria`,
 `Relatorios`, `Configuracoes` (grande, por abas), `Ajuda`. Públicas: `Autocadastro`,
-`CadastroIntegrante`, `Entrar`, `AguardandoAprovacao`.
+`CadastroIntegrante`, `Entrar`, `NovaSenha` (link "esqueci a senha"), `AguardandoAprovacao`.
+
+## Garantias da sincronização (não quebrar)
+
+- O sync espera a sessão do Supabase (`esperarSessaoPronta`) antes da 1ª leitura: sem
+  token, o RLS devolve lista VAZIA, não erro, e "vazio" seria confundido com nuvem sem dados.
+- Leitura vazia nunca grava por cima: só `enviarEstado(..., 'so_se_vazio')` (INSERT que o
+  banco ignora se já houver registro). Aparelho virgem sem edição não sobe nada.
+- Aparelho virgem com edição mescla com a NUVEM como base (`mesclarEstados(remoto, local)`).
+- Toda ação destrutiva/administrativa em usuário passa por `registrarAuditoria`.
+- Gravação é condicional por versão (carimbo `atualizado_em`): se alguém escreveu
+  desde a leitura, relê e mescla de novo — não sobrescreve.
+- A rota pública do visitante (`ehRotaPublicaVisitante`) NÃO sincroniza o estado:
+  lê só a config (`carregarConfigPublica`) e grava pela Edge Function
+  `cadastrar-visitante` (servidor, service role). Ver `IMPLANTACAO-PRIORIDADE-1.md`.
+
+### Servidor (Supabase — implantação manual)
+- `supabase/functions/cadastrar-visitante/` — grava o autocadastro no servidor.
+- `supabase/sql/01..04_*.sql` — RPCs (append atômico, config pública), backup e
+  endurecimento do RLS. Rodar na ordem; o 04 (RLS) por último. Ver o runbook.
+
+### Testes
+- `src/__tests__/*.test.ts` (Vitest) cobrem os módulos puros: máquina de estados,
+  mesclagem, relatórios, cultos, tema. `npm test`. Rodam no build do Netlify.
 
 ### Estilo
 - `styles.css` — CSS global, organizado por seções comentadas (design tokens,

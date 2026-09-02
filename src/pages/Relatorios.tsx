@@ -5,8 +5,8 @@ import { estiloStatus, ORIGEM_LABEL, rotuloStatus, SITUACAO_CIVIL_LABEL, STATUS_
 import { SeletorData } from '../campos'
 import { IcoDownload, IcoImpressora } from '../icones'
 import {
-  atividadePorDia, desempenhoConexoes, desempenhoEquipe, distribuicao, engajamento,
-  funil, interacoesDoPeriodo, resumoBatismo, velocidade, visitantesDoPeriodo, type Fatia, type Periodo,
+  atividadePorDia, desempenhoConexoes, desempenhoEquipe, diaLocal, distribuicao, engajamento,
+  funil, hojeLocal, interacoesDoPeriodo, resumoBatismo, velocidade, visitantesDoPeriodo, type Fatia, type Periodo,
 } from '../relatorios'
 
 // Área de relatórios de gestão — restrita a Gestão Integração e Pastores
@@ -25,10 +25,10 @@ const ABAS: { chave: Aba; rotulo: string }[] = [
   { chave: 'retencao', rotulo: 'Retenção & perdas' },
 ]
 
-// Presets de período rápido
-function hojeISO() { return new Date().toISOString().slice(0, 10) }
+// Presets de período rápido (datas no fuso local)
+function hojeISO() { return hojeLocal() }
 function diasAtrasISO(n: number) {
-  const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10)
+  const d = new Date(); d.setDate(d.getDate() - n); return diaLocal(d.toISOString())
 }
 
 // ---- Componentes visuais reutilizáveis ----
@@ -101,7 +101,7 @@ export default function Relatorios() {
     for (const v of vs) {
       linhas.push([
         v.nome, rotuloStatus(v.status), ORIGEM_LABEL[v.origem], v.comoConheceu ?? '',
-        conexao(v.conexaoId), nome(v.responsavelId), v.dataCadastro.slice(0, 10),
+        conexao(v.conexaoId), nome(v.responsavelId), diaLocal(v.dataCadastro),
       ])
     }
     const csv = linhas.map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')

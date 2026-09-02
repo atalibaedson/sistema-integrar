@@ -16,7 +16,7 @@ const PAPEL_DESC: Record<Papel, string> = {
 const ETAPAS = ['Seus dados', 'Funções e foto', 'Seu acesso'] as const
 
 // Cadastro público de integrante — assistente em 3 passos.
-// Fluxo: preencher → confirmar e-mail → aguardar aprovação da liderança.
+// Fluxo: preencher → aguardar aprovação da liderança (sem confirmação de e-mail).
 export default function CadastroIntegrante() {
   const s = useAppState()
   const termoGrupo = s.config.termoGrupo?.trim() || 'Conexão'
@@ -36,6 +36,7 @@ export default function CadastroIntegrante() {
   const [consentimento, setConsentimento] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [enviado, setEnviado] = useState(false)
+  const [naoSincronizou, setNaoSincronizou] = useState(false)
   const [erro, setErro] = useState('')
   const fotoInput = useRef<HTMLInputElement>(null)
 
@@ -96,6 +97,7 @@ export default function CadastroIntegrante() {
     })
     setEnviando(false)
     if (!r.ok) { setErro(r.erro ?? 'Não foi possível concluir o cadastro. Tente novamente.'); return }
+    setNaoSincronizou(r.sincronizado === false)
     setEnviado(true)
   }
 
@@ -109,6 +111,15 @@ export default function CadastroIntegrante() {
             Seu cadastro foi enviado para a liderança. Assim que for aprovado, você já poderá
             entrar no sistema com o e-mail <b>{email}</b> e a senha escolhida.
           </p>
+          {naoSincronizou && (
+            <div className="alerta alerta-warn" style={{ textAlign: 'left' }}>
+              ⚠️ <div>
+                <b>Ainda não conseguimos enviar seu cadastro para a nuvem</b> (sem conexão?).
+                Ele está guardado neste aparelho: <b>mantenha esta página aberta</b> por alguns
+                instantes com internet, ou abra o sistema de novo aqui mesmo — o envio conclui sozinho.
+              </div>
+            </div>
+          )}
         </div>
       </div>
     )

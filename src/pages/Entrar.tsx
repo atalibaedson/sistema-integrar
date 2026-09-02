@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { normalizarWhats } from '../actions'
 import { useAppState } from '../store'
-import { supabase } from '../supabaseClient'
+import { enviarLinkRedefinicaoSenha, supabase } from '../supabaseClient'
 import type { Usuario } from '../types'
 
 // Mascara o e-mail para a desambiguação de WhatsApp compartilhado
@@ -84,11 +84,15 @@ export default function Entrar() {
     window.location.reload()
   }
 
-  async function reenviarConfirmacao() {
+  async function esqueciSenha() {
+    setErro('')
+    setAviso('')
     const email = resolverEmail()
-    if (!email || !supabase) return
-    const { error } = await supabase.auth.resend({ type: 'signup', email })
-    setAviso(error ? `Não foi possível reenviar: ${error.message}` : `Reenviamos o link de confirmação para ${email}.`)
+    if (!email) return
+    const falha = await enviarLinkRedefinicaoSenha(email)
+    setAviso(falha
+      ? `Não foi possível enviar o link: ${falha}`
+      : `Enviamos um link para ${email}. Abra-o neste aparelho para escolher a nova senha (confira o spam).`)
   }
 
   return (
@@ -142,7 +146,7 @@ export default function Entrar() {
           <p style={{ fontSize: 13, textAlign: 'center', marginTop: 10 }}>
             Ainda não tem conta? <a href="#/cadastro-integrante">Cadastre-se</a>
             {' · '}
-            <a href="#/" onClick={(e) => { e.preventDefault(); void reenviarConfirmacao() }}>Reenviar confirmação</a>
+            <a href="#/" onClick={(e) => { e.preventDefault(); void esqueciSenha() }}>Esqueci minha senha</a>
           </p>
         </form>
       </div>

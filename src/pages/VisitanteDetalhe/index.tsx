@@ -74,7 +74,9 @@ function FichaCompleta({ id }: { id: string }) {
               {v.flagMenorIdade && <span className="badge-flag">menor</span>}
             </div>
             <div className="pessoa-sub" style={{ marginTop: 3 }}>
-              📱 {v.whatsapp} · 🏠 {conexao?.nome ?? 'sem grupo'} · 👤 {responsavel?.nome.split(' ')[0] ?? 'sem responsável'}
+              📱 {v.whatsapp} · 🏠 {conexao?.nome ?? 'sem grupo'} · 👤 {responsavel
+                ? <>{responsavel.nome.split(' ')[0]}{!responsavel.ativo && <span style={{ color: 'var(--warn)' }}> (inativo)</span>}</>
+                : <span style={{ color: 'var(--warn)', fontWeight: 600 }}>sem responsável</span>}
               {v.cultoPrimeiraVisita && (
                 <> · ⛪ {v.cultoPrimeiraVisita}{v.dataPrimeiraVisita ? ` (${fmtDataVisita(v.dataPrimeiraVisita)})` : ''}</>
               )}
@@ -132,6 +134,13 @@ function RodapeConfig({ v }: { v: ReturnType<typeof useAppState>['visitantes'][n
             .slice()
             .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
             .map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          {/* Responsável removido/inativo: mostra a situação real em vez de
+              cair em silêncio na primeira opção, como se não houvesse ninguém */}
+          {v.responsavelId && !consolidadoresAtivos(s).some((c) => c.id === v.responsavelId) && (
+            <option value={v.responsavelId} disabled>
+              {usuarioPorId(s, v.responsavelId)?.nome ?? 'Integrante removido'} (inativo — escolha outro)
+            </option>
+          )}
         </select>
       </label>
       <label className="campo" style={{ marginBottom: 0, flex: 1, minWidth: 180 }}>

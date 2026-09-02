@@ -1,6 +1,7 @@
 import { useAppState } from '../store'
 import { ativarPrimeiroAdmin, existeAdminAprovado } from '../actions'
 import { sairDaConta } from '../supabaseClient'
+import { setUsuarioAtualId } from '../acesso'
 import type { Usuario } from '../types'
 
 // Tela de espera do login real: a pessoa está autenticada, mas a conta ainda
@@ -17,7 +18,11 @@ export default function AguardandoAprovacao({ usuario }: { usuario?: Usuario }) 
   let texto: React.ReactNode =
     'Sua conta foi criada, mas ainda não está liberada. Se você acabou de se cadastrar, aguarde alguns instantes — os dados podem estar sincronizando.'
 
-  if (usuario?.statusAcesso === 'pendente_aprovacao') {
+  if (usuario && !usuario.ativo) {
+    icone = '⏸'
+    titulo = 'Acesso desativado'
+    texto = 'Sua conta foi desativada pela liderança. Se você voltou ao ministério ou acha que foi um engano, fale com a coordenação para reativar.'
+  } else if (usuario?.statusAcesso === 'pendente_aprovacao') {
     icone = '🤝'
     titulo = `Quase lá, ${usuario.nome.split(' ')[0]}!`
     texto = 'Seu cadastro foi recebido! A liderança (Pastores e Gestão Ministerial ou Gestão Integração) precisa aprovar o seu acesso — você será liberado(a) em breve.'
@@ -62,7 +67,7 @@ export default function AguardandoAprovacao({ usuario }: { usuario?: Usuario }) 
 
         <p style={{ fontSize: 13, textAlign: 'center', marginTop: 16 }}>
           {s.config.nomeIgreja} ·{' '}
-          <a href="#/" onClick={(e) => { e.preventDefault(); void sairDaConta() }}>Sair da conta</a>
+          <a href="#/" onClick={(e) => { e.preventDefault(); setUsuarioAtualId(null); void sairDaConta() }}>Sair da conta</a>
         </p>
       </div>
     </div>

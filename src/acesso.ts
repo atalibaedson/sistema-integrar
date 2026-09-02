@@ -6,7 +6,7 @@
 // As regras de visibilidade abaixo valem igualmente para as duas origens.
 import { useSyncExternalStore } from 'react'
 import type { AppState, Papel, Usuario, Visitante } from './types'
-import { assinarSessao, getSessaoCarregada, getSessaoReal, type SessaoReal } from './supabaseClient'
+import { assinarSessao, getRecuperandoSenha, getSessaoCarregada, getSessaoReal, type SessaoReal } from './supabaseClient'
 
 const CHAVE = 'ife-usuario-atual'
 let atualId: string | null = localStorage.getItem(CHAVE)
@@ -97,9 +97,11 @@ export function podeAcessarRota(rota: string, u: Usuario | undefined): boolean {
 }
 
 // Regra central: quem pode ver a ficha (e as conversas) de um visitante.
-// Sem identidade escolhida = modo aberto (fase de teste não bloqueia ninguém).
+// Sem identidade (sessão ainda alinhando, conta desativada) = não vê nada. O
+// antigo "modo aberto" liberava tudo neste caso — com login obrigatório isso
+// deixava uma conta desativada enxergando todos os visitantes.
 export function podeVerVisitante(s: AppState, u: Usuario | undefined, v: Visitante): boolean {
-  if (!u) return true
+  if (!u) return false
   if (papelVeTudo(u)) return true
   // está no fluxo: responsável direto ou líder designado
   if (v.responsavelId === u.id) return true
@@ -115,7 +117,7 @@ export function podeVerVisitante(s: AppState, u: Usuario | undefined, v: Visitan
 
 // Cuidado/crise é o dado mais sensível: só pastor + o responsável direto.
 export function podeVerCuidado(s: AppState, u: Usuario | undefined, v: Visitante): boolean {
-  if (!u) return true
+  if (!u) return false
   if (temPapel(u, 'pastor')) return true
   if (v.responsavelId === u.id) return true
   return false
@@ -130,6 +132,11 @@ export function visitantesVisiveis(s: AppState, u: Usuario | undefined): Visitan
 // Sessões anônimas (criadas só para o RLS do sync) NÃO contam como login.
 export function useSessaoReal(): SessaoReal | null {
   return useSyncExternalStore(assinarSessao, getSessaoReal)
+}
+
+// A pessoa chegou pelo link de "esqueci a senha" e precisa definir uma nova?
+export function useRecuperandoSenha(): boolean {
+  return useSyncExternalStore(assinarSessao, getRecuperandoSenha)
 }
 
 // A verificação inicial da sessão (restaurar a persistida) já terminou?

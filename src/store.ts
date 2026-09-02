@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react'
 import type { AppState, ConfigIgreja, CultoDef, EtapaFluxo, Exclusao, Interacao, RegistroAuditoria, Status, Template, Usuario, Visitante } from './types'
 import { aplicarTransicao, diasDesde } from './machine'
 import { diaSemanaDoCulto, gerarOcorrencias } from './cultos'
-import { baixarEstado, enviarEstado, getConfigNuvem, setConfigNuvem, type ConfigNuvem } from './nuvem'
+import { baixarConfigPublica, baixarEstado, baixarEstadoComVersao, enviarEstado, esperarSessaoPronta, getConfigNuvem, gravarEstadoCondicional, setConfigNuvem, type ConfigNuvem } from './nuvem'
 import { mesclarEstados } from './mesclar'
 import { getUsuarioAtualId } from './acesso'
 
@@ -347,9 +347,24 @@ export function useNuvem(): SnapNuvem {
 }
 
 let timerNuvem: ReturnType<typeof setTimeout> | undefined
-let sincronizando = false
+let syncEmCurso: Promise<void> | null = null // sincronização em andamento
+let pendenteAposSync = false // pediram sync enquanto outro rodava: repetir ao terminar
 let temMudancaLocal = false // há alteração local ainda não enviada à nuvem
 let sobrescreverProximoEnvio = false // zerar/importar: o próximo envio NÃO mescla
+let versaoRemota: string | null = null // carimbo da última linha lida (grava condicional)
+
+// Rota pública do VISITANTE (autocadastro por QR). Nela o app NÃO baixa o
+// estado da igreja — o celular de quem abre o QR não pode receber a lista de
+// visitantes, pedidos de oração e sinais de cuidado (LGPD). A página carrega só
+// a config e grava pela Edge Function. As telas internas e o cadastro de
+// integrante (que exige login) seguem sincronizando normalmente.
+function ehRotaPublicaVisitante(): boolean {
+  if (typeof window === 'undefined') return false
+  const host = window.location.hostname
+  const hash = window.location.hash
+  return host.startsWith('visitante.') || host.startsWith('cadastro.') ||
+    hash.startsWith('#/autocadastro')
+}
 
 // Comparação de estados independente da ordem das chaves (o JSON que volta da
 // nuvem pode ter as chaves em outra ordem — sem isso, todo ciclo "veria"
@@ -365,26 +380,54 @@ function canonico(x: unknown): string {
 // Sincronização completa: baixa a nuvem, mescla com o estado local (os dados
 // se somam — nada de "última gravação vence") e envia o resultado. É isto que
 // permite dois computadores cadastrando ao mesmo tempo sem perder registros.
-async function sincronizarComNuvem(): Promise<void> {
+function sincronizarComNuvem(): Promise<void> {
+  if (!getConfigNuvem()) return Promise.resolve()
+  // Já tem uma rodando: em vez de descartar o pedido (o que deixava uma
+  // alteração feita durante o envio esperando até o próximo ciclo — e perdida
+  // se a aba fechasse antes), marca para repetir assim que ela terminar.
+  if (syncEmCurso) {
+    pendenteAposSync = true
+    return syncEmCurso
+  }
+  syncEmCurso = executarSincronizacao().finally(() => {
+    syncEmCurso = null
+    if (pendenteAposSync) {
+      pendenteAposSync = false
+      void sincronizarComNuvem()
+    }
+  })
+  return syncEmCurso
+}
+
+type ModoEnvio = 'condicional' | 'so_se_vazio' | 'sobrescrever' | 'nao_enviar'
+
+async function executarSincronizacao(): Promise<void> {
   const c = getConfigNuvem()
-  if (!c || sincronizando) return
-  sincronizando = true
+  if (!c) return
   setSnapNuvem('sincronizando')
   try {
-    let precisaEnviar = temMudancaLocal
+    // Sem a sessão pronta, a leitura pode voltar vazia por causa do RLS — e
+    // "vazia" não pode ser confundida com "nuvem sem dados".
+    await esperarSessaoPronta()
+    let modoEnvio: ModoEnvio = temMudancaLocal ? 'condicional' : 'nao_enviar'
     if (sobrescreverProximoEnvio) {
-      precisaEnviar = true
+      modoEnvio = 'sobrescrever'
       sobrescreverProximoEnvio = false
     } else {
-      const remotoBruto = await baixarEstado(c)
-      if (remotoBruto) {
-        const remoto = migrar(remotoBruto)
-        // Instalação nova sem edições adota a nuvem; com edições, mescla sem
-        // levar junto os dados de exemplo que ninguém usou.
+      const remoto0 = await baixarEstadoComVersao(c)
+      if (remoto0) {
+        versaoRemota = remoto0.versao
+        const remoto = migrar(remoto0.dados)
+        // Instalação nova sem edições adota a nuvem. Com edições, mescla — mas
+        // com a NUVEM como base: os padrões de um aparelho recém-aberto
+        // (mensagens, config, exemplos) nunca podem vencer o que a igreja já
+        // tem; só o que foi criado aqui (ex.: um cadastro novo) se soma.
         const mesclado = executarAutomacoes(
           estadoVirgem && !temMudancaLocal
             ? remoto
-            : mesclarEstados(estadoVirgem ? semDadosDeExemplo(estado) : estado, remoto),
+            : estadoVirgem
+              ? mesclarEstados(remoto, semDadosDeExemplo(estado))
+              : mesclarEstados(estado, remoto),
         )
         estadoVirgem = false
         if (canonico(mesclado) !== canonico(estado)) {
@@ -394,22 +437,44 @@ async function sincronizarComNuvem(): Promise<void> {
         }
         // Grava apenas quando o conteúdo difere de verdade do que já está na
         // nuvem — evita reenvio em loop a cada ciclo (e o custo de gravação).
-        precisaEnviar = canonico(mesclado) !== canonico(remoto)
-        if (!precisaEnviar) temMudancaLocal = false // tudo daqui já está lá
+        modoEnvio = canonico(mesclado) !== canonico(remoto) ? 'condicional' : 'nao_enviar'
+        if (modoEnvio === 'nao_enviar') temMudancaLocal = false // tudo daqui já está lá
+      } else if (estadoVirgem && !temMudancaLocal) {
+        // Aparelho novo, sem nada digitado: não há o que subir. (Subir os dados
+        // de exemplo por cima de uma nuvem que só PARECEU vazia apagaria a
+        // igreja inteira.) Fica virgem e tenta ler de novo no próximo ciclo.
+        modoEnvio = 'nao_enviar'
       } else {
-        precisaEnviar = true // nuvem vazia: sobe o estado local
+        // Leitura vazia com dados reais aqui: grava apenas se a nuvem estiver
+        // mesmo sem registro — se já houver um, o banco ignora e o próximo
+        // ciclo mescla normalmente.
+        modoEnvio = 'so_se_vazio'
+        versaoRemota = null
       }
     }
-    if (precisaEnviar) {
+
+    if (modoEnvio !== 'nao_enviar') {
       const enviado = estado
-      await enviarEstado(c, enviado)
-      if (estado === enviado) temMudancaLocal = false // nada mudou durante o envio
+      if (modoEnvio === 'condicional' && versaoRemota) {
+        // Grava só se ninguém escreveu desde a leitura — protege um cadastro que
+        // o servidor (autocadastro público) tenha anexado no meio do caminho.
+        const nova = await gravarEstadoCondicional(c, enviado, versaoRemota)
+        if (nova === null) {
+          pendenteAposSync = true // conflito: relê e mescla de novo
+        } else {
+          versaoRemota = nova
+          if (estado === enviado) temMudancaLocal = false
+        }
+      } else {
+        // 'sobrescrever' (zerar/importar), 'so_se_vazio' (nuvem vazia) ou
+        // condicional sem versão conhecida (primeira gravação da igreja).
+        await enviarEstado(c, enviado, modoEnvio === 'so_se_vazio' ? 'so_se_vazio' : 'substituir')
+        if (estado === enviado && modoEnvio === 'sobrescrever') temMudancaLocal = false
+      }
     }
     setSnapNuvem('ok', new Date().toISOString())
   } catch {
     setSnapNuvem('erro')
-  } finally {
-    sincronizando = false
   }
 }
 
@@ -422,11 +487,51 @@ function agendarEnvioNuvem() {
   timerNuvem = setTimeout(() => { void sincronizarComNuvem() }, 1200)
 }
 
+// Sincroniza AGORA e informa se as alterações locais chegaram à nuvem. Usado
+// onde perder o envio é grave (ex.: autocadastro de integrante, que a pessoa
+// fecha logo depois de enviar).
+export async function sincronizarAgora(): Promise<boolean> {
+  if (!getConfigNuvem()) return false
+  clearTimeout(timerNuvem)
+  for (let tentativa = 0; tentativa < 3 && temMudancaLocal; tentativa++) {
+    await sincronizarComNuvem()
+  }
+  return !temMudancaLocal && snapNuvem.status === 'ok'
+}
+
+// Carrega SÓ a config da igreja (nome, cores, textos, campos do formulário)
+// para a página pública do visitante, sem baixar nenhum dado pessoal. Aplica no
+// estado sem marcar mudança nem sincronizar — a rota pública não sobe nada.
+export async function carregarConfigPublica(): Promise<boolean> {
+  const c = getConfigNuvem()
+  if (!c) return false
+  try {
+    const pub = await baixarConfigPublica(c)
+    if (pub?.config) {
+      estado = { ...estado, config: { ...CONFIG_PADRAO, ...(pub.config as Partial<ConfigIgreja>) } }
+      ouvintes.forEach((fn) => fn())
+      return true
+    }
+  } catch {
+    // sem rede / função ausente: a página fica com a config padrão
+  }
+  return false
+}
+
 // Atualização contínua: puxa novidades dos outros computadores de tempos em
-// tempos e sempre que a janela volta ao foco.
-if (typeof window !== 'undefined') {
+// tempos e sempre que a janela volta ao foco. NÃO roda na rota pública do
+// visitante — lá o app nunca baixa o estado da igreja.
+if (typeof window !== 'undefined' && !ehRotaPublicaVisitante()) {
   setInterval(() => { void sincronizarComNuvem() }, 30_000)
   window.addEventListener('focus', () => { void sincronizarComNuvem() })
+  // Fechar a aba com alteração ainda não enviada perderia o dado (ele ficaria
+  // só neste aparelho). O navegador pergunta antes de fechar.
+  window.addEventListener('beforeunload', (e) => {
+    if (temMudancaLocal && getConfigNuvem()) {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+  })
 }
 
 // Testa credenciais e devolve o que existe na nuvem (null = nuvem vazia)
@@ -452,8 +557,10 @@ export function desligarNuvem() {
 }
 
 // Na abertura do app: mescla o local com o que está na nuvem (não sobrescreve —
-// alterações feitas offline e novidades de outros computadores se somam)
-if (getConfigNuvem()) {
+// alterações feitas offline e novidades de outros computadores se somam).
+// Na rota pública do visitante NÃO baixa o estado — a página carrega só a
+// config (carregarConfigPublica) e grava pela Edge Function.
+if (getConfigNuvem() && !ehRotaPublicaVisitante()) {
   void sincronizarComNuvem()
 }
 
@@ -466,6 +573,13 @@ function salvar() {
 
 export function getEstado(): AppState {
   return estado
+}
+
+// Este aparelho ainda só tem os dados de exemplo (nunca baixou a nuvem nem
+// salvou nada)? Telas públicas usam isto para não cadastrar "no escuro" —
+// ligando um visitante a um integrador de exemplo, por exemplo.
+export function estadoEhVirgem(): boolean {
+  return estadoVirgem
 }
 
 export function setEstado(mutador: (s: AppState) => AppState) {
@@ -560,6 +674,16 @@ export function primeiraGestaoIntegracao(s: AppState): Usuario | undefined {
 
 export function usuarioPorId(s: AppState, id?: string): Usuario | undefined {
   return s.usuarios.find((u) => u.id === id)
+}
+
+// Visitante sem ninguém cuidando: sem responsável definido OU com um
+// responsável que já não existe/está inativo. Sem a segunda parte, um
+// visitante cujo integrador foi removido aparecia como "sem responsável" na
+// ficha, mas escapava do filtro — e ninguém o reassumia.
+export function semResponsavel(s: AppState, v: Visitante): boolean {
+  if (!v.responsavelId) return true
+  const r = s.usuarios.find((u) => u.id === v.responsavelId)
+  return !r || !r.ativo
 }
 
 export function templatePorGatilho(s: AppState, gatilho: string): Template | undefined {

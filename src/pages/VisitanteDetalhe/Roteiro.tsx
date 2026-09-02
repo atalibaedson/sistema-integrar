@@ -9,7 +9,8 @@ import {
   proximoTipoContato, registrarBatismoRealizado, registrarInteracao, type Classificacao,
 } from '../../actions'
 import { IcoCheck, IcoDesfazer, IcoEditar, IcoWhats } from '../../icones'
-import { BotaoVirarMembro, CampoInicioConexao, fmtDia, SeletorData } from './comum'
+import { toast } from '../../toast'
+import { BotaoVirarMembro, CampoInicioConexao, fmt, fmtDia, SeletorData } from './comum'
 
 const PASSO_DO_STATUS: Record<Status, number> = {
   novo: 2, em_contato: 2, aguardando_resposta: 2, em_espera: 2, recusou: 2, encerrado: 2,
@@ -24,7 +25,7 @@ export default function Roteiro({ v }: { v: Visitante }) {
   const passos = [
     { n: 1, label: 'Cadastro', titulo: 'Cadastro realizado', quandoFeito: v.dataCadastro },
     { n: 2, label: '1ª semana', titulo: 'Primeira semana de contatos', quandoFeito: dataDe('encaminhado_lider') },
-    { n: 3, label: 'Entrega', titulo: 'Entrega ao líder do grupo', quandoFeito: dataDe('visitou') },
+    { n: 3, label: 'Entrega', titulo: 'Entrega ao líder do grupo', quandoFeito: dataDe('encaminhado_lider') },
     { n: 4, label: 'Visita', titulo: 'Visita ao grupo', quandoFeito: dataDe('visitou') },
     { n: 5, label: 'Líder assume', titulo: 'Líder assume o acompanhamento', quandoFeito: dataDe('transferido') },
     {
@@ -211,6 +212,7 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
             <IcoCheck size={14} /> 2. {primeiroNome} visitou o grupo
           </button>
         </div>
+        <BlocoAcompanhamento v={v} tipo="lider_pre_visita" />
       </div>
     )
   }
@@ -252,6 +254,7 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
             </p>
           </div>
         )}
+        <BlocoAcompanhamento v={v} tipo="livre" />
       </div>
     )
   }
@@ -304,6 +307,7 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
             </div>
           </div>
         )}
+        <BlocoAcompanhamento v={v} tipo="livre" />
       </div>
     )
   }
@@ -338,11 +342,107 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
           <IcoDesfazer size={14} />{' '}
           {batizado ? 'Membresia vai demorar — volta ao acompanhamento do líder' : 'Adiou o batismo — volta ao acompanhamento do líder'}
         </button>
+        <BlocoAcompanhamento v={v} tipo="livre" />
       </div>
     )
   }
 
   return null
+}
+
+/* ================= Registro de acompanhamento (etapas com o líder) ================= */
+// Depois do handoff, quem conversa com a pessoa é o líder — e o que ele
+// descobre ("ainda não visitou: estão com um bebê recém-nascido") precisa ficar
+// na ficha. Antes, essas etapas só tinham os botões de avançar/voltar: a
+// informação ficava no WhatsApp da equipe e a ficha parecia parada.
+function BlocoAcompanhamento({ v, tipo }: { v: Visitante; tipo: TipoInteracao }) {
+  const s = useAppState()
+  const [aberto, setAberto] = useState(false)
+  const [autor, setAutor] = useState<'lider' | 'consolidador'>('lider')
+  const [respondeu, setRespondeu] = useState(true)
+  const [resumo, setResumo] = useState('')
+  const [proximo, setProximo] = useState('')
+  const [cuidado, setCuidado] = useState(false)
+  const primeiroNome = v.nome.split(' ')[0]
+  const ultimos = interacoesDe(s, v.id).slice(0, 2)
+
+  function limpar() {
+    setAberto(false); setResumo(''); setProximo(''); setCuidado(false); setRespondeu(true); setAutor('lider')
+  }
+
+  function salvar() {
+    if (!resumo.trim()) return
+    // Nestas etapas o registro NÃO muda o status (a máquina só reage às
+    // classificações nas etapas do time); só alimenta o histórico e o alerta
+    // de "sem atualização". "Cuidado" liga a sinalização, como sempre.
+    registrarInteracao({
+      visitanteId: v.id, tipo, autorPapel: autor,
+      respondeu,
+      grauAbertura: respondeu ? 'medio' : 'sem_resposta',
+      retornoResumo: resumo, proximosPassos: proximo, encaminhamentos: '',
+      classificacao: cuidado ? 'cuidado' : respondeu ? 'respondeu' : 'silencio',
+    })
+    toast('Acompanhamento registrado')
+    limpar()
+  }
+
+  return (
+    <div className="rot-acomp">
+      {ultimos.length > 0 && (
+        <div className="rot-acomp-ultimos">
+          {ultimos.map((i) => (
+            <div key={i.id} className="rot-acomp-item">
+              <span className="rot-acomp-data">{fmt(i.data)} · {i.autorPapel === 'lider' ? 'líder' : 'integrador(a)'}</span>
+              <span>{i.respondeu ? '💬' : '🔇'} {i.retornoResumo || (i.respondeu ? 'Respondeu' : 'Sem resposta')}</span>
+              {i.proximosPassos && <span className="rot-acomp-prox">→ {i.proximosPassos}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!aberto ? (
+        <button className="btn btn-sec" onClick={() => setAberto(true)}>
+          <IcoEditar size={14} /> Registrar contato / novidade sobre {primeiroNome}
+        </button>
+      ) : (
+        <div className="rot-acomp-form">
+          <p className="pergunta" style={{ marginTop: 0 }}>O que aconteceu com {primeiroNome}?</p>
+          <label className="campo">
+            <textarea
+              rows={3} value={resumo} autoFocus
+              onChange={(e) => setResumo(e.target.value)}
+              placeholder="Ex.: o líder conversou com ela; ainda não visitou o grupo porque estão com um bebê recém-nascido. Combinaram de ir em duas semanas."
+            />
+          </label>
+          <div className="linha-campos">
+            <label className="campo"><span>Quem fez o contato</span>
+              <select value={autor} onChange={(e) => setAutor(e.target.value as 'lider' | 'consolidador')}>
+                <option value="lider">Líder do grupo</option>
+                <option value="consolidador">Integrador(a) pós-culto</option>
+              </select>
+            </label>
+            <label className="campo"><span>{primeiroNome} respondeu?</span>
+              <select value={respondeu ? 'sim' : 'nao'} onChange={(e) => setRespondeu(e.target.value === 'sim')}>
+                <option value="sim">Sim, conversaram</option>
+                <option value="nao">Não respondeu</option>
+              </select>
+            </label>
+          </div>
+          <label className="campo"><span>Próximo passo combinado <em className="campo-dica">(opcional)</em></span>
+            <input type="text" value={proximo} onChange={(e) => setProximo(e.target.value)} placeholder="ex.: visita ao grupo daqui a duas semanas" />
+          </label>
+          <label className="check">
+            <input type="checkbox" checked={cuidado} onChange={(e) => setCuidado(e.target.checked)} />
+            🚨 Situação de cuidado/crise — sinalizar a liderança
+          </label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn" disabled={!resumo.trim()} onClick={salvar}><IcoCheck size={14} /> Salvar registro</button>
+            <button className="btn btn-sec" onClick={limpar}>Cancelar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 /* ================= Assistente de registro de contato ================= */

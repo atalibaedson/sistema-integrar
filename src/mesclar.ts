@@ -34,7 +34,7 @@ function mesclarUsuario(l: Usuario, r: Usuario): Usuario {
 }
 
 const LIMITE_LAPIDES = 800
-const LIMITE_AUDITORIA = 2000
+const LIMITE_AUDITORIA = 1000 // = LIMITE_REGISTROS em auditoria.ts
 
 function chave(t: Exclusao): string {
   return `${t.tipo}:${t.id}`

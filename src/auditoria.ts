@@ -6,7 +6,9 @@ import { getUsuarioAtualId } from './acesso'
 import type { RegistroAuditoria } from './types'
 
 // Mantém a lista com um teto — evita crescer sem limite dentro do JSON da nuvem.
-const LIMITE_REGISTROS = 500
+// Mesmo valor de LIMITE_AUDITORIA em mesclar.ts: tetos diferentes faziam a
+// mesclagem "devolver" registros que este corte tinha tirado, a cada ciclo.
+const LIMITE_REGISTROS = 1000
 
 export function registrarAuditoria(
   acao: string,

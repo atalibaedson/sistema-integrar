@@ -26,7 +26,6 @@ function secoes(termoGrupo: string): Secao[] {
           passos: [
             'Abra o link do sistema e toque em "Criar acesso / Cadastre-se".',
             'Preencha seus dados, seu e-mail e uma senha, e marque a(s) sua(s) função(ões).',
-            'Confirme o e-mail pelo link que chega na sua caixa de entrada.',
             'Aguarde a Gestão da Integração (ou um pastor) aprovar o seu acesso.',
             'Depois de aprovado, entre em "Entrar" com o seu e-mail e senha.',
           ],
@@ -187,7 +186,7 @@ function secoes(termoGrupo: string): Secao[] {
       id: 'faq', icone: '❓', titulo: 'Perguntas frequentes', resumo: 'As dúvidas mais comuns da equipe.',
       blocos: [
         { p: 'Preciso instalar algo? Não — abre no navegador; opcionalmente "Adicionar à Tela de Início".' },
-        { p: 'Como eu entro? Com seu e-mail e senha, depois de aprovado. No primeiro acesso, cadastre-se, confirme o e-mail e aguarde a aprovação da Gestão/pastores.' },
+        { p: 'Como eu entro? Com seu e-mail e senha, depois de aprovado. No primeiro acesso, cadastre-se e aguarde a aprovação da Gestão/pastores.' },
         { p: 'Esqueci a senha. Use "Esqueci a senha" na tela Entrar — chega um link de redefinição no seu e-mail.' },
         { p: 'Cadastrei no meu celular, aparece no de outra pessoa? Sim, tudo sincroniza na nuvem automaticamente.' },
         { p: 'Quem vê os dados? Cada um vê os visitantes sob seu cuidado (ou de quem supervisiona). Gestão e pastores veem todos; os registros de cuidado/crise, só o pastor e o responsável direto.' },

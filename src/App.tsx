@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRota } from './router'
 import { useAppState, useNuvem } from './store'
-import { getUsuarioAtualId, setUsuarioAtualId, useUsuarioAtualId, usuarioAtual, podeVerCuidado, podeAcessarRota, soAcolhedor, useSessaoReal, useSessaoCarregada, usuarioDaSessao } from './acesso'
+import { setUsuarioAtualId, useUsuarioAtualId, podeVerCuidado, podeAcessarRota, soAcolhedor, useRecuperandoSenha, useSessaoReal, useSessaoCarregada, usuarioDaSessao } from './acesso'
 import { garantirSessao, sairDaConta } from './supabaseClient'
 import { aplicarRotulos, rotuloPapel, type Usuario } from './types'
 import { corDeContraste } from './tema'
@@ -21,7 +21,7 @@ import CadastroIntegrante from './pages/CadastroIntegrante'
 import Entrar from './pages/Entrar'
 import AguardandoAprovacao from './pages/AguardandoAprovacao'
 import Aprovacoes from './pages/Aprovacoes'
-// EntrarProvisorio (login por nome, sem senha) foi aposentado com o login obrigatório.
+import NovaSenha from './pages/NovaSenha'
 import Relatorios from './pages/Relatorios'
 import VisitanteDados from './pages/VisitanteDados'
 
@@ -125,6 +125,8 @@ export default function App() {
   const estado = useAppState()
   const sessao = useSessaoReal()
   const sessaoCarregada = useSessaoCarregada()
+  const recuperandoSenha = useRecuperandoSenha()
+  const atualId = useUsuarioAtualId()
   const [maisAberto, setMaisAberto] = useState(false)
 
   // Garante uma sessão Supabase (anônima serve) para o sync passar no RLS
@@ -159,18 +161,22 @@ export default function App() {
 
   // Login real: quando a conta aprovada aparece na sessão, assume a identidade.
   const usuarioSessao = usuarioDaSessao(estado, sessao)
+  const contaLiberada = !!usuarioSessao && usuarioSessao.statusAcesso === 'aprovado' && usuarioSessao.ativo
   useEffect(() => {
     if (!sessao || !usuarioSessao) return
-    if (usuarioSessao.statusAcesso === 'aprovado' && usuarioSessao.ativo && getUsuarioAtualId() !== usuarioSessao.id) {
-      setUsuarioAtualId(usuarioSessao.id)
-    }
-  }, [sessao, usuarioSessao])
+    if (contaLiberada && atualId !== usuarioSessao.id) setUsuarioAtualId(usuarioSessao.id)
+    // Conta que deixou de estar liberada (desativada/rejeitada) solta a identidade
+    if (!contaLiberada && atualId === usuarioSessao.id) setUsuarioAtualId(null)
+  }, [sessao, usuarioSessao, contaLiberada, atualId])
 
   // Rotas públicas — sem menu/sidebar (não exigem login)
   // Subdomínio público do visitante (ex.: visitante.suaigreja.com.br): a raiz já
   // abre o formulário de autocadastro — URL limpa para divulgar/colocar no site.
   const hostAutocadastro = typeof window !== 'undefined' &&
     (window.location.hostname.startsWith('visitante.') || window.location.hostname.startsWith('cadastro.'))
+  // Veio pelo link de "esqueci a senha": o link cai na raiz do site, então esta
+  // checagem vem antes de qualquer rota (inclusive do subdomínio público).
+  if (recuperandoSenha) return <NovaSenha />
   if (rota.startsWith('/autocadastro') || (hostAutocadastro && rota === '/')) return <Autocadastro />
   if (rota.startsWith('/cadastro-integrante')) return <CadastroIntegrante />
   // Login real (Supabase) — e-mail/WhatsApp + senha
@@ -181,10 +187,15 @@ export default function App() {
   if (!sessaoCarregada) return <TelaCarregando nome={estado.config.nomeIgreja} />
   // Login obrigatório: sem sessão real (anônima não conta), vai para a tela de entrar.
   if (!sessao) return <Entrar />
-  // Logado, mas a conta ainda não pode usar → tela de espera (com bootstrap do 1º admin)
-  if (!usuarioSessao || usuarioSessao.statusAcesso !== 'aprovado') {
+  // Logado, mas a conta ainda não pode usar (pendente, rejeitada ou DESATIVADA)
+  // → tela de espera (com bootstrap do 1º admin)
+  if (!usuarioSessao || !contaLiberada) {
     return <AguardandoAprovacao usuario={usuarioSessao} />
   }
+  // A identidade usada pelas telas (permissões, auditoria) vem do mesmo id da
+  // sessão. Até o efeito acima alinhar os dois, não renderiza as telas — senão
+  // elas passariam um instante sem identidade (ou com a de outra pessoa).
+  if (atualId !== usuarioSessao.id) return <TelaCarregando nome={estado.config.nomeIgreja} />
 
   // Identidade = a pessoa logada (sessão real aprovada)
   const eu = usuarioSessao

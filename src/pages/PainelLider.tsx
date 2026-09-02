@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { lideres, templatePorGatilho, useAppState } from '../store'
 import { estiloStatus, rotuloStatus, type Status, type Visitante } from '../types'
-import { aplicarTemplate, linkWhatsApp, mudarStatus } from '../actions'
+import { aplicarTemplate, linkWhatsApp, mudarStatus, normalizarTexto } from '../actions'
 import { navegar } from '../router'
 import { iniciais } from './Equipe'
 import { useUsuarioAtualId, usuarioAtual } from '../acesso'
-import { IcoBusca, IcoCheck, IcoWhats } from '../icones'
+import { IcoBusca, IcoCheck, IcoEditar, IcoWhats } from '../icones'
 
 const GRUPOS: { id: string; rotulo: string; statuses: Status[] }[] = [
   { id: 'todos', rotulo: 'Todos', statuses: ['encaminhado_lider', 'visitou', 'transferido', 'batismo', 'integrado'] },
@@ -125,7 +125,7 @@ export default function PainelLider() {
   const g = GRUPOS.find((x) => x.id === grupo)!
   const lista = meus
     .filter((v) => g.statuses.includes(v.status))
-    .filter((v) => !busca || v.nome.toLowerCase().includes(busca.toLowerCase()) || v.whatsapp.includes(busca))
+    .filter((v) => !busca || normalizarTexto(v.nome).includes(normalizarTexto(busca)) || v.whatsapp.includes(busca))
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
 
   return (
@@ -219,11 +219,19 @@ export default function PainelLider() {
 }
 
 function AcoesLider({ v, tplPreVisita }: { v: Visitante; tplPreVisita?: { texto: string } }) {
+  // Registrar o que aconteceu (conversa, motivo de ainda não ter visitado…)
+  // fica na ficha — este atalho só leva até lá.
+  const registrar = (
+    <button className="btn-icone" title="Registrar contato / novidade" onClick={() => navegar(`/visitante/${v.id}`)}>
+      <IcoEditar />
+    </button>
+  )
   if (v.status === 'encaminhado_lider') {
     return (
       <span style={{ display: 'inline-flex', gap: 6 }}>
         <a className="btn-icone whats" title="Fazer contato pré-visita" target="_blank" rel="noreferrer"
           href={linkWhatsApp(v.whatsapp, tplPreVisita ? aplicarTemplate(tplPreVisita.texto, v) : undefined)}><IcoWhats /></a>
+        {registrar}
         <button className="btn btn-mini" onClick={() => mudarStatus(v.id, 'visitou', 'Compareceu ao grupo')}>
           <IcoCheck size={13} /> Visitou
         </button>
@@ -232,10 +240,18 @@ function AcoesLider({ v, tplPreVisita }: { v: Visitante; tplPreVisita?: { texto:
   }
   if (v.status === 'visitou') {
     return (
-      <button className="btn btn-mini" onClick={() => mudarStatus(v.id, 'transferido', 'Líder confirmou que assumiu o acompanhamento')}>
-        <IcoCheck size={13} /> Assumi
-      </button>
+      <span style={{ display: 'inline-flex', gap: 6 }}>
+        {registrar}
+        <button className="btn btn-mini" onClick={() => mudarStatus(v.id, 'transferido', 'Líder confirmou que assumiu o acompanhamento')}>
+          <IcoCheck size={13} /> Assumi
+        </button>
+      </span>
     )
   }
-  return <a className="btn-icone whats" href={linkWhatsApp(v.whatsapp)} target="_blank" rel="noreferrer" title="WhatsApp"><IcoWhats /></a>
+  return (
+    <span style={{ display: 'inline-flex', gap: 6 }}>
+      <a className="btn-icone whats" href={linkWhatsApp(v.whatsapp)} target="_blank" rel="noreferrer" title="WhatsApp"><IcoWhats /></a>
+      {registrar}
+    </span>
+  )
 }

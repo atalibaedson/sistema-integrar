@@ -3,6 +3,8 @@ import { useAppState } from '../store'
 import { SeletorData } from '../campos'
 import { IcoBusca } from '../icones'
 import { navegar } from '../router'
+import { diaLocal } from '../relatorios'
+import { normalizarTexto } from '../actions'
 
 // O acesso a esta página é controlado centralmente no App (mapa de permissões).
 const LIMITE_TELA = 200
@@ -13,12 +15,12 @@ export default function Auditoria() {
   const [de, setDe] = useState('')   // AAAA-MM-DD
   const [ate, setAte] = useState('') // AAAA-MM-DD
 
-  const b = busca.trim().toLowerCase()
+  const b = normalizarTexto(busca.trim())
   const filtrados = s.auditoria.filter((r) => {
-    const dia = r.data.slice(0, 10)
+    const dia = diaLocal(r.data)
     if (de && dia < de) return false
     if (ate && dia > ate) return false
-    if (b && !`${r.usuarioNome} ${r.acao} ${r.detalhe ?? ''} ${r.alvoNome ?? ''}`.toLowerCase().includes(b)) return false
+    if (b && !normalizarTexto(`${r.usuarioNome} ${r.acao} ${r.detalhe ?? ''} ${r.alvoNome ?? ''}`).includes(b)) return false
     return true
   })
   const registros = filtrados.slice(0, LIMITE_TELA)

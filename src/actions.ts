@@ -2,7 +2,7 @@
 import type { AppState, HorarioContato, Interacao, Origem, Papel, SituacaoBatismo, SituacaoCivil, Status, StatusAcesso, Usuario, Visitante } from './types'
 import { rotuloPapel, SITUACAO_BATISMO_LABEL } from './types'
 import { aplicarTransicao, mesesDesde } from './machine'
-import { comExclusoes, consolidadoresAtivos, getEstado, interacoesDe, primeiraGestaoIntegracao, setEstado, uid } from './store'
+import { comExclusoes, consolidadoresAtivos, estadoEhVirgem, getEstado, interacoesDe, primeiraGestaoIntegracao, setEstado, sincronizarAgora, uid } from './store'
 import { registrarAuditoria } from './auditoria'
 import { getUsuarioAtualId, usuarioAtual } from './acesso'
 import { supabase } from './supabaseClient'
@@ -43,7 +43,8 @@ export function normalizarWhats(w: string): string {
   return w.replace(/\D/g, '')
 }
 
-function normalizarTexto(t: string): string {
+// Texto para busca/comparação: sem acento e em minúsculas ("José" bate com "jose")
+export function normalizarTexto(t: string): string {
   return t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 }
 
@@ -156,13 +157,19 @@ export function cadastrarVisitante(input: NovoVisitanteInput): ResultadoTriagem 
   if (input.flagOutraCidade) avisos.push('Visitante de passagem — acolhimento pontual, sem entrar na semana.')
 
   const encerrar = !whatsValido || !!duplicadoDe || input.flagOutraCidade
+  // Aparelho que ainda não baixou os dados da igreja (ex.: celular do visitante
+  // abrindo o QR code) só tem equipe/grupos de EXEMPLO. Ligar o cadastro a eles
+  // faria os exemplos entrarem nos dados reais na mesclagem — melhor deixar sem
+  // responsável e a Gestão distribui (o Painel avisa).
+  const noEscuro = estadoEhVirgem()
   // Prioriza quem está cadastrando (se for consolidador/coordenação ativo) como
   // responsável — do contrário, a pessoa perde o acesso à própria ficha ao salvar.
   const euAtual = usuarioAtual(s, getUsuarioAtualId())
-  const responsavel = (euAtual && (euAtual.papeis.includes('consolidador') || euAtual.papeis.includes('coordenacao')))
-    ? euAtual
-    : consolidadoresAtivos(s)[0]
-  const conexao = sugerirConexao(s, input.bairro, input.situacaoCivil, input.flagMenorIdade)
+  const responsavel = noEscuro ? undefined
+    : (euAtual && (euAtual.papeis.includes('consolidador') || euAtual.papeis.includes('coordenacao')))
+      ? euAtual
+      : consolidadoresAtivos(s)[0]
+  const conexao = noEscuro ? undefined : sugerirConexao(s, input.bairro, input.situacaoCivil, input.flagMenorIdade)
 
   const visitante: Visitante = {
     id: uid(),
@@ -210,7 +217,7 @@ export function cadastrarVisitante(input: NovoVisitanteInput): ResultadoTriagem 
     atualizadoEm: agora,
   }
 
-  if (!responsavel && !encerrar) {
+  if (!responsavel && !encerrar && !noEscuro) {
     avisos.push('Nenhum consolidador ativo — visitante sem responsável! Avise a coordenação.')
   }
 
@@ -243,6 +250,7 @@ export function registrarInteracao(input: NovaInteracaoInput) {
   const interacao: Interacao = {
     id: uid(),
     visitanteId: input.visitanteId,
+    autorId: getUsuarioAtualId() ?? undefined,
     autorPapel: input.autorPapel,
     data: agora,
     canal: 'whatsapp',
@@ -530,6 +538,7 @@ export interface ResultadoCadastroIntegrante {
   ok: boolean
   erro?: string
   usuarioId?: string
+  sincronizado?: boolean // o cadastro já chegou à nuvem (a liderança vai vê-lo)
 }
 
 // Autocadastro completo: cria/atualiza o Usuario, sobe a foto, cria a conta no
@@ -541,12 +550,15 @@ export async function cadastrarIntegrante(input: NovoIntegranteInput): Promise<R
   const email = input.email.trim().toLowerCase()
 
   // Dedup: quem já é da equipe (cadastrado pela liderança) é atualizado no
-  // lugar; quem já tem conta de login é orientado a entrar.
-  const existente = s.usuarios.find(
-    (u) =>
-      (whats.length >= 10 && normalizarWhats(u.whatsapp) === whats) ||
-      (u.email ?? '').trim().toLowerCase() === email,
-  )
+  // lugar; quem já tem conta de login é orientado a entrar. Pelo WhatsApp só
+  // quando o primeiro nome também bate: um casal que divide o número (e lidera
+  // junto) são DUAS pessoas — antes, a segunda a se cadastrar sobrescrevia a
+  // ficha da primeira, que "sumia" da equipe.
+  const primeiroNome = normalizarTexto(input.nome.trim().split(/\s+/)[0] ?? '')
+  const mesmoPrimeiroNome = (u: Usuario) => normalizarTexto(u.nome.trim().split(/\s+/)[0] ?? '') === primeiroNome
+  const existente =
+    s.usuarios.find((u) => (u.email ?? '').trim().toLowerCase() === email) ??
+    s.usuarios.find((u) => whats.length >= 10 && normalizarWhats(u.whatsapp) === whats && mesmoPrimeiroNome(u))
   if (existente?.authUserId) {
     return { ok: false, erro: 'Já existe uma conta com esse WhatsApp ou e-mail. Use a tela "Entrar" — ou "Esqueci a senha".' }
   }
@@ -619,22 +631,10 @@ export async function cadastrarIntegrante(input: NovoIntegranteInput): Promise<R
     alvoTipo: 'usuario', alvoId: usuarioId, alvoNome: input.nome.trim(),
     detalhe: `Funções: ${input.papeis.join(', ')} · aguardando aprovação da liderança`,
   })
-  return { ok: true, usuarioId }
-}
-
-// Chamado quando uma sessão real aparece com e-mail confirmado no Auth:
-// avança o status para "aguardando aprovação".
-export function marcarEmailConfirmado(usuarioId: string) {
-  const agora = new Date().toISOString()
-  const u0 = getEstado().usuarios.find((u) => u.id === usuarioId)
-  if (!u0 || u0.statusAcesso !== 'pendente_confirmacao_email') return
-  setEstado((s) => ({
-    ...s,
-    usuarios: s.usuarios.map((u) =>
-      u.id === usuarioId ? { ...u, statusAcesso: 'pendente_aprovacao', emailConfirmadoEm: agora } : u,
-    ),
-  }))
-  registrarAuditoria('✅ Integrante confirmou o e-mail', { alvoTipo: 'usuario', alvoId: usuarioId, alvoNome: u0.nome })
+  // A pessoa costuma fechar a página logo depois — garante que o cadastro
+  // saiu deste aparelho antes de mostrar "recebido".
+  const sincronizado = await sincronizarAgora()
+  return { ok: true, usuarioId, sincronizado }
 }
 
 // ---- Bootstrap do primeiro administrador ----

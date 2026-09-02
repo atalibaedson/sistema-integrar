@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { cadastrarVisitante } from '../actions'
-import { useAppState } from '../store'
+import { carregarConfigPublica, useAppState } from '../store'
+import { cadastrarVisitantePublico, getConfigNuvem } from '../nuvem'
 import { Escolha, SeletorData, SIM_NAO } from '../campos'
 import {
   HORARIO_CONTATO_LABEL, OPCOES_DESEJA_CONEXAO, SITUACAO_BATISMO_CURTO, SITUACAO_CIVIL_LABEL,
-  type HorarioContato, type SituacaoBatismo, type SituacaoCivil,
+  type SituacaoCivil,
 } from '../types'
 
 // Formulário público de acolhimento (QR code) — sem menu, em seções claras,
@@ -34,7 +34,22 @@ export default function Autocadastro() {
   const [consentimento, setConsentimento] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [enviado, setEnviado] = useState(false)
+  const [naoSincronizou, setNaoSincronizou] = useState(false)
   const [erro, setErro] = useState('')
+
+  // A página pública NÃO baixa o estado da igreja (LGPD) — carrega só a config
+  // (nome, cores, textos, quais campos mostrar) pela função pública. Segura o
+  // botão até a config chegar, com teto de tempo para nunca travar sem sinal.
+  const conectada = !!getConfigNuvem()
+  const [configPronta, setConfigPronta] = useState(!conectada)
+  useEffect(() => {
+    if (!conectada) return
+    let vivo = true
+    const teto = window.setTimeout(() => { if (vivo) setConfigPronta(true) }, 15_000)
+    carregarConfigPublica().finally(() => { if (vivo) { setConfigPronta(true); window.clearTimeout(teto) } })
+    return () => { vivo = false; window.clearTimeout(teto) }
+  }, [conectada])
+  const aguardandoNuvem = conectada && !configPronta
 
   // Título da aba do navegador: "Cadastro Visitante - Nome da Igreja"
   useEffect(() => {
@@ -62,7 +77,7 @@ export default function Autocadastro() {
     setBuscandoCep(false)
   }
 
-  function enviar(e: React.FormEvent) {
+  async function enviar(e: React.FormEvent) {
     e.preventDefault()
     if (!nome.trim() || !whatsapp.trim()) {
       setErro('Por favor, preencha seu nome e WhatsApp.')
@@ -74,9 +89,17 @@ export default function Autocadastro() {
     }
     setErro('')
     setEnviando(true)
-    cadastrarVisitante({
+    const c = getConfigNuvem()
+    if (!c) {
+      // Sem nuvem configurada não há como um formulário público gravar nada.
+      setEnviando(false)
+      setErro('O envio não está disponível no momento. Avise a equipe da igreja.')
+      return
+    }
+    // Grava pela Edge Function (servidor): o celular do visitante nunca vê os
+    // dados dos outros, e o cadastro já sai gravado — nada fica só no aparelho.
+    const r = await cadastrarVisitantePublico(c, {
       nome, whatsapp,
-      origem: 'qr_code',
       dataNascimento: dataNascimento || undefined,
       situacaoCivil: situacao || undefined,
       endereco: endereco ? `${endereco}${numero ? ', ' + numero : ''}` : undefined,
@@ -84,16 +107,17 @@ export default function Autocadastro() {
       cidade: cidade || undefined,
       primeiraVez: primeiraVez ? primeiraVez === 'sim' : undefined,
       membroOutraIgreja: membroOutra ? membroOutra === 'sim' : undefined,
-      situacaoBatismo: (batismo || undefined) as SituacaoBatismo | undefined,
+      situacaoBatismo: batismo || undefined,
       comoConheceu: comoConheceu || undefined,
       desejaConexao: desejaConexao || undefined,
       desejaContato: desejaContato ? desejaContato === 'sim' : undefined,
-      melhorHorarioContato: (horario || undefined) as HorarioContato | undefined,
+      melhorHorarioContato: horario || undefined,
       pedidoOracao: pedidoOracao || undefined,
-      flagMenorIdade: false,
-      flagOutraCidade: false,
       consentimentoLgpd: consentimento,
     })
+    setEnviando(false)
+    if (!r.ok) { setErro(r.erro ?? 'Não foi possível enviar agora. Tente novamente.'); return }
+    setNaoSincronizou(false)
     setEnviado(true)
   }
 
@@ -105,6 +129,15 @@ export default function Autocadastro() {
           <div className="ac-eyebrow">{cfg.nomeIgreja}</div>
           <h1 className="ac-titulo-ok">Recebemos você! <span className="ac-faisca">✦</span></h1>
           <p className="ac-texto-ok">{cfg.autocadastroMensagemFinal}</p>
+          {naoSincronizou && (
+            <div className="alerta alerta-warn" style={{ textAlign: 'left' }}>
+              ⚠️ <div>
+                <b>Seu cadastro ainda não chegou à nossa equipe</b> (parece que está sem internet).
+                Ele ficou guardado neste aparelho: <b>deixe esta página aberta</b> mais um pouco
+                com sinal, que ele é enviado sozinho.
+              </div>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -261,7 +294,7 @@ export default function Autocadastro() {
                     <div className="campo"><span>Qual o melhor horário para entrarmos em contato?</span>
                       <Escolha
                         valor={horario}
-                        opcoes={(Object.keys(HORARIO_CONTATO_LABEL) as HorarioContato[]).map((h) => ({ v: h, rotulo: HORARIO_CONTATO_LABEL[h] }))}
+                        opcoes={Object.entries(HORARIO_CONTATO_LABEL).map(([v, rotulo]) => ({ v, rotulo }))}
                         onEscolher={setHorario}
                       />
                     </div>
@@ -288,8 +321,8 @@ export default function Autocadastro() {
             </label>
           </div>
 
-          <button className="btn ac-btn-enviar" type="submit" disabled={enviando}>
-            {enviando ? 'Enviando…' : 'Enviar ✨'}
+          <button className="btn ac-btn-enviar" type="submit" disabled={enviando || aguardandoNuvem}>
+            {enviando ? 'Enviando…' : aguardandoNuvem ? 'Conectando…' : 'Enviar ✨'}
           </button>
           <p className="ac-fim">Obrigado por preencher — estamos aqui para te servir em amor! 💙</p>
         </form>

@@ -27,8 +27,8 @@ export function definirSupervisor(s: AppState, alvo: Usuario, novoSupervisorId: 
 }
 
 export function iniciais(nome: string): string {
-  const partes = nome.trim().split(/\s+/)
-  return (partes[0][0] + (partes[1]?.[0] ?? '')).toUpperCase()
+  const partes = nome.trim().split(/\s+/).filter(Boolean)
+  return ((partes[0]?.[0] ?? '?') + (partes[1]?.[0] ?? '')).toUpperCase()
 }
 
 function TagsPapeis({ u }: { u: Usuario }) {
@@ -84,6 +84,12 @@ function ModalEditarMembro({ u, onFechar }: { u: Usuario; onFechar: () => void }
         x.id === u.id ? { ...x, nome: dNome.trim(), whatsapp: dWhats.trim(), papeis: dPapeis } : x,
       ),
     }))
+    const mudou = [
+      dNome.trim() !== u.nome ? `nome: "${u.nome}" → "${dNome.trim()}"` : '',
+      dWhats.trim() !== u.whatsapp ? 'WhatsApp' : '',
+      JSON.stringify([...dPapeis].sort()) !== JSON.stringify([...u.papeis].sort()) ? `funções: ${dPapeis.map((p) => rotuloPapel(p)).join(', ')}` : '',
+    ].filter(Boolean).join(' · ')
+    if (mudou) registrarAuditoria('✏️ Editou integrante', { alvoTipo: 'usuario', alvoId: u.id, alvoNome: dNome.trim(), detalhe: mudou })
     toast('Membro salvo')
     onFechar()
   }
@@ -117,16 +123,38 @@ function ModalEditarMembro({ u, onFechar }: { u: Usuario; onFechar: () => void }
       ...st,
       usuarios: st.usuarios.map((x) => x.id === u.id ? { ...x, ativo: !u.ativo } : x),
     }))
+    registrarAuditoria(u.ativo ? '⏸ Desativou integrante' : '▶ Reativou integrante', {
+      alvoTipo: 'usuario', alvoId: u.id, alvoNome: u.nome,
+    })
     toast(u.ativo ? 'Membro desativado' : 'Membro reativado', 'info')
     onFechar()
   }
 
+  // Visitantes que dependem desta pessoa (responsável ou líder designado)
+  const dependentes = s.visitantes.filter((v) => v.responsavelId === u.id || v.liderConexaoId === u.id)
+
   async function remover() {
-    if (!confirm(`Remover ${u.nome} da equipe? Esta ação não pode ser desfeita.`)) return
+    const aviso = dependentes.length > 0
+      ? `\n\n⚠️ ${u.nome} cuida de ${dependentes.length} visitante(s) — eles ficarão SEM responsável/líder e precisarão ser redistribuídos. Se a pessoa só saiu por um tempo, prefira "Desativar".`
+      : ''
+    if (!confirm(`Remover ${u.nome} da equipe? Esta ação não pode ser desfeita.${aviso}`)) return
     const authUserId = u.authUserId
+    const agora = new Date().toISOString()
     setEstado((st) => comExclusoes({
       ...st,
       usuarios: st.usuarios.filter((x) => x.id !== u.id),
+      // Solta os vínculos de vez: visitante com responsável "fantasma" não
+      // aparecia em nenhum filtro, e ninguém o reassumia.
+      visitantes: st.visitantes.map((v) =>
+        v.responsavelId === u.id || v.liderConexaoId === u.id
+          ? {
+            ...v,
+            responsavelId: v.responsavelId === u.id ? undefined : v.responsavelId,
+            liderConexaoId: v.liderConexaoId === u.id ? undefined : v.liderConexaoId,
+            atualizadoEm: agora,
+          }
+          : v,
+      ),
       conexoes: st.conexoes.map((c) => {
         let cx = c
         if (cx.liderId === u.id) cx = { ...cx, liderId: undefined }
@@ -134,6 +162,11 @@ function ModalEditarMembro({ u, onFechar }: { u: Usuario; onFechar: () => void }
         return cx
       }),
     }, 'usuario', [u.id]))
+    registrarAuditoria('🗑️ Removeu integrante da equipe', {
+      alvoTipo: 'usuario', alvoId: u.id, alvoNome: u.nome,
+      detalhe: `Funções: ${u.papeis.map((p) => rotuloPapel(p)).join(', ')}` +
+        (dependentes.length > 0 ? ` · ${dependentes.length} visitante(s) ficaram sem responsável/líder: ${dependentes.map((v) => v.nome).join(', ')}` : ''),
+    })
     if (authUserId && supabase) {
       try {
         await supabase.functions.invoke('deletar-usuario-auth', { body: { authUserId } })
@@ -542,6 +575,10 @@ function FormUsuario({ onPronto }: { onPronto: () => void }) {
           })
         : st.conexoes,
     }))
+    registrarAuditoria('➕ Adicionou integrante à equipe', {
+      alvoTipo: 'usuario', alvoId: id, alvoNome: nome.trim(),
+      detalhe: `Funções: ${papeis.map((p) => rotuloPapel(p)).join(', ')}`,
+    })
     onPronto()
   }
 
@@ -573,7 +610,7 @@ function FormUsuario({ onPronto }: { onPronto: () => void }) {
       )}
       <p style={{ fontSize: 12.5, color: 'var(--text-2)', margin: '4px 0' }}>
         💡 Este cadastro rápido não cria login. Para a pessoa ter a própria senha, envie a ela o
-        link <b>#/cadastro-integrante</b> — o acesso passa por confirmação de e-mail e aprovação.
+        link <b>#/cadastro-integrante</b> — o acesso passa pela aprovação da liderança.
       </p>
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn" type="submit">Adicionar à equipe</button>
