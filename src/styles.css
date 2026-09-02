@@ -235,6 +235,14 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-soft);
 }
+/* Foco visível por teclado (acessibilidade) — só ao navegar por Tab, não no
+   clique de mouse. :where() mantém especificidade 0 para não brigar com os
+   componentes; outline não afeta o layout. */
+:where(a, button, [role="button"], summary, [tabindex="0"]):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 input::placeholder { color: var(--text-3); }
 textarea { resize: vertical; min-height: 64px; }
 /* Combos (select) no mesmo padrão dos inputs: sem o visual nativo do sistema
