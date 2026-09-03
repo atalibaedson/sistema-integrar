@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { normalizarWhats } from '../actions'
 import { useAppState } from '../store'
-import { enviarLinkRedefinicaoSenha, supabase } from '../supabaseClient'
+import { supabase } from '../supabaseClient'
 import type { Usuario } from '../types'
 
 // Mascara o e-mail para a desambiguação de WhatsApp compartilhado
@@ -87,12 +87,31 @@ export default function Entrar() {
   async function esqueciSenha() {
     setErro('')
     setAviso('')
+    if (!supabase) {
+      setErro('Sincronização online não configurada — o login precisa dela.')
+      return
+    }
     const email = resolverEmail()
     if (!email) return
-    const falha = await enviarLinkRedefinicaoSenha(email)
-    setAviso(falha
-      ? `Não foi possível enviar o link: ${falha}`
-      : `Enviamos um link para ${email}. Abra-o neste aparelho para escolher a nova senha (confira o spam).`)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      // Volta para a raiz do site: o app detecta o token de recuperação e
+      // abre a tela de nova senha (ver supabaseClient.ts).
+      redirectTo: window.location.origin + window.location.pathname,
+    })
+    // E-mail mascarado: quando a pessoa digita o WhatsApp, não expomos o
+    // e-mail completo da conta encontrada.
+    setAviso(
+      error
+        ? `Não foi possível enviar o link: ${error.message}`
+        : `Enviamos um link de redefinição de senha para ${mascarar(email)}. Procure na caixa de entrada (ou no spam).`,
+    )
+  }
+
+  async function reenviarConfirmacao() {
+    const email = resolverEmail()
+    if (!email || !supabase) return
+    const { error } = await supabase.auth.resend({ type: 'signup', email })
+    setAviso(error ? `Não foi possível reenviar: ${error.message}` : `Reenviamos o link de confirmação para ${email}.`)
   }
 
   return (
@@ -146,7 +165,9 @@ export default function Entrar() {
           <p style={{ fontSize: 13, textAlign: 'center', marginTop: 10 }}>
             Ainda não tem conta? <a href="#/cadastro-integrante">Cadastre-se</a>
             {' · '}
-            <a href="#/" onClick={(e) => { e.preventDefault(); void esqueciSenha() }}>Esqueci minha senha</a>
+            <a href="#/" onClick={(e) => { e.preventDefault(); void esqueciSenha() }}>Esqueci a senha</a>
+            {' · '}
+            <a href="#/" onClick={(e) => { e.preventDefault(); void reenviarConfirmacao() }}>Reenviar confirmação</a>
           </p>
         </form>
       </div>

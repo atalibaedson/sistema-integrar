@@ -6,7 +6,7 @@
 // As regras de visibilidade abaixo valem igualmente para as duas origens.
 import { useSyncExternalStore } from 'react'
 import type { AppState, Papel, Usuario, Visitante } from './types'
-import { assinarSessao, getRecuperandoSenha, getSessaoCarregada, getSessaoReal, type SessaoReal } from './supabaseClient'
+import { assinarSessao, getSessaoCarregada, getSessaoReal, type SessaoReal } from './supabaseClient'
 
 const CHAVE = 'ife-usuario-atual'
 let atualId: string | null = localStorage.getItem(CHAVE)
@@ -87,9 +87,21 @@ export function soAcolhedor(u: Usuario | undefined): boolean {
   return !!u && u.papeis.includes('acolhedor') && u.papeis.every((p) => p === 'acolhedor')
 }
 
+// Líder "puro" (só acompanha os visitantes encaminhados a ele): também tem uma
+// allow-list — sua área reservada é o painel do líder, as fichas dos seus
+// visitantes (podeVerVisitante limita quais) e a ajuda.
+const ROTAS_LIDER = ['/lideres', '/visitante', '/ajuda']
+
+export function soLider(u: Usuario | undefined): boolean {
+  return !!u && u.papeis.includes('lider') && u.papeis.every((p) => p === 'lider')
+}
+
 export function podeAcessarRota(rota: string, u: Usuario | undefined): boolean {
   if (soAcolhedor(u)) {
     return ROTAS_ACOLHEDOR.some((r) => rota === r || rota.startsWith(r + '/'))
+  }
+  if (soLider(u)) {
+    return ROTAS_LIDER.some((r) => rota === r || rota.startsWith(r + '/'))
   }
   const regra = ACESSO_ROTA.find((r) => rota === r.prefixo || rota.startsWith(r.prefixo + '/'))
   if (!regra) return true // rota livre para a equipe
@@ -132,11 +144,6 @@ export function visitantesVisiveis(s: AppState, u: Usuario | undefined): Visitan
 // Sessões anônimas (criadas só para o RLS do sync) NÃO contam como login.
 export function useSessaoReal(): SessaoReal | null {
   return useSyncExternalStore(assinarSessao, getSessaoReal)
-}
-
-// A pessoa chegou pelo link de "esqueci a senha" e precisa definir uma nova?
-export function useRecuperandoSenha(): boolean {
-  return useSyncExternalStore(assinarSessao, getRecuperandoSenha)
 }
 
 // A verificação inicial da sessão (restaurar a persistida) já terminou?

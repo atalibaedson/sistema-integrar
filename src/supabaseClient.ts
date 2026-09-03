@@ -33,17 +33,7 @@ let sessaoReal: SessaoReal | null = null
 let sessaoCarregada = !supabase
 const ouvintes = new Set<() => void>()
 
-// Fluxo "esqueci a senha": o link do e-mail devolve uma sessão especial e o
-// Supabase avisa com o evento PASSWORD_RECOVERY. Enquanto isto for true, o app
-// mostra só a tela de definir a nova senha.
-let recuperandoSenha = false
-export function getRecuperandoSenha(): boolean {
-  return recuperandoSenha
-}
-
 supabase?.auth.onAuthStateChange((evento, sessao) => {
-  if (evento === 'PASSWORD_RECOVERY') recuperandoSenha = true
-  if (evento === 'SIGNED_OUT') recuperandoSenha = false
   // O token (anônimo ou real) é injetado no nuvem.ts, que o usa em cada
   // requisição de sync para satisfazer o RLS "somente autenticado".
   sessaoCarregada = true
@@ -53,6 +43,9 @@ supabase?.auth.onAuthStateChange((evento, sessao) => {
     ? { userId: sessao.user.id, email: sessao.user.email ?? undefined }
     : null
   ouvintes.forEach((f) => f())
+  // Link "Esqueci a senha": o token do e-mail já virou sessão (consumido do #
+  // da URL acima); leva a pessoa direto para a tela de definir a nova senha.
+  if (evento === 'PASSWORD_RECOVERY') window.location.hash = '/nova-senha'
 })
 
 export function getSessaoReal(): SessaoReal | null {
@@ -93,27 +86,6 @@ export async function garantirSessao(): Promise<void> {
     ouvintes.forEach((f) => f())
     marcarSessaoPronta() // libera a primeira sincronização
   }
-}
-
-// Envia o e-mail com o link de redefinição. O link volta para a raiz do site
-// (o `#` da URL é usado pelo próprio Supabase para devolver a sessão), e o app
-// reconhece o evento e abre a tela de nova senha.
-export async function enviarLinkRedefinicaoSenha(email: string): Promise<string | null> {
-  if (!supabase) return 'Sincronização online não configurada.'
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}${window.location.pathname}`,
-  })
-  return error ? error.message : null
-}
-
-export async function definirNovaSenha(senha: string): Promise<string | null> {
-  if (!supabase) return 'Sincronização online não configurada.'
-  const { error } = await supabase.auth.updateUser({ password: senha })
-  if (!error) {
-    recuperandoSenha = false
-    ouvintes.forEach((f) => f())
-  }
-  return error ? error.message : null
 }
 
 export async function sairDaConta(): Promise<void> {

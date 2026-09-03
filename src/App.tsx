@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRota } from './router'
 import { useAppState, useNuvem, tentarSincronizarAgora } from './store'
-import { setUsuarioAtualId, useUsuarioAtualId, podeVerCuidado, podeAcessarRota, soAcolhedor, useRecuperandoSenha, useSessaoReal, useSessaoCarregada, usuarioDaSessao } from './acesso'
+import { setUsuarioAtualId, useUsuarioAtualId, podeVerCuidado, podeAcessarRota, soAcolhedor, soLider, useSessaoReal, useSessaoCarregada, usuarioDaSessao } from './acesso'
 import { garantirSessao, sairDaConta } from './supabaseClient'
 import { aplicarRotulos, rotuloPapel, type Usuario } from './types'
 import { corDeContraste } from './tema'
@@ -19,9 +19,9 @@ import Ajuda from './pages/Ajuda'
 import Auditoria from './pages/Auditoria'
 import CadastroIntegrante from './pages/CadastroIntegrante'
 import Entrar from './pages/Entrar'
+import NovaSenha from './pages/NovaSenha'
 import AguardandoAprovacao from './pages/AguardandoAprovacao'
 import Aprovacoes from './pages/Aprovacoes'
-import NovaSenha from './pages/NovaSenha'
 import Relatorios from './pages/Relatorios'
 import VisitanteDados from './pages/VisitanteDados'
 
@@ -144,7 +144,6 @@ export default function App() {
   const estado = useAppState()
   const sessao = useSessaoReal()
   const sessaoCarregada = useSessaoCarregada()
-  const recuperandoSenha = useRecuperandoSenha()
   const atualId = useUsuarioAtualId()
   const [maisAberto, setMaisAberto] = useState(false)
 
@@ -193,13 +192,12 @@ export default function App() {
   // abre o formulário de autocadastro — URL limpa para divulgar/colocar no site.
   const hostAutocadastro = typeof window !== 'undefined' &&
     (window.location.hostname.startsWith('visitante.') || window.location.hostname.startsWith('cadastro.'))
-  // Veio pelo link de "esqueci a senha": o link cai na raiz do site, então esta
-  // checagem vem antes de qualquer rota (inclusive do subdomínio público).
-  if (recuperandoSenha) return <NovaSenha />
   if (rota.startsWith('/autocadastro') || (hostAutocadastro && rota === '/')) return <Autocadastro />
   if (rota.startsWith('/cadastro-integrante')) return <CadastroIntegrante />
   // Login real (Supabase) — e-mail/WhatsApp + senha
   if (rota.startsWith('/entrar')) return <Entrar />
+  // Redefinição de senha (chegada pelo link "Esqueci a senha" do e-mail)
+  if (rota.startsWith('/nova-senha')) return <NovaSenha />
 
   // Enquanto a sessão persistida ainda está sendo restaurada, mostra um
   // "carregando" — evita piscar a tela de login para quem já está logado.
@@ -218,8 +216,9 @@ export default function App() {
 
   // Identidade = a pessoa logada (sessão real aprovada)
   const eu = usuarioSessao
-  // Página inicial: acolhedor "puro" cai direto no cadastro; os demais, no Painel.
-  const paginaInicial = soAcolhedor(eu) ? <NovoVisitante /> : <Dashboard />
+  // Página inicial: acolhedor "puro" cai direto no cadastro; líder "puro", na
+  // sua área reservada (painel do líder); os demais, no Painel.
+  const paginaInicial = soAcolhedor(eu) ? <NovoVisitante /> : soLider(eu) ? <PainelLider /> : <Dashboard />
 
   let pagina: JSX.Element
   if (rota === '/') pagina = paginaInicial
@@ -240,6 +239,9 @@ export default function App() {
   // Bloqueio central de rota: sem permissão → volta à página inicial da pessoa
   if (!podeAcessarRota(rota, eu)) pagina = paginaInicial
 
+  // Para o líder "puro", a raiz É o painel do líder — realça o item certo no menu.
+  const rotaMenu = soLider(eu) && rota === '/' ? '/lideres' : rota
+
   const cuidados = estado.visitantes.filter((v) => v.flagCuidado && podeVerCuidado(estado, eu, v)).length
   const aprovacoesPendentes = estado.usuarios.filter((u) => u.statusAcesso === 'pendente_aprovacao').length
 
@@ -247,9 +249,16 @@ export default function App() {
   const menu = MENU
     .map((g) => ({ ...g, itens: g.itens.filter((m) => podeAcessarRota(m.rota, eu)) }))
     .filter((g) => g.itens.length > 0)
-  const navPrincipal = NAV_PRINCIPAL.filter((m) => podeAcessarRota(m.rota, eu))
-  const navMais = NAV_MAIS.filter((m) => podeAcessarRota(m.rota, eu))
-  const emMais = navMais.some((m) => rotaAtiva(m.rota, rota))
+  // Líder "puro": barra inferior direta (painel + ajuda), sem a folha "Mais" —
+  // no filtro genérico ele ficaria só com o botão "Mais", escondendo tudo.
+  const navPrincipal: (ItemMenu & { destaque?: boolean })[] = soLider(eu)
+    ? [
+        { rota: '/lideres', icone: IcoUserCheck, rotulo: 'Meu painel' },
+        { rota: '/ajuda', icone: IcoAjuda, rotulo: 'Ajuda' },
+      ]
+    : NAV_PRINCIPAL.filter((m) => podeAcessarRota(m.rota, eu))
+  const navMais = soLider(eu) ? [] : NAV_MAIS.filter((m) => podeAcessarRota(m.rota, eu))
+  const emMais = navMais.some((m) => rotaAtiva(m.rota, rotaMenu))
 
   return (
     <div className="layout">
@@ -266,7 +275,7 @@ export default function App() {
           <div key={grupo.secao}>
             <div className="menu-secao">{grupo.secao}</div>
             {grupo.itens.map((m) => (
-              <a key={m.rota} href={`#${m.rota}`} className={rotaAtiva(m.rota, rota) ? 'ativo' : ''}>
+              <a key={m.rota} href={`#${m.rota}`} className={rotaAtiva(m.rota, rotaMenu) ? 'ativo' : ''}>
                 <m.icone size={16} /> {m.rotulo}
                 {m.rota === '/' && cuidados > 0 && (
                   <span className="badge" style={{ background: '#ef4444', marginLeft: 'auto' }}>{cuidados}</span>
@@ -292,7 +301,7 @@ export default function App() {
           <a
             key={m.rota}
             href={`#${m.rota}`}
-            className={`${rotaAtiva(m.rota, rota) ? 'ativo' : ''} ${m.destaque ? 'destaque' : ''}`}
+            className={`${rotaAtiva(m.rota, rotaMenu) ? 'ativo' : ''} ${m.destaque ? 'destaque' : ''}`}
           >
             <span className="icone">
               <m.icone size={m.destaque ? 24 : 21} />
@@ -301,10 +310,12 @@ export default function App() {
             {m.rotulo}
           </a>
         ))}
-        <button className={maisAberto || emMais ? 'ativo' : ''} onClick={() => setMaisAberto(!maisAberto)}>
-          <span className="icone"><IcoMenu size={21} /></span>
-          Mais
-        </button>
+        {navMais.length > 0 && (
+          <button className={maisAberto || emMais ? 'ativo' : ''} onClick={() => setMaisAberto(!maisAberto)}>
+            <span className="icone"><IcoMenu size={21} /></span>
+            Mais
+          </button>
+        )}
       </nav>
 
       {/* Folha "Mais" (celular) */}
@@ -314,7 +325,7 @@ export default function App() {
           <div className="sheet">
             <div className="sheet-alca" />
             {navMais.map((m) => (
-              <a key={m.rota} href={`#${m.rota}`} className={rotaAtiva(m.rota, rota) ? 'ativo' : ''}>
+              <a key={m.rota} href={`#${m.rota}`} className={rotaAtiva(m.rota, rotaMenu) ? 'ativo' : ''}>
                 <m.icone size={20} /> {m.rotulo}
                 {m.rota === '/aprovacoes' && aprovacoesPendentes > 0 && (
                   <span className="badge" style={{ background: '#f59e0b', marginLeft: 'auto' }}>{aprovacoesPendentes}</span>
