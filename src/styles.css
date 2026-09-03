@@ -354,6 +354,12 @@ select::-ms-expand { display: none; }
   display: flex; flex-direction: column;
 }
 @keyframes slide-up { from { transform: translateY(16px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+
+/* Diálogo de confirmação próprio (confirmar.ts) — no lugar do confirm() nativo */
+.confirmar-caixa { max-width: 400px; padding: 22px 24px 18px; }
+.confirmar-titulo { margin: 0 0 6px; font-size: 16px; font-weight: 700; color: var(--text); }
+.confirmar-msg { margin: 0 0 18px; color: var(--text-2); font-size: 14px; line-height: 1.55; white-space: pre-line; }
+.confirmar-rodape { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .modal-cab {
   display: flex; align-items: center; gap: 12px;
   padding: 16px 18px 14px;

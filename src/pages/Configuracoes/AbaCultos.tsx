@@ -4,6 +4,7 @@ import { type CultoDef } from '../../types'
 import { DIA_SEMANA_LABEL, fmtDataComDia, gerarMaisOcorrencias, gerarOcorrencias } from '../../cultos'
 import { SeletorData } from '../../campos'
 import { toast } from '../../toast'
+import { confirmar } from '../../confirmar'
 import { IcoMais, IcoX } from '../../icones'
 
 /* ---------------- Aba: Cultos (padrão do cadastro de culto do louvor) ----------
@@ -29,7 +30,7 @@ export default function AbaCultos() {
     const n = nome.trim()
     if (!n) return
     if (defs.some((d) => d.nome === n)) {
-      alert('Já existe um culto com esse nome.')
+      toast('Já existe um culto com esse nome.', 'erro')
       return
     }
     salvar([...defs, { nome: n, diaSemana: dia, horario: horario || undefined, ocorrencias: gerarOcorrencias(dia) }])
@@ -75,8 +76,8 @@ export default function AbaCultos() {
               <CartaoCulto
                 key={i} culto={c}
                 onMudar={(patch) => salvar(defs.map((d, j) => (j === i ? { ...d, ...patch } : d)))}
-                onRemover={() => {
-                  if (!confirm(`Remover o culto "${c.nome}"? Visitantes já cadastrados nele não são alterados.`)) return
+                onRemover={async () => {
+                  if (!(await confirmar({ titulo: 'Remover culto', mensagem: `Remover o culto "${c.nome}"? Visitantes já cadastrados nele não são alterados.`, confirmar: 'Remover', perigo: true }))) return
                   salvar(defs.filter((_, j) => j !== i))
                   toast('Culto removido', 'info')
                 }}

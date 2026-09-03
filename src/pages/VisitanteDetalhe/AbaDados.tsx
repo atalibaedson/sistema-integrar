@@ -7,6 +7,7 @@ import {
 import { atualizarVisitante, excluirVisitante, registrarBatismo } from '../../actions'
 import { SeletorData as CampoData } from '../../campos'
 import { navegar } from '../../router'
+import { confirmar } from '../../confirmar'
 import { IcoLixeira } from '../../icones'
 import { fmt } from './comum'
 
@@ -244,8 +245,8 @@ export default function AbaDados({ v }: { v: Visitante }) {
         </p>
         <button
           className="btn btn-perigo btn-mini"
-          onClick={() => {
-            if (!confirm(`Excluir o cadastro de "${v.nome}" para sempre? Esta ação não pode ser desfeita.`)) return
+          onClick={async () => {
+            if (!(await confirmar({ titulo: 'Excluir cadastro', mensagem: `Excluir o cadastro de "${v.nome}" para sempre? Esta ação não pode ser desfeita.`, confirmar: 'Excluir', perigo: true }))) return
             excluirVisitante(v.id, 'Cadastro feito por engano')
             navegar('/visitantes')
           }}

@@ -10,6 +10,7 @@ import {
 } from '../../actions'
 import { IcoCheck, IcoDesfazer, IcoEditar, IcoWhats } from '../../icones'
 import { toast } from '../../toast'
+import { confirmar } from '../../confirmar'
 import { BotaoVirarMembro, CampoInicioConexao, fmt, fmtDia, SeletorData } from './comum'
 
 const PASSO_DO_STATUS: Record<Status, number> = {
@@ -98,8 +99,11 @@ export default function Roteiro({ v }: { v: Visitante }) {
       {podeVoltar && statusAnterior && (
         <button
           className="rot-voltar"
-          onClick={() => {
-            if (confirm(`Voltar ${v.nome.split(' ')[0]} para a etapa anterior ("${rotuloStatus(statusAnterior)}")?`)) {
+          onClick={async () => {
+            if (await confirmar({
+              mensagem: `Voltar ${v.nome.split(' ')[0]} para a etapa anterior ("${rotuloStatus(statusAnterior)}")?`,
+              confirmar: 'Voltar etapa',
+            })) {
               desfazerUltimaMudanca(v.id)
             }
           }}

@@ -3,6 +3,7 @@ import { useRota } from './router'
 import { useAppState, useNuvem, tentarSincronizarAgora } from './store'
 import { setUsuarioAtualId, useUsuarioAtualId, podeVerCuidado, podeAcessarRota, soAcolhedor, soLider, useSessaoReal, useSessaoCarregada, usuarioDaSessao } from './acesso'
 import { garantirSessao, sairDaConta } from './supabaseClient'
+import { confirmar } from './confirmar'
 import { aplicarRotulos, rotuloPapel, type Usuario } from './types'
 import { corDeContraste } from './tema'
 import { IcoAjuda, IcoAuditoria, IcoConfig, IcoJornada, IcoMenu, IcoPainel, IcoRelatorios, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
@@ -105,8 +106,8 @@ function ChipsTopo({ eu }: { eu?: Usuario }) {
   const ultimo = nuvem.ultimoSync
     ? `Última sincronização: ${new Date(nuvem.ultimoSync).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`
     : ''
-  function sair() {
-    if (!confirm('Sair da sua conta?')) return
+  async function sair() {
+    if (!(await confirmar({ mensagem: 'Sair da sua conta?', confirmar: 'Sair' }))) return
     setUsuarioAtualId(null)
     void sairDaConta()
   }

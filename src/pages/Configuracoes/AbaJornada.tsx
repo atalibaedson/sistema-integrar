@@ -3,6 +3,7 @@ import { useAppState } from '../../store'
 import { PAPEL_LABEL, rotuloStatusPadrao, type Papel, type Status } from '../../types'
 import { BotaoSalvar, SeletorData } from '../../campos'
 import { toast } from '../../toast'
+import { confirmar } from '../../confirmar'
 import { IcoMais, IcoX } from '../../icones'
 import { salvarConfig, useRascunho } from './comum'
 
@@ -51,8 +52,8 @@ export default function AbaJornada() {
           {algumRenomeado && (
             <button
               className="btn btn-sec btn-mini"
-              onClick={() => {
-                if (!confirm('Voltar todos os nomes para o padrão do sistema?')) return
+              onClick={async () => {
+                if (!(await confirmar({ mensagem: 'Voltar todos os nomes para o padrão do sistema?', confirmar: 'Restaurar padrão' }))) return
                 nomes.set({ rotulosStatus: {}, rotulosPapel: {} })
               }}
             >

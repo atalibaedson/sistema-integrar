@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { comExclusoes, lideres, setEstado, uid, useAppState } from '../../store'
 import { type Conexao } from '../../types'
 import { toast } from '../../toast'
+import { confirmar } from '../../confirmar'
 import { IcoBusca, IcoCheck, IcoEditar, IcoLixeira, IcoMais } from '../../icones'
 import { salvarConfig, semAcento, useRascunho } from './comum'
 
@@ -125,8 +126,8 @@ function ProximidadeBairros() {
     toast('Bairro adicionado')
   }
 
-  function removerEntrada(idx: number) {
-    if (!confirm(`Remover "${lista[idx].bairro}" e seus vizinhos?`)) return
+  async function removerEntrada(idx: number) {
+    if (!(await confirmar({ mensagem: `Remover "${lista[idx].bairro}" e seus vizinhos?`, confirmar: 'Remover', perigo: true }))) return
     salvarConfig({ proximidadeBairros: lista.filter((_, i) => i !== idx) })
     toast('Removido', 'info')
   }
@@ -476,16 +477,16 @@ function CartaoConexao({ c }: { c: Conexao }) {
     toast('Grupo salvo')
   }
 
-  function mudarLider(campo: 'liderId' | 'lider2Id', novoId: string) {
+  async function mudarLider(campo: 'liderId' | 'lider2Id', novoId: string) {
     const outroCampo = campo === 'liderId' ? 'lider2Id' : 'liderId'
     if (novoId && novoId === (c as any)[outroCampo]) {
-      alert('⚠️ Essa pessoa já foi escolhida como o outro líder deste grupo.')
+      toast('Essa pessoa já foi escolhida como o outro líder deste grupo.', 'erro')
       return
     }
     const novoLider = s.usuarios.find((u) => u.id === novoId)
     if (novoLider?.conexaoId && novoLider.conexaoId !== c.id) {
       const outro = s.conexoes.find((x) => x.id === novoLider.conexaoId)?.nome ?? 'outro grupo'
-      if (!confirm(`⚠️ ${novoLider.nome} já é líder de "${outro}".\n\nConfirmar como líder de "${c.nome}" também?`)) return
+      if (!(await confirmar({ titulo: 'Líder de mais de um grupo', mensagem: `${novoLider.nome} já é líder de "${outro}".\n\nConfirmar como líder de "${c.nome}" também?`, confirmar: 'Confirmar' }))) return
     }
     setEstado((st) => ({
       ...st,
@@ -497,8 +498,8 @@ function CartaoConexao({ c }: { c: Conexao }) {
     toast('Líder atualizado')
   }
 
-  function remover() {
-    if (!confirm(`Remover o grupo "${c.nome}"? Visitantes ligados a ele ficam sem grupo.`)) return
+  async function remover() {
+    if (!(await confirmar({ titulo: 'Remover grupo', mensagem: `Remover o grupo "${c.nome}"? Visitantes ligados a ele ficam sem grupo.`, confirmar: 'Remover', perigo: true }))) return
     setEstado((st) => comExclusoes({
       ...st,
       conexoes: st.conexoes.filter((x) => x.id !== c.id),
@@ -613,7 +614,7 @@ function FormConexao({ onPronto }: { onPronto: () => void }) {
   function adicionar(e: React.FormEvent) {
     e.preventDefault()
     if (!nome.trim()) return
-    if (duplicado) { alert(`Já existe um grupo chamado "${duplicado.nome}". Escolha outro nome.`); return }
+    if (duplicado) { toast(`Já existe um grupo chamado "${duplicado.nome}". Escolha outro nome.`, 'erro'); return }
     const id = uid()
     const diaHorario = derivarDiaHorario(diasSemana, horario)
     setEstado((st) => ({

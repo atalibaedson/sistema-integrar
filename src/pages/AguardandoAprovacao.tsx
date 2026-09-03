@@ -1,6 +1,7 @@
 import { useAppState } from '../store'
 import { ativarPrimeiroAdmin, existeAdminAprovado } from '../actions'
 import { sairDaConta } from '../supabaseClient'
+import { confirmar } from '../confirmar'
 import { setUsuarioAtualId } from '../acesso'
 import type { Usuario } from '../types'
 
@@ -54,8 +55,12 @@ export default function AguardandoAprovacao({ usuario }: { usuario?: Usuario }) 
             </p>
             <button
               className="btn"
-              onClick={() => {
-                if (confirm('Ativar a SUA conta como administrador (Gestão Integração)? Faça isso apenas se você é o responsável pela configuração do sistema.')) {
+              onClick={async () => {
+                if (await confirmar({
+                  titulo: 'Ativar seu acesso como administrador',
+                  mensagem: 'Ative a SUA conta como Gestão Integração apenas se você é o responsável pela configuração do sistema.',
+                  confirmar: 'Ativar meu acesso',
+                })) {
                   ativarPrimeiroAdmin(usuario.id)
                 }
               }}

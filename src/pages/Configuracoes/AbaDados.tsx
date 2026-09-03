@@ -5,6 +5,7 @@ import {
 } from '../../store'
 import { getConfigNuvem } from '../../nuvem'
 import { registrarAuditoria } from '../../auditoria'
+import { confirmar } from '../../confirmar'
 import { IcoDownload } from '../../icones'
 
 /* ---------------- Aba: Dados & Nuvem ---------------- */
@@ -68,8 +69,13 @@ export default function AbaDados() {
         </p>
         <button
           className="btn btn-perigo"
-          onClick={() => {
-            if (confirm('Tem certeza? TODOS os dados da igreja serão apagados, em todos os aparelhos que sincronizam. Exportou um backup antes?')) {
+          onClick={async () => {
+            if (await confirmar({
+              titulo: 'Zerar todos os dados',
+              mensagem: 'TODOS os dados da igreja serão apagados, em todos os aparelhos que sincronizam. Você exportou um backup antes?',
+              confirmar: 'Zerar tudo',
+              perigo: true,
+            })) {
               zerarDados()
               setMsg('Dados zerados.')
             }
@@ -104,7 +110,12 @@ function CardNuvem() {
       const cfg = { url: url.trim(), anonKey: anonKey.trim(), igrejaId: igrejaId.trim() }
       const remoto = await testarNuvem(cfg)
       const usarRemoto = remoto !== null &&
-        confirm('Já existem dados salvos na nuvem para esta igreja.\n\nOK = usar os dados da NUVEM (substitui os deste navegador)\nCancelar = enviar os dados LOCAIS para a nuvem (substitui os de lá)')
+        (await confirmar({
+          titulo: 'Já existem dados na nuvem',
+          mensagem: 'Já existem dados salvos na nuvem para esta igreja.\n\n"Usar os da nuvem" substitui os deste aparelho.\n"Enviar os deste aparelho" substitui os que estão na nuvem.',
+          confirmar: 'Usar os da nuvem',
+          cancelar: 'Enviar os deste aparelho',
+        }))
       await ativarNuvem(cfg, usarRemoto ? remoto : null)
     } catch (e) {
       const detalhe = e instanceof Error ? e.message : String(e)

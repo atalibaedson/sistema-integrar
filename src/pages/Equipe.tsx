@@ -5,6 +5,7 @@ import { linkWhatsApp } from '../actions'
 import { criariCiclo } from '../acesso'
 import { registrarAuditoria } from '../auditoria'
 import { toast } from '../toast'
+import { confirmar } from '../confirmar'
 import { IcoBusca, IcoCheck, IcoEditar, IcoLixeira, IcoMais, IcoWhats } from '../icones'
 import { supabase } from '../supabaseClient'
 
@@ -12,7 +13,7 @@ import { supabase } from '../supabaseClient'
 // Usado tanto na seção de Hierarquia quanto no modal de edição.
 export function definirSupervisor(s: AppState, alvo: Usuario, novoSupervisorId: string) {
   if (novoSupervisorId && criariCiclo(s, alvo.id, novoSupervisorId)) {
-    alert(`⚠️ Não é possível: ${alvo.nome} já supervisiona (direta ou indiretamente) essa pessoa. Isso criaria um ciclo na hierarquia.`)
+    toast(`Não é possível: ${alvo.nome} já supervisiona (direta ou indiretamente) essa pessoa. Isso criaria um ciclo na hierarquia.`, 'erro')
     return
   }
   const novoSupervisor = s.usuarios.find((u) => u.id === novoSupervisorId)
@@ -94,11 +95,11 @@ function ModalEditarMembro({ u, onFechar }: { u: Usuario; onFechar: () => void }
     onFechar()
   }
 
-  function mudarConexao(novaId: string) {
+  async function mudarConexao(novaId: string) {
     if (u.conexaoId && novaId && novaId !== u.conexaoId) {
       const atual = s.conexoes.find((c) => c.id === u.conexaoId)?.nome ?? 'outro grupo'
       const nova = s.conexoes.find((c) => c.id === novaId)?.nome ?? ''
-      if (!confirm(`⚠️ ${u.nome} já é líder de "${atual}".\n\nConfirmar a mudança para "${nova}"?`)) return
+      if (!(await confirmar({ titulo: 'Trocar o grupo do líder', mensagem: `${u.nome} já é líder de "${atual}".\n\nConfirmar a mudança para "${nova}"?`, confirmar: 'Confirmar mudança' }))) return
     }
     setEstado((st) => ({
       ...st,
@@ -137,7 +138,7 @@ function ModalEditarMembro({ u, onFechar }: { u: Usuario; onFechar: () => void }
     const aviso = dependentes.length > 0
       ? `\n\n⚠️ ${u.nome} cuida de ${dependentes.length} visitante(s) — eles ficarão SEM responsável/líder e precisarão ser redistribuídos. Se a pessoa só saiu por um tempo, prefira "Desativar".`
       : ''
-    if (!confirm(`Remover ${u.nome} da equipe? Esta ação não pode ser desfeita.${aviso}`)) return
+    if (!(await confirmar({ titulo: 'Remover integrante', mensagem: `Remover ${u.nome} da equipe? Esta ação não pode ser desfeita.${aviso}`, confirmar: 'Excluir', perigo: true }))) return
     const authUserId = u.authUserId
     const agora = new Date().toISOString()
     setEstado((st) => comExclusoes({
