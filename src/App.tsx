@@ -113,42 +113,50 @@ function ChipsTopo({ eu }: { eu?: Usuario }) {
     setUsuarioAtualId(null)
     void sairDaConta()
   }
+  const inicial = (eu?.nome ?? 'V').trim().slice(0, 1).toUpperCase() || 'V'
   return (
-    <div className="cab-chips">
-      <span className="chip-status" style={{ gap: 6 }}>
-        👤 <b style={{ color: 'var(--primary)' }}>{eu?.nome ?? 'Você'}</b>
-        {eu && <span style={{ color: 'var(--text-3)', fontWeight: 500 }}>· {eu.papeis.map((p) => rotuloPapel(p)).join(', ')}</span>}
-      </span>
-      {nuvem.status === 'erro' ? (
-        // Erro tem saída: mostra o motivo e um "tentar de novo" (antes o chip
-        // vermelho não dizia o que fazer).
+    <header className="topbar">
+      {/* Quem está logado */}
+      <div className="topbar-user">
+        <div className="topbar-avatar">{inicial}</div>
+        <div className="topbar-user-txt">
+          <span className="topbar-nome">{eu?.nome ?? 'Você'}</span>
+          {eu && <span className="topbar-papel">{eu.papeis.map((p) => rotuloPapel(p)).join(' · ')}</span>}
+        </div>
+      </div>
+
+      {/* Utilitários */}
+      <div className="topbar-acoes">
+        {nuvem.status === 'erro' ? (
+          // Erro tem saída: mostra o motivo e um "tentar de novo".
+          <button
+            type="button"
+            className={`chip-status ${chip.classe}`}
+            onClick={tentarSincronizarAgora}
+            title={`Não foi possível sincronizar. ${ultimo || 'Toque para tentar de novo.'}`}
+            style={{ cursor: 'pointer' }}
+          >
+            <span className="ponto" style={{ background: chip.ponto }} />{chip.rotulo} · tentar ⟳
+          </button>
+        ) : (
+          <span className={`chip-status ${chip.classe}`} title={ultimo}>
+            <span className="ponto" style={{ background: chip.ponto }} />{chip.rotulo}
+          </span>
+        )}
+        <span className="topbar-data">{dataFmt}</span>
         <button
-          type="button"
-          className={`chip-status ${chip.classe}`}
-          onClick={tentarSincronizarAgora}
-          title={`Não foi possível sincronizar. ${ultimo || 'Toque para tentar de novo.'}`}
-          style={{ cursor: 'pointer' }}
+          type="button" className="topbar-btn"
+          onClick={() => setModo(alternarModoTema())}
+          title={modo === 'escuro' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+          aria-label={modo === 'escuro' ? 'Tema claro' : 'Tema escuro'}
         >
-          <span className="ponto" style={{ background: chip.ponto }} />{chip.rotulo} · tentar de novo ⟳
+          {modo === 'escuro' ? '☀️' : '🌙'}
         </button>
-      ) : (
-        <span className={`chip-status ${chip.classe}`} title={ultimo}>
-          <span className="ponto" style={{ background: chip.ponto }} />{chip.rotulo}
-        </span>
-      )}
-      <span className="chip-status">📅 {dataFmt}</span>
-      <button
-        type="button"
-        className="chip-status"
-        style={{ cursor: 'pointer' }}
-        onClick={() => setModo(alternarModoTema())}
-        title={modo === 'escuro' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
-        aria-label={modo === 'escuro' ? 'Tema claro' : 'Tema escuro'}
-      >
-        {modo === 'escuro' ? '☀️' : '🌙'}
-      </button>
-      <button type="button" className="chip-sair" onClick={sair}>🚪 Sair</button>
-    </div>
+        <button type="button" className="topbar-btn topbar-sair" onClick={sair} title="Sair da conta" aria-label="Sair">
+          🚪 <span className="topbar-sair-txt">Sair</span>
+        </button>
+      </div>
+    </header>
   )
 }
 
