@@ -4,6 +4,7 @@ import { useAppState, useNuvem, tentarSincronizarAgora } from './store'
 import { setUsuarioAtualId, useUsuarioAtualId, podeVerCuidado, podeAcessarRota, soAcolhedor, soLider, useSessaoReal, useSessaoCarregada, usuarioDaSessao } from './acesso'
 import { garantirSessao, sairDaConta } from './supabaseClient'
 import { confirmar } from './confirmar'
+import { getModoTema, alternarModoTema } from './tema-modo'
 import { aplicarRotulos, rotuloPapel, type Usuario } from './types'
 import { corDeContraste } from './tema'
 import { IcoAjuda, IcoAuditoria, IcoConfig, IcoJornada, IcoMenu, IcoPainel, IcoRelatorios, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
@@ -95,6 +96,7 @@ function TelaCarregando({ nome }: { nome: string }) {
 // Chips do topo: quem está logado + status da nuvem + data + sair
 function ChipsTopo({ eu }: { eu?: Usuario }) {
   const nuvem = useNuvem()
+  const [modo, setModo] = useState(getModoTema())
   const data = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const dataFmt = data.charAt(0).toUpperCase() + data.slice(1)
   const chip = {
@@ -135,6 +137,16 @@ function ChipsTopo({ eu }: { eu?: Usuario }) {
         </span>
       )}
       <span className="chip-status">📅 {dataFmt}</span>
+      <button
+        type="button"
+        className="chip-status"
+        style={{ cursor: 'pointer' }}
+        onClick={() => setModo(alternarModoTema())}
+        title={modo === 'escuro' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+        aria-label={modo === 'escuro' ? 'Tema claro' : 'Tema escuro'}
+      >
+        {modo === 'escuro' ? '☀️' : '🌙'}
+      </button>
       <button type="button" className="chip-sair" onClick={sair}>🚪 Sair</button>
     </div>
   )

@@ -40,6 +40,30 @@
   --transition: 0.16s ease;
 }
 
+/* ================= Tema escuro (opcional, por aparelho) =================
+   Ligado pelo botão 🌙/☀️ no topo (grava em localStorage e põe data-theme="dark"
+   na raiz). Só sobrescreve os tokens ESTRUTURAIS (fundo, superfícies, bordas,
+   texto) — as 3 cores da igreja (--escura/--primary) e os semânticos continuam,
+   apenas clareados para ler bem no escuro. Padrão é claro: sem o atributo, nada
+   aqui se aplica, então publicar isto não muda nada para quem não ligar. */
+:root[data-theme="dark"] {
+  --bg: #0f141c;
+  --surface: #161d28;
+  --surface2: #1e2735;
+  --border: #29323f;
+  --border-strong: #3a4656;
+  --text: #e9ebee;
+  --text-2: #b6bec9;
+  --text-3: #8a94a2;
+  --primary-soft: color-mix(in srgb, var(--primary) 26%, #0f141c);
+  --danger: #f0736b;
+  --warn: #e0a559;
+  --ok: #5fcf8e;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.35);
+  --shadow: 0 8px 24px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.35);
+  color-scheme: dark;
+}
+
 body {
   font-family: var(--font);
   background: var(--bg);
