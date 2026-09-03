@@ -23,5 +23,3 @@ Fluxo Sistema/
 .env.*
 !.env.example
 
-# Config local do preview (dev)
-.claude/launch.json
