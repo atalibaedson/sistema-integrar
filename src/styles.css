@@ -91,7 +91,8 @@ body {
 .sidebar .marca {
   display: flex; align-items: center; gap: 10px;
   font-size: 15px; font-weight: 700; color: var(--text);
-  padding: 4px 6px 16px;
+  padding: 4px 6px 14px; margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
 }
 .marca-logo {
   width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
@@ -106,18 +107,25 @@ body {
   margin: 14px 8px 5px;
 }
 .sidebar a {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 9px 12px;
-  border-radius: 9px;
+  gap: 11px;
+  padding: 10px 12px 10px 14px;
+  border-radius: 10px;
   color: var(--text-2);
   text-decoration: none;
   font-weight: 600;
   font-size: 13.5px;
+  transition: background var(--transition), color var(--transition);
 }
-.sidebar a:hover { background: var(--bg); color: var(--text); }
-.sidebar a.ativo { background: var(--primary-soft); color: var(--primary); }
+.sidebar a:hover { background: var(--surface2); color: var(--text); }
+.sidebar a.ativo { background: var(--primary-soft); color: var(--primary); font-weight: 700; }
+/* Barra de acento à esquerda do item ativo — dá o toque "app profissional" */
+.sidebar a.ativo::before {
+  content: ''; position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 18px; border-radius: 999px; background: var(--primary);
+}
 .sidebar .rodape { margin-top: auto; font-size: 11px; color: var(--text-3); padding: 12px 8px; line-height: 1.5; }
 
 /* ---- Barra superior (topbar) ---- */
@@ -1003,7 +1011,7 @@ details summary:hover { color: var(--primary); }
     padding: 12px 16px;
     box-shadow: 0 2px 8px rgba(15, 23, 42, .25);
   }
-  .sidebar .marca { padding: 0; font-size: 15px; white-space: nowrap; }
+  .sidebar .marca { padding: 0; margin-bottom: 0; border-bottom: none; font-size: 15px; white-space: nowrap; }
   .sidebar .marca small { font-size: 10.5px; }
   .sidebar a { display: none; }
   .sidebar .menu-secao { display: none; }
@@ -1028,7 +1036,13 @@ details summary:hover { color: var(--primary); }
     font-family: inherit;
   }
   .bottomnav .icone { font-size: 21px; line-height: 1; position: relative; }
+  /* Pílula sob o ícone ativo (menos o botão central) — padrão moderno de nav */
+  .bottomnav a:not(.destaque) .icone, .bottomnav button .icone {
+    padding: 5px 18px; border-radius: 999px;
+    transition: background var(--transition), color var(--transition);
+  }
   .bottomnav .ativo { color: var(--primary); }
+  .bottomnav a:not(.destaque).ativo .icone, .bottomnav button.ativo .icone { background: var(--primary-soft); }
   .bottomnav .ponto-alerta {
     position: absolute; top: -2px; right: -6px;
     width: 9px; height: 9px; border-radius: 50%;
@@ -1052,7 +1066,7 @@ details summary:hover { color: var(--primary); }
   .sheet {
     display: block;
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 120;
-    background: #fff; border-radius: 16px 16px 0 0;
+    background: var(--surface); border-radius: 16px 16px 0 0;
     padding: 10px 14px calc(18px + env(safe-area-inset-bottom));
     box-shadow: 0 -8px 30px rgba(15, 23, 42, .25);
   }
