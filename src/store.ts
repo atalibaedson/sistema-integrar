@@ -702,10 +702,30 @@ export function templatesPorEtapa(s: AppState, etapa: EtapaFluxo): Template[] {
   return s.templates.filter((t) => t.etapa === etapa)
 }
 
+// Índice das interações por visitante, refeito só quando a lista muda de
+// referência (a cada setEstado). Antes, telas com muitos visitantes (lista,
+// painel) filtravam+ordenavam TODAS as interações uma vez por visitante a cada
+// render — O(visitantes × interações). Agora é O(interações) uma vez e O(1) por
+// consulta. As listas devolvidas são só-leitura (não mutar): já vêm ordenadas.
+const VAZIO_INTERACOES: readonly Interacao[] = []
+let idxInteracoesRef: Interacao[] | null = null
+let idxInteracoes = new Map<string, Interacao[]>()
+function indiceInteracoes(s: AppState): Map<string, Interacao[]> {
+  if (idxInteracoesRef === s.interacoes) return idxInteracoes
+  const m = new Map<string, Interacao[]>()
+  for (const i of s.interacoes) {
+    const arr = m.get(i.visitanteId)
+    if (arr) arr.push(i)
+    else m.set(i.visitanteId, [i])
+  }
+  for (const arr of m.values()) arr.sort((a, b) => b.data.localeCompare(a.data))
+  idxInteracoesRef = s.interacoes
+  idxInteracoes = m
+  return m
+}
+
 export function interacoesDe(s: AppState, visitanteId: string): Interacao[] {
-  return s.interacoes
-    .filter((i) => i.visitanteId === visitanteId)
-    .sort((a, b) => b.data.localeCompare(a.data))
+  return indiceInteracoes(s).get(visitanteId) ?? (VAZIO_INTERACOES as Interacao[])
 }
 
 export function ultimaRespostaOuCadastro(s: AppState, v: Visitante): string {
