@@ -19,6 +19,7 @@ export default function Entrar() {
   const [opcoes, setOpcoes] = useState<Usuario[]>([]) // WhatsApp compartilhado
   const [emailEscolhido, setEmailEscolhido] = useState('')
   const [entrando, setEntrando] = useState(false)
+  const [mostrarSenha, setMostrarSenha] = useState(false)
   const [erro, setErro] = useState('')
   const [aviso, setAviso] = useState('')
 
@@ -107,27 +108,25 @@ export default function Entrar() {
     )
   }
 
-  async function reenviarConfirmacao() {
-    const email = resolverEmail()
-    if (!email || !supabase) return
-    const { error } = await supabase.auth.resend({ type: 'signup', email })
-    setAviso(error ? `Não foi possível reenviar: ${error.message}` : `Reenviamos o link de confirmação para ${email}.`)
-  }
-
   return (
     <div className="ac-tela">
-      <div className="ac-cartao">
-        <div className="ac-cab">
+      <div className="ac-cartao login-cartao">
+        {/* Marca da igreja */}
+        <div className="login-marca">
           <div className="ac-selo">{s.config.nomeIgreja.trim().slice(0, 1).toUpperCase() || '🙏'}</div>
-          <h1>{s.config.nomeIgreja}</h1>
-          <p className="ac-boas-vindas">Entrar no sistema</p>
-          <p className="ac-sub">Use o e-mail ou o WhatsApp da sua conta.</p>
+          <div>
+            <div className="login-igreja">{s.config.nomeIgreja}</div>
+            <div className="login-sub2">{s.config.subtitulo}</div>
+          </div>
         </div>
+
+        <h1 className="login-titulo">Entrar</h1>
+        <p className="login-intro">Acesse com o e-mail ou o WhatsApp da sua conta.</p>
 
         {erro && <div className="alerta alerta-warn">⚠️ <div>{erro}</div></div>}
         {aviso && <div className="alerta">ℹ️ <div>{aviso}</div></div>}
 
-        <form onSubmit={entrar} className="ac-form">
+        <form onSubmit={entrar} className="login-form">
           <label className="campo"><span>E-mail ou WhatsApp</span>
             <input
               type="text" value={identificador} autoFocus
@@ -138,8 +137,8 @@ export default function Entrar() {
           </label>
 
           {opcoes.length > 1 && (
-            <div className="campo"><span>Qual é você?</span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+            <div className="campo"><span>Encontramos mais de uma conta com esse WhatsApp — qual é você?</span>
+              <div className="login-opcoes">
                 {opcoes.map((u) => (
                   <label key={u.id} className="check">
                     <input
@@ -154,22 +153,37 @@ export default function Entrar() {
             </div>
           )}
 
-          <label className="campo"><span>Senha</span>
-            <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="current-password" />
+          <label className="campo">
+            <span className="login-senha-rot">
+              Senha
+              <a href="#/" onClick={(e) => { e.preventDefault(); void esqueciSenha() }}>Esqueci a senha</a>
+            </span>
+            <div className="login-senha-campo">
+              <input
+                type={mostrarSenha ? 'text' : 'password'}
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                autoComplete="current-password"
+              />
+              <button
+                type="button" className="login-olho"
+                onClick={() => setMostrarSenha((v) => !v)}
+                title={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+                aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+              >
+                {mostrarSenha ? '🙈' : '👁️'}
+              </button>
+            </div>
           </label>
 
-          <button className="btn ac-btn-enviar" type="submit" disabled={entrando}>
+          <button className="btn ac-btn-enviar login-btn" type="submit" disabled={entrando}>
             {entrando ? 'Entrando…' : 'Entrar'}
           </button>
-
-          <p style={{ fontSize: 13, textAlign: 'center', marginTop: 10 }}>
-            Ainda não tem conta? <a href="#/cadastro-integrante">Cadastre-se</a>
-            {' · '}
-            <a href="#/" onClick={(e) => { e.preventDefault(); void esqueciSenha() }}>Esqueci a senha</a>
-            {' · '}
-            <a href="#/" onClick={(e) => { e.preventDefault(); void reenviarConfirmacao() }}>Reenviar confirmação</a>
-          </p>
         </form>
+
+        <div className="login-rodape">
+          Ainda não tem conta? <a href="#/cadastro-integrante">Criar meu acesso</a>
+        </div>
       </div>
     </div>
   )

@@ -785,6 +785,36 @@ details summary:hover { color: var(--primary); }
 .ac-titulo-ok { font-size: 19px; font-weight: 800; color: var(--primary); margin-bottom: 10px; }
 .ac-texto-ok { color: var(--text-2); font-size: 14px; line-height: 1.6; }
 
+/* ---- Tela de login (Entrar) — layout próprio, mais profissional ---- */
+.login-cartao { max-width: 400px; padding: 32px 30px 26px; }
+.login-marca { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
+.login-marca .ac-selo { margin: 0; width: 44px; height: 44px; font-size: 18px; border-radius: 12px; flex-shrink: 0; }
+.login-igreja { font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.login-sub2 { font-size: 12.5px; color: var(--text-3); margin-top: 1px; }
+.login-titulo { font-size: 23px; font-weight: 800; letter-spacing: -.02em; margin: 0 0 4px; color: var(--text); }
+.login-intro { font-size: 13.5px; color: var(--text-2); margin: 0 0 20px; line-height: 1.5; }
+.login-form { display: flex; flex-direction: column; gap: 14px; }
+.login-form .campo { margin-bottom: 0; }
+.campo span.login-senha-rot { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.login-senha-rot a { font-size: 12.5px; font-weight: 600; color: var(--primary); text-decoration: none; }
+.login-senha-rot a:hover { text-decoration: underline; }
+.login-senha-campo { position: relative; display: flex; }
+.login-senha-campo input { flex: 1; padding-right: 44px; }
+.login-olho {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; font-size: 15px;
+  padding: 6px 8px; border-radius: 8px; color: var(--text-3); line-height: 1;
+}
+.login-olho:hover { background: var(--surface2); }
+.login-btn { margin-top: 4px; }
+.login-opcoes { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+.login-rodape {
+  margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border);
+  text-align: center; font-size: 13.5px; color: var(--text-2);
+}
+.login-rodape a { color: var(--primary); font-weight: 600; text-decoration: none; }
+.login-rodape a:hover { text-decoration: underline; }
+
 /* Botão de acesso no topo */
 .chip-entrar {
   display: inline-flex; align-items: center; gap: 6px;
