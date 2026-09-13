@@ -9,6 +9,7 @@ import { registrarAuditoria } from '../../auditoria'
 import { IcoAlerta, IcoCheck, IcoWhats } from '../../icones'
 import Roteiro from './Roteiro'
 import AbaAtividade from './AbaAtividade'
+import HistoricoAlteracoes from './HistoricoAlteracoes'
 import { fmt } from './comum'
 
 export default function VisitanteDetalhe({ id }: { id: string }) {
@@ -111,6 +112,9 @@ function FichaCompleta({ id }: { id: string }) {
 
       {/* Atividade inline — sem tab */}
       <AbaAtividade v={v} />
+
+      {/* Histórico de alterações (auditoria) — só gestão/pastores */}
+      <HistoricoAlteracoes v={v} />
 
       {/* Rodapé de configuração rápida */}
       <RodapeConfig v={v} />
