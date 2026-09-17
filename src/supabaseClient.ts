@@ -20,6 +20,24 @@ function criar(): SupabaseClient | null {
 
 export const supabase = criar()
 
+// Garante o vínculo da conta com a igreja deste site (RLS por igreja). Roda
+// uma vez por usuário logado — cobre login, cadastro, recuperação de senha e a
+// restauração de sessão no boot. Assim, quem o backfill inicial não pegou (ex.:
+// id da ficha ≠ id de login) se autocorrige só de abrir o app. A Edge Function
+// registrar-membro só deixa a pessoa se ligar à igreja do próprio site.
+// Best-effort: falha (sem rede, função ausente) não atrapalha o uso do app.
+let vinculoGarantidoPara: string | null = null
+async function garantirVinculoIgreja(userId: string): Promise<void> {
+  if (!supabase || vinculoGarantidoPara === userId) return
+  vinculoGarantidoPara = userId
+  try {
+    const igrejaId = getConfigNuvem()?.igrejaId
+    if (igrejaId) await supabase.functions.invoke('registrar-membro', { body: { igrejaId } })
+  } catch {
+    vinculoGarantidoPara = null // deixa tentar de novo numa próxima sessão
+  }
+}
+
 // Sessão real = login com e-mail/senha. A sessão anônima existe só para o RLS
 // e nunca deve ser confundida com "alguém logado".
 export interface SessaoReal {
@@ -43,6 +61,8 @@ supabase?.auth.onAuthStateChange((evento, sessao) => {
     ? { userId: sessao.user.id, email: sessao.user.email ?? undefined }
     : null
   ouvintes.forEach((f) => f())
+  // Sessão real: garante o vínculo com a igreja deste site (RLS por igreja).
+  if (sessao && !anonima) void garantirVinculoIgreja(sessao.user.id)
   // Link "Esqueci a senha": o token do e-mail já virou sessão (consumido do #
   // da URL acima); leva a pessoa direto para a tela de definir a nova senha.
   if (evento === 'PASSWORD_RECOVERY') window.location.hash = '/nova-senha'
