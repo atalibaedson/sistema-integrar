@@ -9,22 +9,45 @@ import { salvarConfig, useRascunho } from './comum'
 
 /* ---------------- Aba: Igreja ---------------- */
 
+// Unidades da federação, para o campo de estado da igreja.
+const UFS = [
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+]
+
 export default function AbaIgreja() {
   const cfg = useAppState().config
-  const id = useRascunho({ nomeIgreja: cfg.nomeIgreja, subtitulo: cfg.subtitulo, termoGrupo: cfg.termoGrupo })
+  const id = useRascunho({
+    nomeIgreja: cfg.nomeIgreja,
+    subtitulo: cfg.subtitulo,
+    cidade: cfg.cidade ?? '',
+    estado: cfg.estado ?? '',
+    termoGrupo: cfg.termoGrupo,
+  })
   const regras = useRascunho({ prazoEsperaDias: cfg.prazoEsperaDias })
 
   return (
     <>
       <div className="card">
         <h3>Identidade</h3>
-        <p className="descricao-secao">Nome e termos que aparecem no menu, no formulário público de autocadastro e nos relatórios.</p>
+        <p className="descricao-secao">Nome, localização e termos que aparecem no menu, no formulário público de autocadastro e nos relatórios.</p>
         <div className="linha-campos">
           <label className="campo"><span>Nome da igreja</span>
-            <input type="text" value={id.d.nomeIgreja} onChange={(e) => id.set({ nomeIgreja: e.target.value })} />
+            <input type="text" value={id.d.nomeIgreja} onChange={(e) => id.set({ nomeIgreja: e.target.value })} placeholder="ex.: iFE Resende" />
           </label>
           <label className="campo"><span>Subtítulo</span>
             <input type="text" value={id.d.subtitulo} onChange={(e) => id.set({ subtitulo: e.target.value })} />
+          </label>
+        </div>
+        <div className="linha-campos">
+          <label className="campo" style={{ flex: '1 1 220px' }}><span>Cidade</span>
+            <input type="text" value={id.d.cidade} onChange={(e) => id.set({ cidade: e.target.value })} placeholder="ex.: Resende" />
+          </label>
+          <label className="campo" style={{ flex: '0 0 120px' }}><span>Estado (UF)</span>
+            <select value={id.d.estado} onChange={(e) => id.set({ estado: e.target.value })}>
+              <option value="">—</option>
+              {UFS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+            </select>
           </label>
         </div>
         <label className="campo"><span>Como vocês chamam o grupo pequeno?</span>

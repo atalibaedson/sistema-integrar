@@ -15,13 +15,16 @@ export interface ConfigNuvem {
 const CHAVE = 'ife-nuvem-v1'
 
 // Configuração embutida da igreja: já vem conectada, sem o usuário digitar nada.
-// Para vender a outra igreja, troque estes 3 valores e gere um novo build.
-// (A chave "publishable" é feita para ir no navegador; a proteção real vem na
-// fase 2 com login por usuário.)
+// Para atender OUTRA igreja, NÃO edite este arquivo: defina as variáveis de
+// ambiente VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY / VITE_IGREJA_ID no deploy
+// (ex.: um site Netlify por igreja). Assim um mesmo código serve várias igrejas.
+// Sem variáveis definidas, cai nos padrões abaixo (a igreja atual). Ver .env.example.
+// (A chave "publishable" é feita para ir no navegador; a separação real entre
+// igrejas vem do RLS por igreja no banco — ver supabase/sql/04_rls_endurecer.sql.)
 export const CONFIG_NUVEM_EMBUTIDA: ConfigNuvem | null = {
-  url: 'https://yzexsklhixqcbmnbrtdl.supabase.co',
-  anonKey: 'sb_publishable_xhm2rRyVeP-KPXdCNXbawQ_zn8sTfX-',
-  igrejaId: 'minha-igreja',
+  url: import.meta.env.VITE_SUPABASE_URL ?? 'https://yzexsklhixqcbmnbrtdl.supabase.co',
+  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? 'sb_publishable_xhm2rRyVeP-KPXdCNXbawQ_zn8sTfX-',
+  igrejaId: import.meta.env.VITE_IGREJA_ID ?? 'minha-igreja',
 }
 
 // Sentinela para o caso do usuário desconectar de propósito num build embutido

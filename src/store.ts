@@ -16,6 +16,8 @@ export function uid(): string {
 export const CONFIG_PADRAO: ConfigIgreja = {
   nomeIgreja: 'Igreja Família Extraordinária',
   subtitulo: 'Consolidação de visitantes',
+  estado: '',
+  cidade: '',
   termoGrupo: 'Conexão',
   corPrimaria: '#E5A13C',
   corFundo: '#FAF7F1',

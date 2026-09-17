@@ -78,6 +78,8 @@ export interface CultoDef {
 export interface ConfigIgreja {
   nomeIgreja: string
   subtitulo: string
+  estado?: string // UF onde a igreja fica (ex.: "RJ", "SP") — identifica a unidade
+  cidade?: string // cidade da igreja (ex.: "Resende", "São José dos Campos")
   termoGrupo: string // como a igreja chama o grupo pequeno: Conexão, Célula, PG…
 
   // ---- Paleta (mesmo vocabulário da área de configuração do site da igreja) ----

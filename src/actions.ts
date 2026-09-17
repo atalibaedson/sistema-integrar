@@ -6,6 +6,7 @@ import { comExclusoes, consolidadoresAtivos, estadoEhVirgem, getEstado, interaco
 import { registrarAuditoria } from './auditoria'
 import { getUsuarioAtualId, usuarioAtual } from './acesso'
 import { supabase } from './supabaseClient'
+import { getConfigNuvem } from './nuvem'
 
 export interface NovoVisitanteInput {
   nome: string
@@ -574,6 +575,17 @@ export async function cadastrarIntegrante(input: NovoIntegranteInput): Promise<R
       ? 'Esse e-mail já tem uma conta. Use a tela "Entrar".'
       : `Não foi possível criar a conta: ${error.message}`
     return { ok: false, erro: msg }
+  }
+
+  // Liga a conta à igreja deste site (RLS por igreja — ver supabase/sql/05_ e a
+  // Edge Function registrar-membro). Best-effort: se a função ainda não estiver
+  // publicada ou faltar rede, o cadastro segue; mas, com o RLS por igreja ativo,
+  // o sync só passa a funcionar quando o vínculo existir.
+  try {
+    const igrejaId = getConfigNuvem()?.igrejaId
+    if (igrejaId) await supabase.functions.invoke('registrar-membro', { body: { igrejaId } })
+  } catch {
+    // sem rede ou função ausente: não impede a criação da conta
   }
 
   // 2) Foto de perfil (opcional) — bucket público "avatares"
