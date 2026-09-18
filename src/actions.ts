@@ -644,6 +644,39 @@ export async function cadastrarIntegrante(input: NovoIntegranteInput): Promise<R
 // para aprovar alguém é preciso já ser Pastor/Gestão aprovado. Enquanto NÃO
 // existir nenhum administrador aprovado, a própria pessoa pode ativar seu acesso
 // como Gestão Integração — a partir daí, todo mundo entra pelo fluxo normal.
+// Pastor de rede que TROCOU para uma igreja onde ainda não tem ficha: cria uma
+// ficha de pastor JÁ APROVADO ali. A autorização é o vínculo em membros_igreja
+// (gravado só por service role / SQL do dono) — quem chega aqui já é membro
+// desta igreja, então não precisa de aprovação local. Idempotente: se já houver
+// ficha para esta conta (por authUserId ou e-mail), não faz nada. Chamado no
+// boot APENAS quando há uma igreja ativa por override (o login na igreja de casa
+// nunca passa por aqui — lá vale o cadastro/aprovação normal).
+export function garantirFichaMembroRede(authUserId: string, email?: string): void {
+  const s = getEstado()
+  const emailNorm = (email ?? '').trim().toLowerCase()
+  const jaTem = s.usuarios.some(
+    (u) => u.authUserId === authUserId || (!!emailNorm && (u.email ?? '').trim().toLowerCase() === emailNorm),
+  )
+  if (jaTem) return
+  const agora = new Date().toISOString()
+  const novo: Usuario = {
+    id: uid(),
+    nome: emailNorm ? emailNorm.split('@')[0] : 'Pastor(a) de rede',
+    whatsapp: '',
+    email: emailNorm || undefined,
+    papeis: ['pastor'],
+    ativo: true,
+    statusAcesso: 'aprovado',
+    authUserId,
+    cadastroCompletoEm: agora,
+    aprovadoEm: agora,
+  }
+  setEstado((st) => ({ ...st, usuarios: [novo, ...st.usuarios] }))
+  registrarAuditoria('🌐 Entrou como pastor de rede (acesso multi-igreja)', {
+    alvoTipo: 'usuario', alvoId: novo.id, alvoNome: novo.nome,
+  })
+}
+
 export function existeAdminAprovado(s: AppState): boolean {
   return s.usuarios.some(
     (u) => u.ativo && u.statusAcesso === 'aprovado' && (u.papeis.includes('pastor') || u.papeis.includes('coordenacao')),

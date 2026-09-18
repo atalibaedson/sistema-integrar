@@ -50,6 +50,38 @@ export function trocarIgreja(id: string) {
   window.location.reload()
 }
 
+// Vínculos do usuário logado (ids das igrejas de que é membro). Busca uma vez e
+// cacheia — o seletor e o boot (auto-provisão de rede) compartilham o resultado.
+let vinculosCache: string[] | null = null
+let vinculosPromise: Promise<string[]> | null = null
+
+function buscarVinculos(): Promise<string[]> {
+  if (!vinculosPromise) {
+    vinculosPromise = (async () => {
+      if (!supabase) return []
+      try {
+        const { data, error } = await supabase.from('membros_igreja').select('igreja_id')
+        if (error) return []
+        return [...new Set((data ?? []).map((r: { igreja_id: string }) => r.igreja_id))]
+      } catch {
+        return []
+      }
+    })().then((ids) => { vinculosCache = ids; return ids })
+  }
+  return vinculosPromise
+}
+
+// Ids das igrejas de que o usuário é membro. `null` enquanto carrega.
+export function useVinculos(): { ids: string[] | null } {
+  const [ids, setIds] = useState<string[] | null>(vinculosCache)
+  useEffect(() => {
+    let vivo = true
+    void buscarVinculos().then((v) => { if (vivo) setIds(v) })
+    return () => { vivo = false }
+  }, [])
+  return { ids }
+}
+
 // Igrejas de que o usuário logado é membro (para o seletor). Devolve lista vazia
 // quando é uma só — aí o seletor não aparece.
 export function useIgrejasDoUsuario(): { igrejas: IgrejaAcesso[]; ativa: string } {
@@ -59,31 +91,26 @@ export function useIgrejasDoUsuario(): { igrejas: IgrejaAcesso[]; ativa: string 
   useEffect(() => {
     let vivo = true
     void (async () => {
-      if (!supabase) return
-      try {
-        const { data: vinc, error } = await supabase.from('membros_igreja').select('igreja_id')
-        if (error) return
-        const ids = [...new Set((vinc ?? []).map((r: { igreja_id: string }) => r.igreja_id))]
-        if (ids.length <= 1) {
-          if (vivo) setIgrejas([])
-          return
-        }
-        // Nomes: registro público de igrejas (se existir) → cache → o próprio id.
-        const nomes: Record<string, string> = {}
+      const ids = await buscarVinculos()
+      if (ids.length <= 1) {
+        if (vivo) setIgrejas([])
+        return
+      }
+      // Nomes: registro público de igrejas (se existir) → cache → o próprio id.
+      const nomes: Record<string, string> = {}
+      if (supabase) {
         try {
           const { data: regs } = await supabase.from('igrejas').select('id,nome').in('id', ids)
           for (const r of (regs ?? []) as { id: string; nome: string }[]) nomes[r.id] = r.nome
         } catch {
           // registro ainda não existe: usa o cache/id
         }
-        const cache = nomesCache()
-        const lista = ids
-          .map((id) => ({ id, nome: nomes[id] ?? cache[id] ?? id }))
-          .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-        if (vivo) setIgrejas(lista)
-      } catch {
-        // sem rede: sem seletor (o app segue na igreja atual)
       }
+      const cache = nomesCache()
+      const lista = ids
+        .map((id) => ({ id, nome: nomes[id] ?? cache[id] ?? id }))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+      if (vivo) setIgrejas(lista)
     })()
     return () => { vivo = false }
   }, [])

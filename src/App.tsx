@@ -5,7 +5,9 @@ import { setUsuarioAtualId, useUsuarioAtualId, podeVerCuidado, podeAcessarRota, 
 import { garantirSessao, sairDaConta } from './supabaseClient'
 import { confirmar } from './confirmar'
 import { getModoTema, alternarModoTema } from './tema-modo'
-import { useIgrejasDoUsuario, trocarIgreja, lembrarNomeIgreja, igrejaAtivaId } from './igrejas'
+import { useIgrejasDoUsuario, useVinculos, trocarIgreja, lembrarNomeIgreja, igrejaAtivaId } from './igrejas'
+import { getIgrejaAtiva } from './nuvem'
+import { garantirFichaMembroRede } from './actions'
 import { aplicarRotulos, rotuloPapel, type Usuario } from './types'
 import { corDeContraste } from './tema'
 import { IcoAjuda, IcoAuditoria, IcoConfig, IcoJornada, IcoMenu, IcoPainel, IcoRelatorios, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
@@ -225,6 +227,19 @@ export default function App() {
     if (!contaLiberada && atualId === usuarioSessao.id) setUsuarioAtualId(null)
   }, [sessao, usuarioSessao, contaLiberada, atualId])
 
+  // Visão de rede: quando a pessoa TROCOU para outra igreja (override ativo) e é
+  // membro dela mas ainda não tem ficha ali, provisiona uma ficha de pastor
+  // aprovado — o vínculo (membros_igreja, só via SQL do dono) é a autorização.
+  // Estritamente restrito ao override: o login na igreja de casa não passa aqui.
+  const { ids: vinculos } = useVinculos()
+  const overrideAtivo = getIgrejaAtiva() != null
+  const ehMembroRede = !!vinculos && vinculos.includes(igrejaAtivaId())
+  useEffect(() => {
+    if (sessao && overrideAtivo && !usuarioSessao && ehMembroRede) {
+      garantirFichaMembroRede(sessao.userId, sessao.email)
+    }
+  }, [sessao, overrideAtivo, usuarioSessao, ehMembroRede])
+
   // Rotas públicas — sem menu/sidebar (não exigem login)
   // Subdomínio público do visitante (ex.: visitante.suaigreja.com.br): a raiz já
   // abre o formulário de autocadastro — URL limpa para divulgar/colocar no site.
@@ -245,6 +260,11 @@ export default function App() {
   // Logado, mas a conta ainda não pode usar (pendente, rejeitada ou DESATIVADA)
   // → tela de espera (com bootstrap do 1º admin)
   if (!usuarioSessao || !contaLiberada) {
+    // Numa igreja trocada (override): espera o vínculo carregar / a ficha de rede
+    // ser criada antes de decidir "aguardando" — senão pisca a tela de espera.
+    if (overrideAtivo && !usuarioSessao && (vinculos === null || ehMembroRede)) {
+      return <TelaCarregando nome={estado.config.nomeIgreja} />
+    }
     return <AguardandoAprovacao usuario={usuarioSessao} />
   }
   // A identidade usada pelas telas (permissões, auditoria) vem do mesmo id da
