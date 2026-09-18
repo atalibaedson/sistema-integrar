@@ -244,7 +244,7 @@ export default function App() {
   // Subdomínio público do visitante (ex.: visitante.suaigreja.com.br): a raiz já
   // abre o formulário de autocadastro — URL limpa para divulgar/colocar no site.
   const hostAutocadastro = typeof window !== 'undefined' &&
-    (window.location.hostname.startsWith('visitante.') || window.location.hostname.startsWith('cadastro.'))
+    (window.location.hostname.startsWith('visitante') || window.location.hostname.startsWith('cadastro'))
   if (rota.startsWith('/autocadastro') || (hostAutocadastro && rota === '/')) return <Autocadastro />
   if (rota.startsWith('/cadastro-integrante')) return <CadastroIntegrante />
   // Login real (Supabase) — e-mail/WhatsApp + senha

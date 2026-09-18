@@ -25,7 +25,8 @@ const CHAVE = 'ife-nuvem-v1'
 // a mesma publicação (Vercel) atende várias igrejas, cada uma no seu endereço —
 // sem projeto novo. Para adicionar uma igreja, acrescente o domínio dela aqui.
 const IGREJA_POR_HOST: Record<string, string> = {
-  'integracaoifesjc.ifamiliaextraordinaria.com.br': 'ife-sjc',
+  'integracaoifesjc.ifamiliaextraordinaria.com.br': 'ife-sjc', // app de São José
+  'visitantesjc.ifamiliaextraordinaria.com.br': 'ife-sjc', // autocadastro de São José
 }
 
 function igrejaDoHost(): string | null {

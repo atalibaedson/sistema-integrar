@@ -382,7 +382,10 @@ function ehRotaPublicaVisitante(): boolean {
   if (typeof window === 'undefined') return false
   const host = window.location.hostname
   const hash = window.location.hash
-  return host.startsWith('visitante.') || host.startsWith('cadastro.') ||
+  // Subdomínios públicos do visitante começam com "visitante"/"cadastro"
+  // (ex.: visitante.igreja..., visitantesjc.igreja...). Sem o ponto, cobre um
+  // subdomínio por igreja sem precisar listar cada um aqui.
+  return host.startsWith('visitante') || host.startsWith('cadastro') ||
     hash.startsWith('#/autocadastro')
 }
 
