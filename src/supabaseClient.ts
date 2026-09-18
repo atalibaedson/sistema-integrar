@@ -32,9 +32,13 @@ async function garantirVinculoIgreja(userId: string): Promise<void> {
   vinculoGarantidoPara = userId
   try {
     const igrejaId = getConfigNuvem()?.igrejaId
-    if (igrejaId) await supabase.functions.invoke('registrar-membro', { body: { igrejaId } })
+    if (!igrejaId) return
+    const { error } = await supabase.functions.invoke('registrar-membro', { body: { igrejaId } })
+    // functions.invoke devolve {error} SEM lançar em respostas 4xx/5xx: se falhou,
+    // libera para tentar de novo numa próxima sessão em vez de dar por resolvido.
+    if (error) vinculoGarantidoPara = null
   } catch {
-    vinculoGarantidoPara = null // deixa tentar de novo numa próxima sessão
+    vinculoGarantidoPara = null
   }
 }
 

@@ -30,7 +30,24 @@ export const CONFIG_NUVEM_EMBUTIDA: ConfigNuvem | null = {
 // Sentinela para o caso do usuário desconectar de propósito num build embutido
 const DESLIGADA = '__desligada__'
 
-export function getConfigNuvem(): ConfigNuvem | null {
+// Igreja "ativa" escolhida no seletor (pastor de rede). Sobrepõe o igrejaId do
+// build, sem novo deploy. Só é definida pelo seletor, que lista apenas igrejas
+// de que a pessoa é membro — e o RLS por igreja é quem de fato autoriza (um
+// override sem vínculo simplesmente lê vazio).
+const CHAVE_IGREJA_ATIVA = 'ife-igreja-ativa'
+
+export function getIgrejaAtiva(): string | null {
+  try { return localStorage.getItem(CHAVE_IGREJA_ATIVA) } catch { return null }
+}
+export function setIgrejaAtiva(igrejaId: string | null) {
+  try {
+    if (igrejaId) localStorage.setItem(CHAVE_IGREJA_ATIVA, igrejaId)
+    else localStorage.removeItem(CHAVE_IGREJA_ATIVA)
+  } catch { /* storage indisponível */ }
+}
+
+// Config do build/site (sem o override de igreja ativa)
+function configBase(): ConfigNuvem | null {
   try {
     const raw = localStorage.getItem(CHAVE)
     if (raw === DESLIGADA) return null
@@ -43,6 +60,14 @@ export function getConfigNuvem(): ConfigNuvem | null {
   }
   // Sem config salva → usa a embutida (app já nasce conectado)
   return CONFIG_NUVEM_EMBUTIDA
+}
+
+export function getConfigNuvem(): ConfigNuvem | null {
+  const c = configBase()
+  if (!c) return null
+  const ativa = getIgrejaAtiva()
+  // Override só troca a igreja; URL e chave (o projeto Supabase) são os mesmos.
+  return ativa && ativa !== c.igrejaId ? { ...c, igrejaId: ativa } : c
 }
 
 export function setConfigNuvem(c: ConfigNuvem | null) {

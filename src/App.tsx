@@ -5,6 +5,7 @@ import { setUsuarioAtualId, useUsuarioAtualId, podeVerCuidado, podeAcessarRota, 
 import { garantirSessao, sairDaConta } from './supabaseClient'
 import { confirmar } from './confirmar'
 import { getModoTema, alternarModoTema } from './tema-modo'
+import { useIgrejasDoUsuario, trocarIgreja, lembrarNomeIgreja, igrejaAtivaId } from './igrejas'
 import { aplicarRotulos, rotuloPapel, type Usuario } from './types'
 import { corDeContraste } from './tema'
 import { IcoAjuda, IcoAuditoria, IcoConfig, IcoJornada, IcoMenu, IcoPainel, IcoRelatorios, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
@@ -97,6 +98,7 @@ function TelaCarregando({ nome }: { nome: string }) {
 function ChipsTopo({ eu }: { eu?: Usuario }) {
   const nuvem = useNuvem()
   const [modo, setModo] = useState(getModoTema())
+  const { igrejas, ativa } = useIgrejasDoUsuario()
   const data = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const dataFmt = data.charAt(0).toUpperCase() + data.slice(1)
   const chip = {
@@ -127,6 +129,18 @@ function ChipsTopo({ eu }: { eu?: Usuario }) {
 
       {/* Utilitários */}
       <div className="topbar-acoes">
+        {/* Seletor de igreja — só para quem é membro de mais de uma (pastor de rede) */}
+        {igrejas.length > 1 && (
+          <select
+            className="topbar-igreja"
+            value={ativa}
+            onChange={(e) => trocarIgreja(e.target.value)}
+            title="Trocar de igreja"
+            aria-label="Igreja ativa"
+          >
+            {igrejas.map((i) => <option key={i.id} value={i.id}>⛪ {i.nome}</option>)}
+          </select>
+        )}
         {nuvem.status === 'erro' ? (
           // Erro tem saída: mostra o motivo e um "tentar de novo".
           <button
@@ -184,6 +198,9 @@ export default function App() {
     raiz.setProperty('--primary-contraste', corDeContraste(estado.config.corPrimaria))
     raiz.setProperty('--escura-contraste', corDeContraste(estado.config.corEscura))
     document.title = `${estado.config.subtitulo} — ${estado.config.nomeIgreja}`
+    // Memoriza o nome desta igreja para o seletor de rede exibir nomes (e não ids)
+    // mesmo antes de visitar a outra igreja.
+    lembrarNomeIgreja(igrejaAtivaId(), estado.config.nomeIgreja)
   }, [
     estado.config.corPrimaria, estado.config.corFundo, estado.config.corEscura,
     estado.config.nomeIgreja, estado.config.subtitulo,
