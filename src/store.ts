@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react'
 import type { AppState, ConfigIgreja, CultoDef, EtapaFluxo, Exclusao, Interacao, RegistroAuditoria, Status, Template, Usuario, Visitante } from './types'
 import { aplicarTransicao, diasDesde } from './machine'
 import { diaSemanaDoCulto, gerarOcorrencias } from './cultos'
-import { baixarConfigPublica, baixarEstado, baixarEstadoComVersao, enviarEstado, esperarSessaoPronta, getConfigNuvem, getIgrejaAtiva, gravarEstadoCondicional, setConfigNuvem, type ConfigNuvem } from './nuvem'
+import { baixarConfigPublica, baixarEstado, baixarEstadoComVersao, enviarEstado, esperarSessaoPronta, getConfigNuvem, gravarEstadoCondicional, setConfigNuvem, type ConfigNuvem } from './nuvem'
 import { mesclarEstados } from './mesclar'
 import { getUsuarioAtualId } from './acesso'
 
@@ -12,14 +12,14 @@ import { getUsuarioAtualId } from './acesso'
 // na outra ao trocar. A chave é fixada uma vez, no carregamento.
 const STORAGE_KEY = `ife-consolidacao-v1:${getConfigNuvem()?.igrejaId ?? 'default'}`
 
-// Migração única do cache antigo (chave sem igreja) para a chave da igreja
-// padrão do site. Só quando não há igreja ativa escolhida (o cache antigo é
-// sempre da igreja embutida). Evita um "boot virgem" desnecessário para quem já
-// usa o app. Se falhar, o pior caso é reler da nuvem — nada se perde.
+// Migração única do cache antigo (chave sem igreja) para a chave de Resende
+// (minha-igreja) — o cache antigo é SEMPRE de Resende, nunca de outra igreja ou
+// domínio. Evita um "boot virgem" desnecessário para quem já usa o app. Se
+// falhar, o pior caso é reler da nuvem — nada se perde.
 try {
   const LEGADO = 'ife-consolidacao-v1'
   const legado = localStorage.getItem(LEGADO)
-  if (legado && !getIgrejaAtiva() && !localStorage.getItem(STORAGE_KEY)) {
+  if (legado && STORAGE_KEY === 'ife-consolidacao-v1:minha-igreja' && !localStorage.getItem(STORAGE_KEY)) {
     localStorage.setItem(STORAGE_KEY, legado)
     localStorage.removeItem(LEGADO)
   }

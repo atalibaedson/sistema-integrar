@@ -21,10 +21,26 @@ const CHAVE = 'ife-nuvem-v1'
 // Sem variáveis definidas, cai nos padrões abaixo (a igreja atual). Ver .env.example.
 // (A chave "publishable" é feita para ir no navegador; a separação real entre
 // igrejas vem do RLS por igreja no banco — ver supabase/sql/04_rls_endurecer.sql.)
+// Multi-igreja num único deploy: o DOMÍNIO decide qual igreja o site abre. Assim
+// a mesma publicação (Vercel) atende várias igrejas, cada uma no seu endereço —
+// sem projeto novo. Para adicionar uma igreja, acrescente o domínio dela aqui.
+const IGREJA_POR_HOST: Record<string, string> = {
+  'integracaoifesjc.ifamiliaextraordinaria.com.br': 'ife-sjc',
+}
+
+function igrejaDoHost(): string | null {
+  try {
+    return IGREJA_POR_HOST[window.location.hostname] ?? null
+  } catch {
+    return null // sem window (testes/SSR)
+  }
+}
+
 export const CONFIG_NUVEM_EMBUTIDA: ConfigNuvem | null = {
   url: import.meta.env.VITE_SUPABASE_URL ?? 'https://yzexsklhixqcbmnbrtdl.supabase.co',
   anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? 'sb_publishable_xhm2rRyVeP-KPXdCNXbawQ_zn8sTfX-',
-  igrejaId: import.meta.env.VITE_IGREJA_ID ?? 'minha-igreja',
+  // Prioridade: domínio → variável de build → padrão (Resende).
+  igrejaId: igrejaDoHost() ?? import.meta.env.VITE_IGREJA_ID ?? 'minha-igreja',
 }
 
 // Sentinela para o caso do usuário desconectar de propósito num build embutido
@@ -60,6 +76,12 @@ function configBase(): ConfigNuvem | null {
   }
   // Sem config salva → usa a embutida (app já nasce conectado)
   return CONFIG_NUVEM_EMBUTIDA
+}
+
+// Igreja padrão DESTE site (definida pelo domínio/build), sem o override do
+// seletor. Usado para decidir quando limpar o override (voltar "para casa").
+export function getIgrejaPadraoDoSite(): string | null {
+  return configBase()?.igrejaId ?? null
 }
 
 export function getConfigNuvem(): ConfigNuvem | null {

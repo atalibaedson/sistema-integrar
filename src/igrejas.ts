@@ -4,7 +4,7 @@
 // toda a sincronização já existente. Quem tem uma só igreja não vê o seletor.
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
-import { getConfigNuvem, getIgrejaAtiva, setIgrejaAtiva } from './nuvem'
+import { getConfigNuvem, getIgrejaAtiva, getIgrejaPadraoDoSite, setIgrejaAtiva } from './nuvem'
 
 export interface IgrejaAcesso {
   id: string
@@ -45,7 +45,9 @@ export function igrejaAtivaId(): string {
 // padrão do site limpa o override.
 export function trocarIgreja(id: string) {
   if (!id || id === igrejaAtivaId()) return
-  setIgrejaAtiva(id === getConfigNuvem()?.igrejaId ? null : id)
+  // Se for a igreja padrão DESTE site (definida pelo domínio), limpa o override
+  // — assim "voltar para casa" não deixa um override pendurado.
+  setIgrejaAtiva(id === getIgrejaPadraoDoSite() ? null : id)
   window.location.hash = '/'
   window.location.reload()
 }
