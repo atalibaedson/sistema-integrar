@@ -17,7 +17,7 @@ const CHAVE = 'ife-nuvem-v1'
 // Configuração embutida da igreja: já vem conectada, sem o usuário digitar nada.
 // Para atender OUTRA igreja, NÃO edite este arquivo: defina as variáveis de
 // ambiente VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY / VITE_IGREJA_ID no deploy
-// (ex.: um site Netlify por igreja). Assim um mesmo código serve várias igrejas.
+// (ex.: um site Vercel por igreja). Assim um mesmo código serve várias igrejas.
 // Sem variáveis definidas, cai nos padrões abaixo (a igreja atual). Ver .env.example.
 // (A chave "publishable" é feita para ir no navegador; a separação real entre
 // igrejas vem do RLS por igreja no banco — ver supabase/sql/04_rls_endurecer.sql.)

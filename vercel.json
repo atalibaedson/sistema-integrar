@@ -1,4 +1,6 @@
 {
+  "buildCommand": "npm test && npm run build",
+  "outputDirectory": "dist",
   "routes": [
     {
       "src": "^/$",

@@ -89,7 +89,7 @@ export default function AbaAutocadastro() {
               />
             </label>
             <p className="descricao-secao" style={{ marginTop: -4 }}>
-              É o endereço que aparece no QR e no botão de copiar. Aponte esse domínio para este app na hospedagem (Netlify).
+              É o endereço que aparece no QR e no botão de copiar. Aponte esse domínio para este app na hospedagem (Vercel).
             </p>
             <BotaoSalvar pendente={link.pendente} onSalvar={() => { salvarConfig({ autocadastroUrl: link.d.autocadastroUrl.trim() }); toast('Link salvo') }} rotulo="Salvar link" />
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>

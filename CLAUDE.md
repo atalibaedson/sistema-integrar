@@ -13,8 +13,9 @@ npm test         # vitest run — módulos puros (máquina, mesclagem, relatóri
 ```
 
 Não há linter. A verificação de referência é `npm run build` (typecheck completo +
-build) e `npm test`. Rode ambos depois de qualquer mudança em código; o build do
-Netlify roda `npm test && npm run build`, então um teste quebrado barra o deploy.
+build) e `npm test`. Rode ambos depois de qualquer mudança em código; o deploy é na
+**Vercel** (push na `main`) e o build roda `npm test && npm run build` (via
+`vercel.json`), então um teste quebrado barra o deploy.
 
 ## ⚠️ Avisos críticos
 
@@ -93,7 +94,7 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe`, `Aprovacoes`, `Auditoria`,
 
 ### Testes
 - `src/__tests__/*.test.ts` (Vitest) cobrem os módulos puros: máquina de estados,
-  mesclagem, relatórios, cultos, tema. `npm test`. Rodam no build do Netlify.
+  mesclagem, relatórios, cultos, tema. `npm test`. Rodam no build da Vercel.
 
 ### Estilo
 - `styles.css` — CSS global, organizado por seções comentadas (design tokens,
