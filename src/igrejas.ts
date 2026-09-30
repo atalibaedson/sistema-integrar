@@ -4,6 +4,7 @@
 // toda a sincronização já existente. Quem tem uma só igreja não vê o seletor.
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { useSessaoReal } from './acesso'
 import { getConfigNuvem, getIgrejaAtiva, getIgrejaPadraoDoSite, setIgrejaAtiva } from './nuvem'
 
 export interface IgrejaAcesso {
@@ -52,35 +53,46 @@ export function trocarIgreja(id: string) {
   window.location.reload()
 }
 
-// Vínculos do usuário logado (ids das igrejas de que é membro). Busca uma vez e
-// cacheia — o seletor e o boot (auto-provisão de rede) compartilham o resultado.
-let vinculosCache: string[] | null = null
+// Vínculos do usuário logado (ids das igrejas de que é membro). Busca uma vez por
+// usuário e cacheia — o seletor e o boot (auto-provisão de rede) compartilham o
+// resultado. A busca é atrelada ao userId: sem isso, um primeiro render ANTES de
+// a sessão real ficar pronta consultava como anônimo, voltava [] e cacheava — o
+// seletor nunca aparecia até recarregar. Refaz quando o usuário logado muda.
+let vinculosCache: { userId: string; ids: string[] } | null = null
 let vinculosPromise: Promise<string[]> | null = null
+let vinculosPromiseUser: string | null = null
 
-function buscarVinculos(): Promise<string[]> {
-  if (!vinculosPromise) {
-    vinculosPromise = (async () => {
-      if (!supabase) return []
-      try {
-        const { data, error } = await supabase.from('membros_igreja').select('igreja_id')
-        if (error) return []
-        return [...new Set((data ?? []).map((r: { igreja_id: string }) => r.igreja_id))]
-      } catch {
-        return []
-      }
-    })().then((ids) => { vinculosCache = ids; return ids })
-  }
+function buscarVinculos(userId: string): Promise<string[]> {
+  if (vinculosCache?.userId === userId) return Promise.resolve(vinculosCache.ids)
+  if (vinculosPromise && vinculosPromiseUser === userId) return vinculosPromise
+  vinculosPromiseUser = userId
+  vinculosPromise = (async () => {
+    if (!supabase) return []
+    try {
+      const { data, error } = await supabase.from('membros_igreja').select('igreja_id')
+      if (error) return []
+      return [...new Set((data ?? []).map((r: { igreja_id: string }) => r.igreja_id))]
+    } catch {
+      return []
+    }
+  })().then((ids) => { vinculosCache = { userId, ids }; return ids })
   return vinculosPromise
 }
 
-// Ids das igrejas de que o usuário é membro. `null` enquanto carrega.
+// Ids das igrejas de que o usuário é membro. `null` enquanto carrega; `[]` sem
+// login real (aí não há seletor nem auto-provisão).
 export function useVinculos(): { ids: string[] | null } {
-  const [ids, setIds] = useState<string[] | null>(vinculosCache)
+  const sessao = useSessaoReal()
+  const userId = sessao?.userId ?? null
+  const [ids, setIds] = useState<string[] | null>(
+    userId && vinculosCache?.userId === userId ? vinculosCache.ids : null,
+  )
   useEffect(() => {
+    if (!userId) { setIds([]); return }
     let vivo = true
-    void buscarVinculos().then((v) => { if (vivo) setIds(v) })
+    void buscarVinculos(userId).then((v) => { if (vivo) setIds(v) })
     return () => { vivo = false }
-  }, [])
+  }, [userId])
   return { ids }
 }
 
@@ -88,12 +100,15 @@ export function useVinculos(): { ids: string[] | null } {
 // quando é uma só — aí o seletor não aparece.
 export function useIgrejasDoUsuario(): { igrejas: IgrejaAcesso[]; ativa: string } {
   const [igrejas, setIgrejas] = useState<IgrejaAcesso[]>([])
+  const sessao = useSessaoReal()
+  const userId = sessao?.userId ?? null
   const ativa = igrejaAtivaId()
 
   useEffect(() => {
+    if (!userId) { setIgrejas([]); return }
     let vivo = true
     void (async () => {
-      const ids = await buscarVinculos()
+      const ids = await buscarVinculos(userId)
       if (ids.length <= 1) {
         if (vivo) setIgrejas([])
         return
@@ -115,7 +130,7 @@ export function useIgrejasDoUsuario(): { igrejas: IgrejaAcesso[]; ativa: string 
       if (vivo) setIgrejas(lista)
     })()
     return () => { vivo = false }
-  }, [])
+  }, [userId])
 
   return { igrejas, ativa }
 }
