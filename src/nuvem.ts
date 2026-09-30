@@ -269,6 +269,29 @@ export async function baixarConfigPublica(c: ConfigNuvem): Promise<ConfigPublica
   return corpo && corpo.config ? (corpo as ConfigPublica) : null
 }
 
+// Grupos (Conexões) da igreja para o cadastro público de integrante: só id e
+// nome, pela RPC conexoes_publicas (quem se cadastra ainda não está logado e o
+// RLS não entrega o estado). null = indisponível (função ainda não criada/rede).
+export interface ConexaoPublica {
+  id: string
+  nome: string
+}
+
+export async function baixarConexoesPublicas(c: ConfigNuvem): Promise<ConexaoPublica[] | null> {
+  try {
+    const r = await fetch(`${base(c)}/rest/v1/rpc/conexoes_publicas`, {
+      method: 'POST',
+      headers: cabecalhos(c),
+      body: JSON.stringify({ p_igreja_id: c.igrejaId }),
+    })
+    if (!r.ok) return null
+    const corpo = await r.json()
+    return Array.isArray(corpo) ? (corpo as ConexaoPublica[]) : null
+  } catch {
+    return null
+  }
+}
+
 // Campos enviados pelo formulário público. A Edge Function faz a triagem
 // (WhatsApp válido? duplicado?) e anexa o visitante no servidor.
 export interface AutocadastroPublicoInput {

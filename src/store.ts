@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react'
 import type { AppState, ConfigIgreja, CultoDef, EtapaFluxo, Exclusao, Interacao, RegistroAuditoria, Status, Template, Usuario, Visitante } from './types'
 import { aplicarTransicao, diasDesde } from './machine'
 import { diaSemanaDoCulto, gerarOcorrencias } from './cultos'
-import { baixarConfigPublica, baixarEstado, baixarEstadoComVersao, enviarEstado, esperarSessaoPronta, getConfigNuvem, gravarEstadoCondicional, setConfigNuvem, type ConfigNuvem } from './nuvem'
+import { baixarConexoesPublicas, baixarConfigPublica, baixarEstado, baixarEstadoComVersao, enviarEstado, esperarSessaoPronta, getConfigNuvem, gravarEstadoCondicional, setConfigNuvem, type ConexaoPublica, type ConfigNuvem } from './nuvem'
 import { mesclarEstados } from './mesclar'
 import { getUsuarioAtualId } from './acesso'
 
@@ -545,6 +545,15 @@ export async function carregarConfigPublica(): Promise<boolean> {
     // sem rede / função ausente: a página fica com a config padrão
   }
   return false
+}
+
+// Grupos (Conexões) da igreja deste endereço para o cadastro público de
+// integrante. NÃO grava no estado: a lista (só id e nome) alimenta apenas o
+// seletor da tela — misturá-la ao estado sobrescreveria os grupos completos.
+export async function carregarConexoesPublicas(): Promise<ConexaoPublica[] | null> {
+  const c = getConfigNuvem()
+  if (!c) return null
+  return baixarConexoesPublicas(c)
 }
 
 // Atualização contínua: puxa novidades dos outros computadores de tempos em

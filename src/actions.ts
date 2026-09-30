@@ -5,7 +5,7 @@ import { aplicarTransicao, mesesDesde } from './machine'
 import { comExclusoes, consolidadoresAtivos, estadoEhVirgem, getEstado, interacoesDe, primeiraGestaoIntegracao, setEstado, sincronizarAgora, uid } from './store'
 import { registrarAuditoria } from './auditoria'
 import { getUsuarioAtualId, usuarioAtual } from './acesso'
-import { supabase } from './supabaseClient'
+import { aguardarVinculoIgreja, supabase } from './supabaseClient'
 
 export interface NovoVisitanteInput {
   nome: string
@@ -575,8 +575,10 @@ export async function cadastrarIntegrante(input: NovoIntegranteInput): Promise<R
       : `Não foi possível criar a conta: ${error.message}`
     return { ok: false, erro: msg }
   }
-  // O vínculo com a igreja (RLS por igreja) é garantido em supabaseClient.ts,
-  // no onAuthStateChange — que dispara logo após o signUp criar a sessão.
+  // Vínculo com a igreja (RLS por igreja) ANTES de gravar a ficha: com o RLS
+  // ativo, sincronizar sem ele seria recusado e o cadastro podia não chegar à
+  // liderança. A mesma chamada do onAuthStateChange — aqui só a aguardamos.
+  if (data.session && data.user?.id) await aguardarVinculoIgreja(data.user.id)
 
   // 2) Foto de perfil (opcional) — bucket público "avatares"
   let fotoUrl: string | undefined

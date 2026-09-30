@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { cadastrarIntegrante } from '../actions'
-import { useAppState } from '../store'
+import { carregarConexoesPublicas, carregarConfigPublica, estadoEhVirgem, useAppState } from '../store'
+import type { ConexaoPublica } from '../nuvem'
 import { PAPEL_COR, PAPEL_LABEL, rotuloPapel, SITUACAO_CIVIL_LABEL, type Papel, type SituacaoCivil } from '../types'
 import { SeletorData } from '../campos'
 
@@ -20,6 +21,21 @@ const ETAPAS = ['Seus dados', 'Funções e foto', 'Seu acesso'] as const
 export default function CadastroIntegrante() {
   const s = useAppState()
   const termoGrupo = s.config.termoGrupo?.trim() || 'Conexão'
+
+  // Quem se cadastra ainda não está logado, e o RLS não entrega o estado da
+  // igreja a anônimos. Nome/cores/termos e a lista de grupos vêm dos canais
+  // públicos da igreja DESTE endereço — antes, num aparelho novo, a tela
+  // mostrava o nome padrão e os grupos de exemplo.
+  const [conexoesPub, setConexoesPub] = useState<ConexaoPublica[] | null>(null)
+  useEffect(() => {
+    let vivo = true
+    void carregarConfigPublica()
+    void carregarConexoesPublicas().then((l) => { if (vivo) setConexoesPub(l) })
+    return () => { vivo = false }
+  }, [])
+  // Sem a lista pública (função ainda não criada ou sem rede): usa os grupos do
+  // aparelho só se ele já tiver os dados reais da igreja — nunca os de exemplo.
+  const conexoes: ConexaoPublica[] = conexoesPub ?? (estadoEhVirgem() ? [] : s.conexoes)
   const [etapa, setEtapa] = useState(1) // 1, 2, 3
   const [nome, setNome] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
@@ -178,7 +194,7 @@ export default function CadastroIntegrante() {
                 <label className="campo"><span>De qual {termoGrupo} você faz parte?</span>
                   <select value={conexaoId} onChange={(e) => setConexaoId(e.target.value)}>
                     <option value="">— selecionar —</option>
-                    {s.conexoes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                    {conexoes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                   </select>
                 </label>
               </div>
