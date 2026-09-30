@@ -1,10 +1,10 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/",
+      "src": "^/$",
       "has": [{ "type": "host", "value": "^(visitante|cadastro).*" }],
-      "destination": "/visitante.html"
-    }
+      "dest": "/visitante.html"
+    },
+    { "handle": "filesystem" }
   ]
 }
