@@ -309,7 +309,14 @@ let estadoVirgem = false
 function carregar(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return migrar(JSON.parse(raw))
+    if (raw) {
+      const s = migrar(JSON.parse(raw))
+      // O estado é salvo no aparelho logo na carga — inclusive o de exemplo de
+      // quem só abriu a tela sem login. Sem esta checagem, na visita seguinte os
+      // exemplos passavam por dados reais e eram mesclados na igreja ao logar.
+      if (soDadosDeExemplo(s)) estadoVirgem = true
+      return s
+    }
   } catch {
     // dado corrompido: recomeça
   }
@@ -334,6 +341,36 @@ function semDadosDeExemplo(s: AppState): AppState {
     ...s,
     usuarios: s.usuarios.filter((u) => !remover(u.id)),
     conexoes: s.conexoes.filter((c) => !remover(c.id)),
+  }
+}
+
+// O aparelho só tem o dado de exemplo? Nada real foi criado aqui nem veio da
+// nuvem: nenhum visitante, interação, exclusão ou auditoria, e só os usuários/
+// grupos de exemplo. (Qualquer ação real deixa rastro em algum desses.)
+function soDadosDeExemplo(s: AppState): boolean {
+  return s.visitantes.length === 0 && s.interacoes.length === 0 &&
+    (s.excluidos ?? []).length === 0 && s.auditoria.length === 0 &&
+    s.usuarios.every((u) => IDS_EXEMPLO.has(u.id)) &&
+    s.conexoes.every((c) => IDS_EXEMPLO.has(c.id))
+}
+
+// Registros de EXEMPLO que só existem neste aparelho não sobem para a nuvem ao
+// mesclar. Só IMPEDE que sejam adicionados — nada da nuvem é removido (a
+// mesclagem une por id; exclusão só por lápide). Exemplos que a igreja já tem
+// na nuvem, ou que algum visitante daqui usa, seguem normalmente.
+function semExemplosSoLocais(local: AppState, remoto: AppState): AppState {
+  const naNuvem = new Set([...remoto.usuarios.map((u) => u.id), ...remoto.conexoes.map((c) => c.id)])
+  const emUso = new Set<string>()
+  for (const v of local.visitantes) {
+    if (v.responsavelId) emUso.add(v.responsavelId)
+    if (v.liderConexaoId) emUso.add(v.liderConexaoId)
+    if (v.conexaoId) emUso.add(v.conexaoId)
+  }
+  const tirar = (id: string) => IDS_EXEMPLO.has(id) && !naNuvem.has(id) && !emUso.has(id)
+  return {
+    ...local,
+    usuarios: local.usuarios.filter((u) => !tirar(u.id)),
+    conexoes: local.conexoes.filter((c) => !tirar(c.id)),
   }
 }
 
@@ -450,7 +487,7 @@ async function executarSincronizacao(): Promise<void> {
             ? remoto
             : estadoVirgem
               ? mesclarEstados(remoto, semDadosDeExemplo(estado))
-              : mesclarEstados(estado, remoto),
+              : mesclarEstados(semExemplosSoLocais(estado, remoto), remoto),
         )
         estadoVirgem = false
         if (canonico(mesclado) !== canonico(estado)) {
