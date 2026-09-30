@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- App instalável (Adicionar à Tela de Início) -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <meta name="theme-color" content="#0042AA" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Bem-vindo" />
+    <!-- Página pública do visitante (autocadastro). Título e prévia de link
+         próprios — é o que WhatsApp/Google mostram ao compartilhar o endereço. -->
+    <title>Bem-vindo a iFE</title>
+    <meta name="description" content="Deixe seu contato — leva menos de um minuto — e nossa equipe vem falar com você em breve." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Bem-vindo a iFE" />
+    <meta property="og:description" content="Deixe seu contato — leva menos de um minuto — e nossa equipe vem falar com você em breve." />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Bem-vindo a iFE" />
+    <meta name="twitter:description" content="Deixe seu contato — leva menos de um minuto — e nossa equipe vem falar com você em breve." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Aplica o tema escuro (se escolhido) ANTES do app pintar, para não piscar claro -->
+    <script>try{if(localStorage.getItem('ife-tema-modo')==='escuro')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
