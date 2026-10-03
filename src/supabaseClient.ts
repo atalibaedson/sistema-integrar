@@ -3,6 +3,7 @@
 // apenas o token da sessão, para satisfazer o RLS "somente autenticado".
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { getConfigNuvem, marcarSessaoPronta, setTokenSessao } from './nuvem'
+import { MODO_DEMO, SESSAO_DEMO } from './demo'
 
 function criar(): SupabaseClient | null {
   const c = getConfigNuvem()
@@ -71,7 +72,8 @@ export interface SessaoReal {
   userId: string
   email?: string
 }
-let sessaoReal: SessaoReal | null = null
+// No modo demonstração (sem nuvem) a sessão é fingida — ver demo.ts.
+let sessaoReal: SessaoReal | null = MODO_DEMO ? SESSAO_DEMO : null
 // Já sabemos se há (ou não) uma sessão restaurada? Começa falso e vira true na
 // 1ª notificação do Supabase. Sem nuvem, não há nada a restaurar → já "pronto".
 // Evita piscar a tela de login enquanto a sessão persistida ainda carrega.

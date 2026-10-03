@@ -5,6 +5,7 @@
 // que um sobrescreva os dados do outro. A fase 2 (login + tabelas por
 // entidade) continua sendo o caminho para escala maior.
 import type { AppState } from './types'
+import { MODO_DEMO } from './demo'
 
 export interface ConfigNuvem {
   url: string // https://xxxx.supabase.co
@@ -65,6 +66,8 @@ export function setIgrejaAtiva(igrejaId: string | null) {
 
 // Config do build/site (sem o override de igreja ativa)
 function configBase(): ConfigNuvem | null {
+  // Modo demonstração (npm run dev:demo): NUNCA conecta à nuvem.
+  if (MODO_DEMO) return null
   try {
     const raw = localStorage.getItem(CHAVE)
     if (raw === DESLIGADA) return null

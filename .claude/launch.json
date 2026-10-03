@@ -4,14 +4,35 @@
     {
       "name": "ife-consolidacao",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5173
     },
     {
       "name": "ife-consolidacao-preview",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "5183"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5183"
+      ],
       "port": 5183
+    },
+    {
+      "name": "ife-consolidacao-demo",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:demo",
+        "--",
+        "--port",
+        "5185"
+      ],
+      "port": 5185
     }
   ]
 }

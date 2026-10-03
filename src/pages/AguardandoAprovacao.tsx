@@ -4,6 +4,7 @@ import { sairDaConta } from '../supabaseClient'
 import { confirmar } from '../confirmar'
 import { setUsuarioAtualId } from '../acesso'
 import type { Usuario } from '../types'
+import TelaPublica from '../TelaPublica'
 
 // Tela de espera do login real: a pessoa está autenticada, mas a conta ainda
 // não pode usar o sistema (e-mail não confirmado, aprovação pendente, rejeição
@@ -40,7 +41,7 @@ export default function AguardandoAprovacao({ usuario }: { usuario?: Usuario }) 
   }
 
   return (
-    <div className="ac-tela">
+    <TelaPublica>
       <div className="ac-cartao ac-cartao-ok">
         <div className="ac-check">{icone}</div>
         <h1 className="ac-titulo-ok">{titulo}</h1>
@@ -75,6 +76,6 @@ export default function AguardandoAprovacao({ usuario }: { usuario?: Usuario }) 
           <a href="#/" onClick={(e) => { e.preventDefault(); setUsuarioAtualId(null); void sairDaConta() }}>Sair da conta</a>
         </p>
       </div>
-    </div>
+    </TelaPublica>
   )
 }

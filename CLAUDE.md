@@ -7,7 +7,8 @@ etapas e papéis) vêm da configuração da igreja. Sincroniza na nuvem via Supa
 ## Comandos
 
 ```bash
-npm run dev      # servidor de desenvolvimento (Vite)
+npm run dev      # servidor de desenvolvimento (Vite) — ⚠️ conecta à PRODUÇÃO
+npm run dev:demo # modo demonstração: SEM nuvem, igreja e sessão fictícias (demo.ts)
 npm run build    # tsc -b && vite build  → use isto para VERIFICAR que nada quebrou
 npm test         # vitest run — módulos puros (máquina, mesclagem, relatórios…)
 ```
@@ -26,6 +27,9 @@ build) e `npm test`. Rode ambos depois de qualquer mudança em código; o deploy
   em seeds. Nunca ponha pessoas reais em dados de exemplo.
 - Preferir `npm run build` (offline) a subir o dev server quando o objetivo for só
   garantir que o código compila.
+- Para **ver/conferir telas** (inclusive as internas, que exigem login), use
+  `npm run dev:demo`: não conecta à nuvem e tem dados fictícios. O modo demo só
+  existe no servidor de desenvolvimento — nunca entra no build publicado.
 
 ## Arquitetura
 
@@ -66,6 +70,9 @@ aprovação de conta e aplica a identidade da igreja (cores + rótulos).
 - `relatorios.ts` — cálculos puros dos relatórios (funil, batismos, distribuições).
 - `tema.ts` — paletas e cor de contraste (o CSS deriva os tons por color-mix).
 - `toast.ts` — aviso rápido "Salvo ✓". `icones.tsx` — ícones SVG. `ErroBoundary.tsx`.
+- `TelaPublica.tsx` — moldura das telas públicas (entrar, criar acesso, nova senha,
+  aguardando, autocadastro): painel institucional + conteúdo, padrão da família iFE.
+- `demo.ts` — modo demonstração (`npm run dev:demo`): igreja e sessão fictícias.
 
 ### Telas (`src/pages/`)
 Painel (`Dashboard`), `Jornada`, `Visitantes` (lista) → `VisitanteDetalhe` (ficha,
@@ -107,6 +114,11 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe`, `Aprovacoes`, `Auditoria`,
 - Termos e nomes de etapas/papéis são **configuráveis** — use os rótulos
   (`rotuloPapel`, `rotuloEtapa`, `aplicarRotulos`), não textos fixos.
 - Cores derivadas saem das 3 cores da igreja via `color-mix` no CSS; não fixe cores.
+- **Padrão visual da família iFE** (Louvor v9 / Check-iFE): barra lateral na cor
+  escura, títulos em serifa (`--serif`, Fraunces), texto em Plus Jakarta Sans,
+  semânticos `--ok/--warn/--danger` (+ `-soft`). Primária usada como TEXTO é
+  `--acento-texto` (clareada no tema escuro), não `--primary`. Paleta padrão:
+  "Padrão iFE" (`tema.ts`). Versão no rodapé = `package.json` (`__APP_VERSION__`).
 
 ## Documentos de referência (NÃO leia sem necessidade)
 

@@ -1,14 +1,13 @@
 import { useState } from 'react'
-import { useAppState } from '../store'
 import { supabase } from '../supabaseClient'
 import { useSessaoReal } from '../acesso'
+import TelaPublica from '../TelaPublica'
 
 // Tela de redefinição de senha. A pessoa chega aqui pelo link "Esqueci a senha"
 // recebido por e-mail: o token do link vira uma sessão (supabaseClient.ts) e o
 // evento PASSWORD_RECOVERY navega para cá. Com a sessão ativa, basta gravar a
 // nova senha com updateUser.
 export default function NovaSenha() {
-  const s = useAppState()
   const sessao = useSessaoReal()
   const [senha, setSenha] = useState('')
   const [confirmar, setConfirmar] = useState('')
@@ -49,12 +48,10 @@ export default function NovaSenha() {
   }
 
   return (
-    <div className="ac-tela">
+    <TelaPublica>
       <div className="ac-cartao">
         <div className="ac-cab">
-          <div className="ac-selo">{s.config.nomeIgreja.trim().slice(0, 1).toUpperCase() || '🙏'}</div>
-          <h1>{s.config.nomeIgreja}</h1>
-          <p className="ac-boas-vindas">Definir nova senha</p>
+          <h1 className="ac-boas-vindas">Definir nova senha</h1>
           <p className="ac-sub">Escolha a senha que você vai usar para entrar no sistema.</p>
         </div>
 
@@ -92,6 +89,6 @@ export default function NovaSenha() {
           </>
         )}
       </div>
-    </div>
+    </TelaPublica>
   )
 }

@@ -5,12 +5,12 @@ import { setUsuarioAtualId, useUsuarioAtualId, podeVerCuidado, podeAcessarRota, 
 import { garantirSessao, sairDaConta } from './supabaseClient'
 import { confirmar } from './confirmar'
 import { getModoTema, alternarModoTema } from './tema-modo'
-import { useIgrejasDoUsuario, useVinculos, trocarIgreja, lembrarNomeIgreja, igrejaAtivaId } from './igrejas'
+import { useIgrejasDoUsuario, useVinculos, type IgrejaAcesso, trocarIgreja, lembrarNomeIgreja, igrejaAtivaId } from './igrejas'
 import { getIgrejaAtiva } from './nuvem'
 import { garantirFichaMembroRede } from './actions'
 import { aplicarRotulos, rotuloPapel, type Usuario } from './types'
 import { corDeContraste } from './tema'
-import { IcoAjuda, IcoAuditoria, IcoConfig, IcoJornada, IcoMenu, IcoPainel, IcoRelatorios, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
+import { IcoAjuda, IcoAuditoria, IcoCasa, IcoConfig, IcoJornada, IcoLua, IcoMais, IcoMenu, IcoPainel, IcoRelatorios, IcoSair, IcoSol, IcoTrocar, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
 import Dashboard from './pages/Dashboard'
 import Jornada from './pages/Jornada'
 import Visitantes from './pages/Visitantes'
@@ -34,22 +34,27 @@ type ItemMenu = { rota: string; icone: (p: { size?: number }) => JSX.Element; ro
 
 const MENU: { secao: string; itens: ItemMenu[] }[] = [
   {
-    secao: 'Principal',
+    secao: 'Acompanhamento',
     itens: [
       { rota: '/', icone: IcoPainel, rotulo: 'Painel' },
       { rota: '/jornada', icone: IcoJornada, rotulo: 'Jornada' },
       { rota: '/visitantes', icone: IcoUsuarios, rotulo: 'Visitantes' },
       { rota: '/novo', icone: IcoUserPlus, rotulo: 'Novo visitante' },
+      { rota: '/lideres', icone: IcoUserCheck, rotulo: 'Painel do líder' },
     ],
   },
   {
     secao: 'Gestão',
     itens: [
-      { rota: '/lideres', icone: IcoUserCheck, rotulo: 'Painel do líder' },
-      { rota: '/relatorios', icone: IcoRelatorios, rotulo: 'Relatórios' },
       { rota: '/equipe', icone: IcoUsuarios, rotulo: 'Equipe' },
       { rota: '/aprovacoes', icone: IcoUserCheck, rotulo: 'Aprovações' },
+      { rota: '/relatorios', icone: IcoRelatorios, rotulo: 'Relatórios' },
       { rota: '/auditoria', icone: IcoAuditoria, rotulo: 'Auditoria' },
+    ],
+  },
+  {
+    secao: 'Igreja',
+    itens: [
       { rota: '/config', icone: IcoConfig, rotulo: 'Configurações' },
       { rota: '/ajuda', icone: IcoAjuda, rotulo: 'Ajuda' },
     ],
@@ -96,53 +101,65 @@ function TelaCarregando({ nome }: { nome: string }) {
   )
 }
 
-// Chips do topo: quem está logado + status da nuvem + data + sair
-function ChipsTopo({ eu }: { eu?: Usuario }) {
+// Sair da conta (barra lateral no computador, folha "Mais" no celular)
+async function sairConfirmando() {
+  if (!(await confirmar({ mensagem: 'Sair da sua conta?', confirmar: 'Sair' }))) return
+  setUsuarioAtualId(null)
+  void sairDaConta()
+}
+
+// Saudação pela hora do dia — o topo é o "cumprimento" do sistema, como no
+// Louvor e no Check-iFE.
+function saudacao(): string {
+  const h = new Date().getHours()
+  return h < 5 ? 'Boa noite' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'
+}
+
+// Seletor de igreja (visão de rede) — só aparece para quem é membro de 2+
+// igrejas. É um <select> nativo transparente por cima do rótulo: no celular
+// abre o seletor do próprio sistema.
+function SeletorIgreja({ igrejas, ativa, classe }: { igrejas: IgrejaAcesso[]; ativa: string; classe: string }) {
+  if (igrejas.length < 2) return null
+  const atual = igrejas.find((i) => i.id === ativa)
+  return (
+    <label className={`seletor-igreja ${classe}`} title="Trocar de igreja">
+      <IcoCasa size={15} />
+      <span className="seletor-igreja-txt">
+        <b>{atual?.nome ?? 'Igreja'}</b>
+        <small>trocar de igreja</small>
+      </span>
+      <IcoTrocar size={14} />
+      <select value={ativa} onChange={(e) => trocarIgreja(e.target.value)} aria-label="Igreja ativa">
+        {igrejas.map((i) => <option key={i.id} value={i.id}>{i.nome}</option>)}
+      </select>
+    </label>
+  )
+}
+
+// Topo: saudação + data, estado da sincronização, tema e o atalho principal
+function Topo({ eu, seletorCelular, podeNovo }: { eu?: Usuario; seletorCelular: JSX.Element | null; podeNovo: boolean }) {
   const nuvem = useNuvem()
   const [modo, setModo] = useState(getModoTema())
-  const { igrejas, ativa } = useIgrejasDoUsuario()
-  const data = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const data = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
   const dataFmt = data.charAt(0).toUpperCase() + data.slice(1)
   const chip = {
-    desligada: { classe: '', ponto: '#93A1B0', rotulo: 'Somente neste aparelho' },
-    sincronizando: { classe: 'st-sincronizando', ponto: '#f59e0b', rotulo: 'Sincronizando…' },
-    ok: { classe: 'st-ok', ponto: '#22c55e', rotulo: 'Sincronizado' },
-    erro: { classe: 'st-erro', ponto: '#ef4444', rotulo: 'Sem conexão' },
+    desligada: { classe: 'st-local', rotulo: 'Somente neste aparelho' },
+    sincronizando: { classe: 'st-sincronizando', rotulo: 'Sincronizando…' },
+    ok: { classe: 'st-ok', rotulo: 'Sincronizado' },
+    erro: { classe: 'st-erro', rotulo: 'Sem conexão' },
   }[nuvem.status]
   const ultimo = nuvem.ultimoSync
     ? `Última sincronização: ${new Date(nuvem.ultimoSync).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`
     : ''
-  async function sair() {
-    if (!(await confirmar({ mensagem: 'Sair da sua conta?', confirmar: 'Sair' }))) return
-    setUsuarioAtualId(null)
-    void sairDaConta()
-  }
-  const inicial = (eu?.nome ?? 'V').trim().slice(0, 1).toUpperCase() || 'V'
+  const primeiroNome = (eu?.nome ?? '').trim().split(/\s+/)[0]
   return (
     <header className="topbar">
-      {/* Quem está logado */}
-      <div className="topbar-user">
-        <div className="topbar-avatar">{inicial}</div>
-        <div className="topbar-user-txt">
-          <span className="topbar-nome">{eu?.nome ?? 'Você'}</span>
-          {eu && <span className="topbar-papel">{eu.papeis.map((p) => rotuloPapel(p)).join(' · ')}</span>}
-        </div>
+      <div className="topbar-saudacao">
+        <h1>{saudacao()}{primeiroNome ? `, ${primeiroNome}` : ''}</h1>
+        <p>{dataFmt}</p>
+        {seletorCelular}
       </div>
-
-      {/* Utilitários */}
       <div className="topbar-acoes">
-        {/* Seletor de igreja — só para quem é membro de mais de uma (pastor de rede) */}
-        {igrejas.length > 1 && (
-          <select
-            className="topbar-igreja"
-            value={ativa}
-            onChange={(e) => trocarIgreja(e.target.value)}
-            title="Trocar de igreja"
-            aria-label="Igreja ativa"
-          >
-            {igrejas.map((i) => <option key={i.id} value={i.id}>⛪ {i.nome}</option>)}
-          </select>
-        )}
         {nuvem.status === 'erro' ? (
           // Erro tem saída: mostra o motivo e um "tentar de novo".
           <button
@@ -150,27 +167,25 @@ function ChipsTopo({ eu }: { eu?: Usuario }) {
             className={`chip-status ${chip.classe}`}
             onClick={tentarSincronizarAgora}
             title={`Não foi possível sincronizar. ${ultimo || 'Toque para tentar de novo.'}`}
-            style={{ cursor: 'pointer' }}
           >
-            <span className="ponto" style={{ background: chip.ponto }} />{chip.rotulo} · tentar ⟳
+            <span className="ponto" />{chip.rotulo} · tentar ⟳
           </button>
         ) : (
           <span className={`chip-status ${chip.classe}`} title={ultimo}>
-            <span className="ponto" style={{ background: chip.ponto }} />{chip.rotulo}
+            <span className="ponto" />{chip.rotulo}
           </span>
         )}
-        <span className="topbar-data">{dataFmt}</span>
         <button
-          type="button" className="topbar-btn"
+          type="button" className="topbar-icone"
           onClick={() => setModo(alternarModoTema())}
           title={modo === 'escuro' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
           aria-label={modo === 'escuro' ? 'Tema claro' : 'Tema escuro'}
         >
-          {modo === 'escuro' ? '☀️' : '🌙'}
+          {modo === 'escuro' ? <IcoSol size={18} /> : <IcoLua size={18} />}
         </button>
-        <button type="button" className="topbar-btn topbar-sair" onClick={sair} title="Sair da conta" aria-label="Sair">
-          🚪 <span className="topbar-sair-txt">Sair</span>
-        </button>
+        {podeNovo && (
+          <a className="btn topbar-novo" href="#/novo"><IcoMais size={15} /> Novo visitante</a>
+        )}
       </div>
     </header>
   )
@@ -232,6 +247,7 @@ export default function App() {
   // aprovado — o vínculo (membros_igreja, só via SQL do dono) é a autorização.
   // Estritamente restrito ao override: o login na igreja de casa não passa aqui.
   const { ids: vinculos } = useVinculos()
+  const { igrejas, ativa } = useIgrejasDoUsuario()
   const overrideAtivo = getIgrejaAtiva() != null
   const ehMembroRede = !!vinculos && vinculos.includes(igrejaAtivaId())
   useEffect(() => {
@@ -318,40 +334,59 @@ export default function App() {
   const navMais = soLider(eu) ? [] : NAV_MAIS.filter((m) => podeAcessarRota(m.rota, eu))
   const emMais = navMais.some((m) => rotaAtiva(m.rota, rotaMenu))
 
+  const inicial = eu.nome.trim().slice(0, 1).toUpperCase() || 'V'
+
   return (
     <div className="layout">
-      {/* Menu lateral (desktop) / barra de marca (celular) */}
+      {/* Barra lateral (computador) — padrão da família iFE */}
       <nav className="sidebar">
         <div className="marca">
           <span className="marca-logo">{sigla(estado.config.nomeIgreja)}</span>
-          <span>
-            {estado.config.nomeIgreja}
+          <span className="marca-txt">
+            <b>{estado.config.nomeIgreja}</b>
             <small>{estado.config.subtitulo}</small>
           </span>
         </div>
-        {menu.map((grupo) => (
-          <div key={grupo.secao}>
-            <div className="menu-secao">{grupo.secao}</div>
-            {grupo.itens.map((m) => (
-              <a key={m.rota} href={`#${m.rota}`} className={rotaAtiva(m.rota, rotaMenu) ? 'ativo' : ''}>
-                <m.icone size={16} /> {m.rotulo}
-                {m.rota === '/' && cuidados > 0 && (
-                  <span className="badge" style={{ background: '#ef4444', marginLeft: 'auto' }}>{cuidados}</span>
-                )}
-                {m.rota === '/aprovacoes' && aprovacoesPendentes > 0 && (
-                  <span className="badge" style={{ background: '#f59e0b', marginLeft: 'auto' }}>{aprovacoesPendentes}</span>
-                )}
-              </a>
-            ))}
+        <SeletorIgreja igrejas={igrejas} ativa={ativa} classe="seletor-igreja-lateral" />
+        <div className="sidebar-menu">
+          {menu.map((grupo) => (
+            <div key={grupo.secao}>
+              <div className="menu-secao">{grupo.secao}</div>
+              {grupo.itens.map((m) => (
+                <a key={m.rota} href={`#${m.rota}`} className={rotaAtiva(m.rota, rotaMenu) ? 'ativo' : ''}>
+                  <m.icone size={18} /> {m.rotulo}
+                  {m.rota === '/' && cuidados > 0 && <span className="contador">{cuidados}</span>}
+                  {m.rota === '/aprovacoes' && aprovacoesPendentes > 0 && (
+                    <span className="contador contador-aviso">{aprovacoesPendentes}</span>
+                  )}
+                </a>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="sidebar-pe">
+          <div className="quem">
+            <span className="quem-avatar">{inicial}</span>
+            <span className="quem-txt">
+              <b>{eu.nome}</b>
+              <small>{eu.papeis.map((p) => rotuloPapel(p)).join(' · ')}</small>
+            </span>
+            <button type="button" className="quem-sair" onClick={() => void sairConfirmando()} title="Sair da conta" aria-label="Sair da conta">
+              <IcoSair size={17} />
+            </button>
           </div>
-        ))}
-        <div className="rodape">"Não estamos falando de um produto, e sim de pessoas."</div>
+          <div className="versao">Integração · v{__APP_VERSION__}</div>
+        </div>
       </nav>
 
-      <main className="conteudo">
-        <ChipsTopo eu={eu} />
-        {pagina}
-      </main>
+      <div className="principal">
+        <Topo
+          eu={eu}
+          podeNovo={podeAcessarRota('/novo', eu)}
+          seletorCelular={<SeletorIgreja igrejas={igrejas} ativa={ativa} classe="seletor-igreja-celular" />}
+        />
+        <main className="conteudo">{pagina}</main>
+      </div>
 
       {/* Navegação inferior — aparece só no celular */}
       <nav className="bottomnav">
@@ -362,18 +397,17 @@ export default function App() {
             className={`${rotaAtiva(m.rota, rotaMenu) ? 'ativo' : ''} ${m.destaque ? 'destaque' : ''}`}
           >
             <span className="icone">
-              <m.icone size={m.destaque ? 24 : 21} />
+              {m.destaque ? <IcoMais size={24} /> : <m.icone size={21} />}
               {m.rota === '/' && cuidados > 0 && <span className="ponto-alerta" />}
             </span>
             {m.rotulo}
           </a>
         ))}
-        {navMais.length > 0 && (
-          <button className={maisAberto || emMais ? 'ativo' : ''} onClick={() => setMaisAberto(!maisAberto)}>
-            <span className="icone"><IcoMenu size={21} /></span>
-            Mais
-          </button>
-        )}
+        {/* "Mais" sempre existe: além das outras telas, é onde fica o "Sair" */}
+        <button className={maisAberto || emMais ? 'ativo' : ''} onClick={() => setMaisAberto(!maisAberto)}>
+          <span className="icone"><IcoMenu size={21} /></span>
+          Mais
+        </button>
       </nav>
 
       {/* Folha "Mais" (celular) */}
@@ -382,14 +416,21 @@ export default function App() {
           <div className="sheet-fundo" onClick={() => setMaisAberto(false)} />
           <div className="sheet">
             <div className="sheet-alca" />
-            {navMais.map((m) => (
-              <a key={m.rota} href={`#${m.rota}`} className={rotaAtiva(m.rota, rotaMenu) ? 'ativo' : ''}>
-                <m.icone size={20} /> {m.rotulo}
-                {m.rota === '/aprovacoes' && aprovacoesPendentes > 0 && (
-                  <span className="badge" style={{ background: '#f59e0b', marginLeft: 'auto' }}>{aprovacoesPendentes}</span>
-                )}
-              </a>
-            ))}
+            {navMais.length > 0 && <div className="sheet-titulo">Mais opções</div>}
+            <div className="sheet-lista">
+              {navMais.map((m) => (
+                <a key={m.rota} href={`#${m.rota}`} className={rotaAtiva(m.rota, rotaMenu) ? 'ativo' : ''}>
+                  <m.icone size={20} /> <span>{m.rotulo}</span>
+                  {m.rota === '/aprovacoes' && aprovacoesPendentes > 0 && (
+                    <span className="contador contador-aviso">{aprovacoesPendentes}</span>
+                  )}
+                </a>
+              ))}
+              <button type="button" className="sheet-sair" onClick={() => { setMaisAberto(false); void sairConfirmando() }}>
+                <IcoSair size={20} /> <span>Sair da conta</span>
+              </button>
+            </div>
+            <div className="sheet-versao">Integração · v{__APP_VERSION__}</div>
           </div>
         </>
       )}

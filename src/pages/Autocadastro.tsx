@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import TelaPublica from '../TelaPublica'
 import { carregarConfigPublica, useAppState } from '../store'
 import { cadastrarVisitantePublico, getConfigNuvem } from '../nuvem'
 import { Escolha, SeletorData, SIM_NAO } from '../campos'
@@ -123,7 +124,7 @@ export default function Autocadastro() {
 
   if (enviado) {
     return (
-      <div className="ac-tela ife-site">
+      <TelaPublica publico="visitante">
         <div className="ac-cartao ac-cartao-ok">
           <div className="ac-check">🎉</div>
           <div className="ac-eyebrow">{cfg.nomeIgreja}</div>
@@ -139,12 +140,12 @@ export default function Autocadastro() {
             </div>
           )}
         </div>
-      </div>
+      </TelaPublica>
     )
   }
 
   return (
-    <div className="ac-tela ife-site">
+    <TelaPublica publico="visitante" larga>
       <div className="ac-cartao ac-cartao-lg">
         <div className="ac-cab">
           <div className="ac-selo">{cfg.nomeIgreja.trim().slice(0, 1).toUpperCase() || '🙏'}</div>
@@ -327,6 +328,6 @@ export default function Autocadastro() {
           <p className="ac-fim">Obrigado por preencher — estamos aqui para te servir em amor! 💙</p>
         </form>
       </div>
-    </div>
+    </TelaPublica>
   )
 }

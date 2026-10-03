@@ -3,6 +3,8 @@ import { normalizarWhats } from '../actions'
 import { useAppState } from '../store'
 import { supabase } from '../supabaseClient'
 import type { Usuario } from '../types'
+import TelaPublica from '../TelaPublica'
+import { IcoOlho, IcoOlhoFechado } from '../icones'
 
 // Mascara o e-mail para a desambiguação de WhatsApp compartilhado
 function mascarar(email?: string): string {
@@ -109,19 +111,10 @@ export default function Entrar() {
   }
 
   return (
-    <div className="ac-tela">
-      <div className="ac-cartao login-cartao">
-        {/* Marca da igreja */}
-        <div className="login-marca">
-          <div className="ac-selo">{s.config.nomeIgreja.trim().slice(0, 1).toUpperCase() || '🙏'}</div>
-          <div>
-            <div className="login-igreja">{s.config.nomeIgreja}</div>
-            <div className="login-sub2">{s.config.subtitulo}</div>
-          </div>
-        </div>
-
-        <h1 className="login-titulo">Entrar</h1>
-        <p className="login-intro">Acesse com o e-mail ou o WhatsApp da sua conta.</p>
+    <TelaPublica>
+      <div className="ac-cartao">
+        <h1 className="login-titulo">Bem-vindo de volta</h1>
+        <p className="login-intro">Entre com o e-mail ou o WhatsApp da sua conta para acompanhar os visitantes.</p>
 
         {erro && <div className="alerta alerta-warn">⚠️ <div>{erro}</div></div>}
         {aviso && <div className="alerta">ℹ️ <div>{aviso}</div></div>}
@@ -171,12 +164,12 @@ export default function Entrar() {
                 title={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
                 aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
               >
-                {mostrarSenha ? '🙈' : '👁️'}
+                {mostrarSenha ? <IcoOlhoFechado size={18} /> : <IcoOlho size={18} />}
               </button>
             </div>
           </label>
 
-          <button className="btn ac-btn-enviar login-btn" type="submit" disabled={entrando}>
+          <button className="btn login-btn" type="submit" disabled={entrando}>
             {entrando ? 'Entrando…' : 'Entrar'}
           </button>
         </form>
@@ -185,6 +178,6 @@ export default function Entrar() {
           Ainda não tem conta? <a href="#/cadastro-integrante">Criar meu acesso</a>
         </div>
       </div>
-    </div>
+    </TelaPublica>
   )
 }

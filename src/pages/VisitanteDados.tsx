@@ -17,14 +17,14 @@ export default function VisitanteDados({ id }: { id: string }) {
       <div className="vazio" style={{ maxWidth: 460, margin: '40px auto' }}>
         <div style={{ fontSize: 32 }}>🔒</div>
         <p style={{ marginTop: 8 }}>Você não tem acesso à ficha desta pessoa.</p>
-        <a href="#/visitantes" style={{ color: 'var(--primary)' }}>← Voltar</a>
+        <a href="#/visitantes" style={{ color: 'var(--acento-texto)' }}>← Voltar</a>
       </div>
     )
   }
 
   return (
     <div className="ficha-wrap">
-      <a href={`#/visitante/${id}`} style={{ color: 'var(--primary)', fontSize: 13 }}>← Voltar para {v.nome.split(' ')[0]}</a>
+      <a href={`#/visitante/${id}`} style={{ color: 'var(--acento-texto)', fontSize: 13 }}>← Voltar para {v.nome.split(' ')[0]}</a>
       <h2 style={{ margin: '12px 0 4px', fontSize: 18, fontWeight: 700 }}>{v.nome}</h2>
       <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 16 }}>Dados completos e configurações de acompanhamento</p>
       <AbaDados v={v} />

@@ -5,7 +5,9 @@ import { aplicarTransicao, diasDesde } from './machine'
 import { diaSemanaDoCulto, gerarOcorrencias } from './cultos'
 import { baixarConexoesPublicas, baixarConfigPublica, baixarEstado, baixarEstadoComVersao, enviarEstado, esperarSessaoPronta, getConfigNuvem, gravarEstadoCondicional, setConfigNuvem, type ConexaoPublica, type ConfigNuvem } from './nuvem'
 import { mesclarEstados } from './mesclar'
+import { PALETA_IFE, atualizarPaletaAntiga } from './tema'
 import { getUsuarioAtualId } from './acesso'
+import { MODO_DEMO, dadosDemo } from './demo'
 
 // Cache local POR IGREJA: um pastor de rede que alterna entre igrejas mantém
 // caches separados — sem isto, o estado de uma igreja seria mesclado (e gravado)
@@ -37,9 +39,10 @@ export const CONFIG_PADRAO: ConfigIgreja = {
   estado: '',
   cidade: '',
   termoGrupo: 'Conexão',
-  corPrimaria: '#E5A13C',
-  corFundo: '#FAF7F1',
-  corEscura: '#0042AA',
+  // Padrão da família de sistemas iFE (Louvor / Check-iFE) — ver tema.ts
+  corPrimaria: PALETA_IFE.corPrimaria,
+  corFundo: PALETA_IFE.corFundo,
+  corEscura: PALETA_IFE.corEscura,
   prazoEsperaDias: 14,
   mesesMinimosConexao: 3,
   frequenciaMinimaConexao: 80,
@@ -179,7 +182,9 @@ function migrar(raw: any): AppState {
   }
 
   // v2 → v3: configuração da igreja + templates novos do fluxo
-  base.config = { ...CONFIG_PADRAO, ...(base.config ?? {}) }
+  // v12 → v13: igreja que ainda usa a paleta padrão antiga (nunca escolheu
+  // cores) passa para o Padrão iFE, o visual da família de sistemas.
+  base.config = atualizarPaletaAntiga({ ...CONFIG_PADRAO, ...(base.config ?? {}) })
   const gatilhosExistentes = new Set((base.templates ?? []).map((t: Template) => t.gatilho))
   base.templates = [
     ...(base.templates ?? []),
@@ -320,6 +325,8 @@ function carregar(): AppState {
   } catch {
     // dado corrompido: recomeça
   }
+  // Modo demonstração: igreja fictícia (só no servidor de desenvolvimento)
+  if (MODO_DEMO) return dadosDemo(estadoInicial())
   estadoVirgem = true
   return estadoInicial()
 }
@@ -574,7 +581,7 @@ export async function carregarConfigPublica(): Promise<boolean> {
   try {
     const pub = await baixarConfigPublica(c)
     if (pub?.config) {
-      estado = { ...estado, config: { ...CONFIG_PADRAO, ...(pub.config as Partial<ConfigIgreja>) } }
+      estado = { ...estado, config: atualizarPaletaAntiga({ ...CONFIG_PADRAO, ...(pub.config as Partial<ConfigIgreja>) }) }
       ouvintes.forEach((fn) => fn())
       return true
     }

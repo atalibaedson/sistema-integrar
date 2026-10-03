@@ -35,7 +35,7 @@ export default function VisitanteDetalhe({ id }: { id: string }) {
         <div style={{ fontSize: 32 }}>🔒</div>
         <p style={{ marginTop: 8 }}>Você não tem acesso à ficha desta pessoa.</p>
         <p style={{ fontSize: 13, color: 'var(--text-3)' }}>Só quem acompanha o visitante (ou está acima na hierarquia) pode ver as conversas.</p>
-        <a href="#/visitantes" style={{ color: 'var(--primary)' }}>← Voltar</a>
+        <a href="#/visitantes" style={{ color: 'var(--acento-texto)' }}>← Voltar</a>
       </div>
     )
   }
@@ -61,7 +61,7 @@ function FichaCompleta({ id }: { id: string }) {
 
   return (
     <div className="ficha-wrap">
-      <a href="#/visitantes" style={{ color: 'var(--primary)', fontSize: 13 }}>← Visitantes</a>
+      <a href="#/visitantes" style={{ color: 'var(--acento-texto)', fontSize: 13 }}>← Visitantes</a>
 
       {/* Hero */}
       <div className="card" style={{ marginTop: 8 }}>
@@ -176,7 +176,7 @@ function RodapeConfig({ v }: { v: ReturnType<typeof useAppState>['visitantes'][n
           })()}
         </select>
       </label>
-      <a href={`#/visitante/${v.id}/dados`} style={{ color: 'var(--primary)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', alignSelf: 'center' }}>
+      <a href={`#/visitante/${v.id}/dados`} style={{ color: 'var(--acento-texto)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', alignSelf: 'center' }}>
         Dados completos →
       </a>
     </div>
@@ -194,7 +194,7 @@ function FichaLider({ id }: { id: string }) {
 
   return (
     <div className="ficha-wrap">
-      <a href="#/lideres" style={{ color: 'var(--primary)', fontSize: 13 }}>← Meu painel</a>
+      <a href="#/lideres" style={{ color: 'var(--acento-texto)', fontSize: 13 }}>← Meu painel</a>
 
       {/* Mini hero */}
       <div className="card" style={{ marginTop: 8 }}>

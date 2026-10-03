@@ -4,6 +4,7 @@ import { carregarConexoesPublicas, carregarConfigPublica, estadoEhVirgem, useApp
 import type { ConexaoPublica } from '../nuvem'
 import { PAPEL_COR, PAPEL_LABEL, rotuloPapel, SITUACAO_CIVIL_LABEL, type Papel, type SituacaoCivil } from '../types'
 import { SeletorData } from '../campos'
+import TelaPublica from '../TelaPublica'
 
 // Descrição curta de cada função, para a pessoa escolher com segurança.
 const PAPEL_DESC: Record<Papel, string> = {
@@ -119,7 +120,7 @@ export default function CadastroIntegrante() {
 
   if (enviado) {
     return (
-      <div className="ac-tela">
+      <TelaPublica>
         <div className="ac-cartao ac-cartao-ok">
           <div className="ac-check">🤝</div>
           <h1 className="ac-titulo-ok">Cadastro recebido!</h1>
@@ -137,17 +138,16 @@ export default function CadastroIntegrante() {
             </div>
           )}
         </div>
-      </div>
+      </TelaPublica>
     )
   }
 
   return (
-    <div className="ac-tela">
+    <TelaPublica larga>
       <div className="ac-cartao ac-cartao-lg">
         <div className="ac-cab">
-          <div className="ac-selo">{s.config.nomeIgreja.trim().slice(0, 1).toUpperCase() || '🙏'}</div>
-          <h1>{s.config.nomeIgreja}</h1>
-          <p className="ac-boas-vindas">Criar sua conta de integrante</p>
+          <h1 className="ac-boas-vindas">Criar meu acesso</h1>
+          <p className="ac-sub">Leva 3 passos. Depois a liderança aprova e você já pode entrar.</p>
         </div>
 
         {/* Progresso */}
@@ -293,6 +293,6 @@ export default function CadastroIntegrante() {
 
         <p className="ac-rodape-link">Já tem conta? <a href="#/entrar">Entrar</a></p>
       </div>
-    </div>
+    </TelaPublica>
   )
 }

@@ -10,9 +10,30 @@ export interface Paleta {
   corPrimaria: string
 }
 
-// Presets prontos. O primeiro é a identidade do site da Família Extraordinária
-// (ifamiliaextraordinaria.com.br) — os mesmos valores da área de configuração.
+// Presets prontos. O primeiro é o padrão da família de sistemas iFE (Louvor e
+// Check-iFE): azul-marinho institucional sobre fundo azul-acinzentado claro.
+export const PALETA_IFE: Paleta = {
+  nome: 'Padrão iFE',
+  descricao: 'O mesmo visual do Louvor e do Check-iFE: azul-marinho institucional.',
+  corFundo: '#EEF2F8', corEscura: '#12314F', corPrimaria: '#1F4E79',
+}
+
+// A paleta que era o padrão antes do visual da família iFE. Igreja que nunca
+// personalizou as cores (ainda está exatamente nela) passa para o Padrão iFE.
+const PALETA_PADRAO_ANTIGA = { corFundo: '#FAF7F1', corEscura: '#0042AA', corPrimaria: '#E5A13C' }
+
+export function atualizarPaletaAntiga<T extends { corFundo: string; corEscura: string; corPrimaria: string }>(cfg: T): T {
+  const igual = (a?: string, b?: string) => (a ?? '').toLowerCase() === (b ?? '').toLowerCase()
+  const antiga = igual(cfg.corFundo, PALETA_PADRAO_ANTIGA.corFundo) &&
+    igual(cfg.corEscura, PALETA_PADRAO_ANTIGA.corEscura) &&
+    igual(cfg.corPrimaria, PALETA_PADRAO_ANTIGA.corPrimaria)
+  return antiga
+    ? { ...cfg, corFundo: PALETA_IFE.corFundo, corEscura: PALETA_IFE.corEscura, corPrimaria: PALETA_IFE.corPrimaria }
+    : cfg
+}
+
 export const PALETAS: Paleta[] = [
+  PALETA_IFE,
   {
     nome: 'Família Extraordinária',
     descricao: 'A paleta do site: creme, azul royal e dourado.',
