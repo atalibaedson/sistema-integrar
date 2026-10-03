@@ -1,21 +1,64 @@
-import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { semAtualizacao, semResponsavel as semResponsavelDef, useAppState, ultimaRespostaOuCadastro } from '../store'
 import { diasDesde } from '../machine'
-import { estiloStatus, rotuloStatus, STATUS_COR, type Status } from '../types'
+import { estiloStatus, rotuloStatus, STATUS_COR, type Status, type Visitante } from '../types'
 import { aplicarTemplate, linkWhatsApp, proximaAcao } from '../actions'
 import { navegar } from '../router'
-import { podeVerCuidado, useUsuarioAtualId, usuarioAtual, visitantesVisiveis } from '../acesso'
-import { funil } from '../relatorios'
-import { IcoUsuarios, IcoWhats, IcoUserCheck, IcoJornada } from '../icones'
+import { podeAcessarRota, podeVerCuidado, useUsuarioAtualId, usuarioAtual, visitantesVisiveis } from '../acesso'
+import {
+  IcoAlerta, IcoCasa, IcoGota, IcoJornada, IcoQr, IcoRelatorios, IcoRelogio, IcoSeta,
+  IcoUserCheck, IcoUserPlus, IcoUsuarios, IcoWhats,
+} from '../icones'
 
-// Ordem de exibição da barra empilhada de status (do início do fluxo ao fim)
-const ORDEM_STATUS: Status[] = [
-  'novo', 'em_contato', 'aguardando_resposta', 'encaminhado_lider', 'visitou',
-  'transferido', 'batismo', 'integrado', 'em_espera', 'recusou', 'encerrado',
-]
+// Painel — padrão da família iFE (Louvor / Check-iFE): a saudação fica no topo,
+// e o conteúdo responde "onde estão as pessoas" (Jornada), "o que resolver"
+// (pendências e ações de hoje) e "quem precisa de atenção" (cuidado, recém-
+// chegados). Tudo é calculado só sobre o que a identidade atual pode ver.
+
+// Etapas ativas da jornada mostradas no quadro "Jornada" (do início ao grupo)
+const ETAPAS_JORNADA: Status[] = ['novo', 'em_contato', 'aguardando_resposta', 'encaminhado_lider', 'visitou', 'transferido']
+
+const CORES_AVATAR = ['#1F4E79', '#2E6DA4', '#1C7A4B', '#6D3FC4', '#9A6412', '#0E7490', '#7A3E65']
+
+// Iniciais + cor estável por nome (a mesma pessoa tem sempre a mesma cor)
+function Avatar({ nome, tom }: { nome: string; tom?: string }) {
+  const partes = nome.trim().split(/\s+/)
+  const ini = ((partes[0]?.[0] ?? '') + (partes.length > 1 ? partes[partes.length - 1][0] : '')).toUpperCase()
+  let h = 0
+  for (const c of nome) h = (h * 31 + c.charCodeAt(0)) >>> 0
+  return <span className="painel-avatar" style={{ background: tom ?? CORES_AVATAR[h % CORES_AVATAR.length] }}>{ini || '?'}</span>
+}
+
+// "Ana, Bruno, Carla +2"
+function nomes(vs: { nome: string }[], max = 3): string {
+  const primeiros = vs.slice(0, max).map((v) => v.nome.trim().split(/\s+/)[0])
+  return primeiros.join(', ') + (vs.length > max ? ` +${vs.length - max}` : '')
+}
+
+function quando(iso: string): string {
+  const d = diasDesde(iso)
+  return d <= 0 ? 'hoje' : d === 1 ? 'ontem' : `há ${d} dias`
+}
+
+function Secao({ titulo, acao, extra, classe, children }: {
+  titulo: ReactNode; acao?: { rotulo: string; rota: string }; extra?: ReactNode; classe?: string; children: ReactNode
+}) {
+  return (
+    <section className={`painel-secao ${classe ?? ''}`}>
+      <div className="painel-secao-cab">
+        <h2>{titulo}{extra}</h2>
+        {acao && <a href={`#${acao.rota}`}>{acao.rotulo}</a>}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+type Tom = 'crit' | 'warn' | 'gold' | 'acc'
+interface Pendencia { chave: string; tom: Tom; icone: ReactNode; titulo: string; sub: string; n: number; ir: () => void }
 
 // Por onde os visitantes chegam: termômetro dos canais de divulgação
-function CardComoConheceu({ vs }: { vs: import('../types').Visitante[] }) {
+function ComoConheceram({ vs }: { vs: Visitante[] }) {
   const total = vs.length
   const contagem = new Map<string, number>()
   let naoInformado = 0
@@ -25,86 +68,22 @@ function CardComoConheceu({ vs }: { vs: import('../types').Visitante[] }) {
   }
   const linhas = [...contagem.entries()].sort((a, b) => b[1] - a[1])
   const maior = linhas[0]?.[1] ?? 0
-
   return (
     <div className="card">
-      <h3>📣 Como conheceram a igreja</h3>
       {linhas.length === 0 ? (
-        <div className="vazio" style={{ padding: 20 }}>
-          O campo "Como conheceu?" do cadastro alimenta este relatório.
-        </div>
+        <div className="painel-vazio">O campo "Como conheceu?" do cadastro alimenta este quadro.</div>
       ) : (
         <div className="rel-barlist">
-          {linhas.slice(0, 6).map(([canal, n]) => {
-            const pct = total ? Math.round((n / total) * 100) : 0
-            return (
-              <div className="rel-bar-row" key={canal}>
-                <div className="rel-bar-rotulo" title={canal}>{canal}</div>
-                <div className="rel-bar-trilho">
-                  <div className="rel-bar-fill" style={{ width: `${Math.max((n / maior) * 100, 3)}%` }} />
-                </div>
-                <div className="rel-bar-num">{n} <span className="rel-bar-pct">· {pct}%</span></div>
-              </div>
-            )
-          })}
-          {naoInformado > 0 && (
-            <p style={{ fontSize: 11.5, color: 'var(--text-3)', margin: '2px 0 0' }}>
-              {naoInformado} sem essa informação.
-            </p>
-          )}
+          {linhas.slice(0, 6).map(([canal, n]) => (
+            <div className="rel-bar-row" key={canal}>
+              <div className="rel-bar-rotulo" title={canal}>{canal}</div>
+              <div className="rel-bar-trilho"><div className="rel-bar-fill" style={{ width: `${Math.max((n / maior) * 100, 3)}%` }} /></div>
+              <div className="rel-bar-num">{n} <span className="rel-bar-pct">· {total ? Math.round((n / total) * 100) : 0}%</span></div>
+            </div>
+          ))}
+          {naoInformado > 0 && <p className="painel-nota">{naoInformado} sem essa informação.</p>}
         </div>
       )}
-    </div>
-  )
-}
-
-// Blocos do painel que a pessoa pode reordenar arrastando. A ordem fica salva
-// neste navegador (por usuário não precisa: é preferência de visualização).
-const BLOCOS_PADRAO = ['kpis', 'status', 'funil', 'canais', 'acoes'] as const
-type BlocoId = typeof BLOCOS_PADRAO[number]
-const ORDEM_KEY = 'ife-dash-ordem-v1'
-
-function carregarOrdem(): BlocoId[] {
-  try {
-    const raw = localStorage.getItem(ORDEM_KEY)
-    if (raw) {
-      const arr = (JSON.parse(raw) as string[]).filter((x): x is BlocoId => (BLOCOS_PADRAO as readonly string[]).includes(x))
-      const faltando = BLOCOS_PADRAO.filter((x) => !arr.includes(x))
-      return [...arr, ...faltando]
-    }
-  } catch { /* preferência corrompida: usa o padrão */ }
-  return [...BLOCOS_PADRAO]
-}
-
-// Um quadro do painel, com alça (⠿) para arrastar e reordenar
-function BlocoArrastavel({ id, arrastando, onIniciar, onEntrar, onFim, children }: {
-  id: BlocoId
-  arrastando: BlocoId | null
-  onIniciar: (id: BlocoId) => void
-  onEntrar: (id: BlocoId) => void
-  onFim: () => void
-  children: React.ReactNode
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  return (
-    <div
-      ref={ref}
-      className={`dash-bloco ${arrastando === id ? 'arrastando' : ''} ${arrastando && arrastando !== id ? 'alvo' : ''}`}
-      onDragOver={(e) => { e.preventDefault(); onEntrar(id) }}
-      onDrop={(e) => e.preventDefault()}
-    >
-      <button
-        type="button" className="dash-bloco-alca" title="Arraste para reordenar" aria-label="Arraste para reordenar"
-        draggable
-        onDragStart={(e) => {
-          if (ref.current) e.dataTransfer.setDragImage(ref.current, 24, 18)
-          e.dataTransfer.effectAllowed = 'move'
-          e.dataTransfer.setData('text/plain', id)
-          onIniciar(id)
-        }}
-        onDragEnd={onFim}
-      >⠿</button>
-      {children}
     </div>
   )
 }
@@ -116,17 +95,19 @@ export default function Dashboard() {
 
   const porStatus = (st: Status) => vs.filter((v) => v.status === st).length
   const emAcompanhamento = porStatus('novo') + porStatus('em_contato') + porStatus('aguardando_resposta')
-  const comLider = porStatus('encaminhado_lider') + porStatus('visitou')
   const integrados = porStatus('integrado')
   const taxaIntegracao = vs.length ? Math.round((integrados / vs.length) * 100) : 0
 
-  // Alertas (seção 13) — cuidado respeita a restrição extra do pastor/responsável
+  // Alertas — cuidado respeita a restrição extra do pastor/responsável
   const cuidado = vs.filter((v) => v.flagCuidado && podeVerCuidado(s, eu, v))
   const semResponsavel = vs.filter(
     (v) => semResponsavelDef(s, v) && !['encerrado', 'recusou', 'integrado', 'batismo', 'transferido'].includes(v.status),
   )
   const transferenciaPendente = vs.filter((v) => v.status === 'visitou' && !v.transferenciaConfirmada)
   const semAtualizar = vs.filter((v) => semAtualizacao(s, v))
+  const pendentesAprovacao = podeAcessarRota('/aprovacoes', eu)
+    ? s.usuarios.filter((u) => u.statusAcesso === 'pendente_aprovacao')
+    : []
 
   // Ações de hoje: visitantes ativos ordenados por urgência
   const ativos = vs
@@ -134,185 +115,205 @@ export default function Dashboard() {
     .map((v) => ({ v, acao: proximaAcao(s, v), dias: diasDesde(ultimaRespostaOuCadastro(s, v)) }))
     .sort((a, b) => Number(b.acao.urgente ?? false) - Number(a.acao.urgente ?? false) || b.dias - a.dias)
 
-  // Ordem dos quadros (arrastável) — salva neste navegador
-  const [ordem, setOrdem] = useState<BlocoId[]>(carregarOrdem)
-  const [arrastando, setArrastando] = useState<BlocoId | null>(null)
-  useEffect(() => { localStorage.setItem(ORDEM_KEY, JSON.stringify(ordem)) }, [ordem])
+  // Chegaram nos últimos 7 dias (mais recentes primeiro)
+  const recentes = vs
+    .filter((v) => diasDesde(v.dataCadastro) <= 7)
+    .sort((a, b) => b.dataCadastro.localeCompare(a.dataCadastro))
 
-  function aoEntrar(alvo: BlocoId) {
-    setArrastando((atual) => {
-      if (!atual || atual === alvo) return atual
-      setOrdem((prev) => {
-        const nova = prev.filter((x) => x !== atual)
-        nova.splice(nova.indexOf(alvo), 0, atual)
-        return nova
-      })
-      return atual
-    })
-  }
+  // Batismo: próxima data marcada nas Configurações + quem está nessa etapa
+  const hoje = new Date().toISOString().slice(0, 10)
+  const proximoBatismo = [...(s.config.datasBatismo ?? [])].filter((d) => d >= hoje).sort()[0]
+  const noBatismo = porStatus('batismo')
 
-  const etapasFunil = funil(vs)
-  const totalStack = vs.length || 1
-  const segmentos = ORDEM_STATUS.map((st) => ({ st, n: porStatus(st) })).filter((x) => x.n > 0)
+  // Abre a ficha quando é uma pessoa só; senão, a lista já filtrada
+  const abrir = (lista: { id: string }[], rota: string) => () =>
+    navegar(lista.length === 1 ? `/visitante/${lista[0].id}` : rota)
 
-  const kpis = [
-    { rotulo: 'Total cadastrados', valor: vs.length, cor: '#6366f1', icone: <IcoUsuarios size={15} />, nota: 'visitantes na sua visão' },
-    { rotulo: 'Em acompanhamento', valor: emAcompanhamento, cor: '#0ea5e9', icone: <IcoWhats size={15} />, nota: 'na semana de consolidação' },
-    { rotulo: 'Com o líder', valor: comLider, cor: '#8b5cf6', icone: <IcoUserCheck size={15} />, nota: 'encaminhados ou visitando' },
-    { rotulo: 'Em espera', valor: porStatus('em_espera'), cor: '#94a3b8', icone: <IcoJornada size={15} />, nota: 'silêncio prolongado' },
-    { rotulo: 'Membros', valor: integrados, cor: '#22c55e', icone: <IcoUserCheck size={15} />, nota: `${taxaIntegracao}% de conversão` },
-  ]
+  const pendencias: Pendencia[] = []
+  if (semResponsavel.length > 0) pendencias.push({
+    chave: 'sem-resp', tom: 'crit', icone: <IcoAlerta size={18} />, n: semResponsavel.length,
+    titulo: `${semResponsavel.length} sem responsável`,
+    sub: `${nomes(semResponsavel)} — atribua um responsável na ficha`,
+    ir: abrir(semResponsavel, '/visitantes?resp=sem'),
+  })
+  if (semAtualizar.length > 0) pendencias.push({
+    chave: 'parados', tom: 'warn', icone: <IcoRelogio size={18} />, n: semAtualizar.length,
+    titulo: `${semAtualizar.length} ${semAtualizar.length === 1 ? 'ficha parada' : 'fichas paradas'} há 7+ dias`,
+    sub: `${nomes(semAtualizar)} — peça atualização a quem acompanha`,
+    ir: abrir(semAtualizar, '/visitantes?grupo=sem_atualizacao'),
+  })
+  if (transferenciaPendente.length > 0) pendencias.push({
+    chave: 'lider', tom: 'gold', icone: <IcoCasa size={18} />, n: transferenciaPendente.length,
+    titulo: `${transferenciaPendente.length} aguardando o líder confirmar`,
+    sub: `${nomes(transferenciaPendente)} — visitaram o grupo; falta o líder assumir`,
+    ir: abrir(transferenciaPendente, '/visitantes?grupo=lider'),
+  })
+  if (pendentesAprovacao.length > 0) pendencias.push({
+    chave: 'aprov', tom: 'acc', icone: <IcoUserCheck size={18} />, n: pendentesAprovacao.length,
+    titulo: `${pendentesAprovacao.length} ${pendentesAprovacao.length === 1 ? 'conta aguardando' : 'contas aguardando'} aprovação`,
+    sub: `${nomes(pendentesAprovacao)} — integrantes novos pediram acesso`,
+    ir: () => navegar('/aprovacoes'),
+  })
 
-  // Conteúdo de cada quadro reordenável. `null` = quadro sem conteúdo (não aparece).
-  const conteudo: Record<BlocoId, React.ReactNode> = {
-    kpis: (
-      <div className="dash-kpis">
-        {kpis.map((k) => (
-          <div className="dash-kpi" key={k.rotulo}>
-            <div className="dash-kpi-top">
-              <span className="dash-kpi-icone" style={{ background: k.cor }}>{k.icone}</span>
-              {k.rotulo}
-            </div>
-            <div className="dash-kpi-valor" style={{ color: k.cor }}>{k.valor}</div>
-            <div className="dash-kpi-nota">{k.nota}</div>
-          </div>
-        ))}
-      </div>
-    ),
-    status: vs.length > 0 ? (
-      <div className="card">
-        <h3>Distribuição por status</h3>
-        <div className="dash-stack">
-          {segmentos.map(({ st, n }) => (
-            <div
-              key={st}
-              className="dash-stack-seg"
-              style={{ width: `${(n / totalStack) * 100}%`, background: STATUS_COR[st] }}
-            >
-              <span className="dash-stack-tip">
-                {rotuloStatus(st)} · <b>{Math.round((n / totalStack) * 100)}%</b>
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="dash-stack-legenda">
-          {segmentos.map(({ st, n }) => (
-            <span key={st}><i style={{ background: STATUS_COR[st] }} />{rotuloStatus(st)} <b>{n}</b></span>
-          ))}
-        </div>
-      </div>
-    ) : null,
-    funil: (
-      <div className="card">
-        <h3>Funil de consolidação</h3>
-        {vs.length === 0 ? (
-          <div className="vazio">Nenhum visitante ainda. Cadastre em <a href="#/novo">Novo visitante</a>.</div>
-        ) : (
-          <div className="rel-barlist">
-            {etapasFunil.map((e) => (
-              <div className="rel-bar-row" key={e.chave}>
-                <div className="rel-bar-rotulo" title={e.rotulo}>{e.rotulo}</div>
-                <div className="rel-bar-trilho">
-                  <div className="rel-bar-fill" style={{ width: `${Math.max(e.taxaDoTopo, 3)}%`, background: e.cor }} />
-                </div>
-                <div className="rel-bar-num">{e.total} <span className="rel-bar-pct">· {e.taxaDoTopo}%</span></div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    ),
-    canais: <CardComoConheceu vs={vs} />,
-    acoes: (
-      <div className="card" style={{ padding: 0 }}>
-        <div style={{ padding: '16px 18px 0' }}><h3 style={{ marginBottom: 0 }}>✅ Ações de hoje ({ativos.length})</h3></div>
-        {ativos.length === 0 ? (
-          <div className="vazio">Nenhuma ação pendente. 🎉</div>
-        ) : (
-          <div className="table-wrap" style={{ overflowX: 'auto' }}>
-            <table>
-              <thead><tr><th>Visitante</th><th>Status</th><th>O que fazer</th><th></th></tr></thead>
-              <tbody>
-                {ativos.slice(0, 12).map(({ v, acao }) => {
-                  const template = acao.gatilhoTemplate ? s.templates.find((t) => t.gatilho === acao.gatilhoTemplate) : undefined
-                  return (
-                    <tr key={v.id}>
-                      <td className="clicavel cell-title" onClick={() => navegar(`/visitante/${v.id}`)}>
-                        {v.nome}{v.flagCuidado && ' 🚨'}
-                      </td>
-                      <td><span className="badge" style={estiloStatus(v.status)}>{rotuloStatus(v.status)}</span></td>
-                      <td style={{ fontSize: 13 }}>{acao.urgente ? <b>{acao.titulo}</b> : acao.titulo}</td>
-                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        {template && (
-                          <a
-                            className="btn btn-whats btn-mini"
-                            href={linkWhatsApp(v.whatsapp, aplicarTemplate(template.texto, v, s))}
-                            target="_blank" rel="noreferrer"
-                            style={{ marginRight: 6 }}
-                          >💬 Enviar</a>
-                        )}
-                        <button className="btn btn-sec btn-mini" onClick={() => navegar(`/visitante/${v.id}`)}>Abrir</button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    ),
-  }
+  const maxEtapa = Math.max(1, ...ETAPAS_JORNADA.map(porStatus))
+  const atalhos = [
+    { rota: '/novo', icone: <IcoUserPlus size={20} />, rotulo: 'Novo visitante' },
+    { rota: '/jornada', icone: <IcoJornada size={20} />, rotulo: 'Jornada' },
+    { rota: '/visitantes', icone: <IcoUsuarios size={20} />, rotulo: 'Visitantes' },
+    { rota: '/relatorios', icone: <IcoRelatorios size={20} />, rotulo: 'Relatórios' },
+    { rota: '/equipe', icone: <IcoUserCheck size={20} />, rotulo: 'Equipe' },
+    { rota: '/config', icone: <IcoQr size={20} />, rotulo: 'QR do cadastro' },
+  ].filter((a) => podeAcessarRota(a.rota, eu))
 
   return (
-    <div>
-      <div className="dash-cab">
-        <div>
-          <h1 className="titulo-pagina">Painel da Consolidação</h1>
-          <p className="subtitulo" style={{ marginBottom: 0 }}>Visão geral da jornada — do primeiro contato à integração.</p>
-        </div>
-        <div className="dash-dica-arrastar">⠿ Arraste os quadros pela alça para reorganizar</div>
-      </div>
+    <div className="painel">
+      <div className="painel-grade">
+        <div className="painel-col">
+          {/* ---- Jornada: onde cada pessoa está agora ---- */}
+          <Secao titulo="Jornada" acao={{ rotulo: 'Abrir jornada', rota: '/jornada' }} classe="ordem-jornada">
+            <div className="card painel-jornada">
+              {vs.length === 0 ? (
+                <div className="painel-vazio">Nenhum visitante ainda. Cadastre em <a href="#/novo">Novo visitante</a>.</div>
+              ) : (
+                <>
+                  <div className="painel-funil">
+                    {ETAPAS_JORNADA.map((st) => {
+                      const n = porStatus(st)
+                      return (
+                        <button type="button" key={st} className="painel-etapa" onClick={() => navegar('/jornada')} title={rotuloStatus(st)}>
+                          <span className="painel-etapa-n">{n}</span>
+                          <span className="painel-etapa-barra">
+                            <i style={{ height: `${n ? 14 + (86 * n) / maxEtapa : 4}%`, background: STATUS_COR[st] }} />
+                          </span>
+                          <span className="painel-etapa-rotulo">{rotuloStatus(st)}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="painel-jornada-pe">
+                    <span>{vs.length} na sua visão · {emAcompanhamento} em acompanhamento · {integrados} {integrados === 1 ? 'membro' : 'membros'}</span>
+                    <span className="painel-chip painel-chip-ok">{taxaIntegracao}% de conversão</span>
+                  </div>
+                </>
+              )}
+            </div>
+          </Secao>
 
-      <div style={{ height: 16 }} />
+          {/* ---- Para resolver hoje ---- */}
+          <Secao titulo="Para resolver hoje" acao={{ rotulo: 'Ver visitantes', rota: '/visitantes' }} classe="ordem-resolver">
+            <div className="card painel-lista">
+              {pendencias.length === 0 ? (
+                <div className="painel-vazio">Tudo em dia por aqui. 🎉</div>
+              ) : pendencias.map((p) => (
+                <button type="button" key={p.chave} className="painel-linha painel-linha-clicavel" onClick={p.ir}>
+                  <span className={`painel-ico painel-ico-${p.tom}`}>{p.icone}</span>
+                  <span className="painel-linha-txt"><b>{p.titulo}</b><span>{p.sub}</span></span>
+                  <span className={`painel-chip painel-chip-${p.tom}`}>{p.n}</span>
+                  <span className="painel-seta"><IcoSeta size={16} /></span>
+                </button>
+              ))}
+            </div>
+          </Secao>
 
-      {(cuidado.length > 0 || semResponsavel.length > 0 || transferenciaPendente.length > 0 || semAtualizar.length > 0) && (
-        <div className="dash-alertas">
-          {cuidado.length > 0 && (
-            <div className="alerta alerta-perigo">
-              🚨 <div><b>Cuidado/Crise ativo:</b> {cuidado.map((v) => v.nome).join(', ')} — acione a liderança/pastor.</div>
-            </div>
+          {/* ---- Atalhos ---- */}
+          {atalhos.length > 0 && (
+            <nav className="painel-atalhos ordem-atalhos" aria-label="Atalhos">
+              {atalhos.map((a) => (
+                <a key={a.rota} href={`#${a.rota}`} className="painel-atalho">{a.icone}<span>{a.rotulo}</span></a>
+              ))}
+            </nav>
           )}
-          {semResponsavel.length > 0 && (
-            <div className="alerta alerta-warn">
-              ⚠️ <div><b>Sem responsável:</b> {semResponsavel.map((v) => v.nome).join(', ')} — atribua um consolidador na ficha.</div>
-            </div>
-          )}
-          {transferenciaPendente.length > 0 && (
-            <div className="alerta alerta-warn">
-              ⏳ <div><b>Aguardando confirmação do líder:</b> {transferenciaPendente.map((v) => v.nome).join(', ')}.</div>
-            </div>
-          )}
-          {semAtualizar.length > 0 && (
-            <div className="alerta alerta-warn">
-              🕐 <div>
-                <b>Sem atualização há 7+ dias:</b> {semAtualizar.map((v) => v.nome).join(', ')} —{' '}
-                <a href="#/visitantes" style={{ color: 'inherit', fontWeight: 700 }}>ver na lista</a>.
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
-      <div className="dash-blocos">
-        {ordem.map((id) => conteudo[id] && (
-          <BlocoArrastavel
-            key={id} id={id} arrastando={arrastando}
-            onIniciar={setArrastando} onEntrar={aoEntrar} onFim={() => setArrastando(null)}
+          {/* ---- Ações de hoje (com mensagem pronta no WhatsApp) ---- */}
+          <Secao
+            titulo="Ações de hoje" extra={<span className="painel-contagem">{ativos.length}</span>}
+            acao={{ rotulo: 'Ver todos', rota: '/visitantes' }} classe="ordem-acoes"
           >
-            {conteudo[id]}
-          </BlocoArrastavel>
-        ))}
+            <div className="card painel-lista">
+              {ativos.length === 0 ? (
+                <div className="painel-vazio">Nenhuma ação pendente. 🎉</div>
+              ) : ativos.slice(0, 8).map(({ v, acao }) => {
+                const template = acao.gatilhoTemplate ? s.templates.find((t) => t.gatilho === acao.gatilhoTemplate) : undefined
+                return (
+                  <div className="painel-linha" key={v.id}>
+                    <Avatar nome={v.nome} tom={v.flagCuidado ? 'var(--danger)' : undefined} />
+                    <button type="button" className="painel-linha-txt painel-linha-link" onClick={() => navegar(`/visitante/${v.id}`)}>
+                      <b>{v.nome}</b>
+                      <span className={acao.urgente ? 'painel-urgente' : ''}>{acao.titulo}</span>
+                    </button>
+                    <span className="badge painel-status" style={estiloStatus(v.status)}>{rotuloStatus(v.status)}</span>
+                    {template && (
+                      <a
+                        className="btn btn-whats btn-mini painel-whats"
+                        href={linkWhatsApp(v.whatsapp, aplicarTemplate(template.texto, v, s))}
+                        target="_blank" rel="noreferrer" title="Enviar a mensagem pronta no WhatsApp"
+                      ><IcoWhats size={14} /> <span>Enviar</span></a>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </Secao>
+        </div>
+
+        <div className="painel-col">
+          {/* ---- Cuidado pastoral ---- */}
+          {cuidado.length > 0 && (
+            <Secao titulo="Cuidado pastoral" acao={{ rotulo: 'Ver lista', rota: '/visitantes?grupo=cuidado' }} classe="ordem-cuidado">
+              <div className="card painel-lista painel-cuidado">
+                {cuidado.map((v) => (
+                  <button type="button" key={v.id} className="painel-linha painel-linha-clicavel" onClick={() => navegar(`/visitante/${v.id}`)}>
+                    <Avatar nome={v.nome} tom="var(--danger)" />
+                    <span className="painel-linha-txt">
+                      <b>{v.nome}</b>
+                      <span>{v.pedidoOracao?.trim() || 'Acione a liderança / pastor'}</span>
+                    </span>
+                    <span className="painel-chip painel-chip-crit">Cuidado</span>
+                  </button>
+                ))}
+              </div>
+            </Secao>
+          )}
+
+          {/* ---- Chegaram esta semana ---- */}
+          <Secao titulo="Chegaram esta semana" acao={{ rotulo: 'Visitantes', rota: '/visitantes' }} classe="ordem-recentes">
+            <div className="card painel-lista">
+              {recentes.length === 0 ? (
+                <div className="painel-vazio">Nenhum cadastro nos últimos 7 dias.</div>
+              ) : recentes.slice(0, 6).map((v) => (
+                <button type="button" key={v.id} className="painel-linha painel-linha-clicavel" onClick={() => navegar(`/visitante/${v.id}`)}>
+                  <Avatar nome={v.nome} />
+                  <span className="painel-linha-txt">
+                    <b>{v.nome}</b>
+                    <span>{[v.cultoPrimeiraVisita, v.origem === 'qr_code' ? 'QR code' : null, quando(v.dataCadastro)].filter(Boolean).join(' · ')}</span>
+                  </span>
+                  <span className="badge painel-status" style={estiloStatus(v.status)}>{rotuloStatus(v.status)}</span>
+                </button>
+              ))}
+            </div>
+          </Secao>
+
+          {/* ---- Batismo ---- */}
+          {(proximoBatismo || noBatismo > 0) && (
+            <div className="card painel-destaque ordem-batismo">
+              <span className="painel-ico painel-ico-acc"><IcoGota size={18} /></span>
+              <span className="painel-linha-txt">
+                <b>
+                  {proximoBatismo
+                    ? `Próximo batismo · ${new Date(proximoBatismo + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}`
+                    : rotuloStatus('batismo')}
+                </b>
+                <span>{noBatismo} {noBatismo === 1 ? 'pessoa nesta etapa' : 'pessoas nesta etapa'}</span>
+              </span>
+              <a className="btn btn-sec btn-mini" href="#/visitantes?grupo=batismo">Ver</a>
+            </div>
+          )}
+
+          {/* ---- Como conheceram ---- */}
+          <Secao titulo="Como conheceram a igreja" classe="ordem-canais">
+            <ComoConheceram vs={vs} />
+          </Secao>
+        </div>
       </div>
     </div>
   )

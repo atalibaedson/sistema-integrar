@@ -192,7 +192,10 @@ function Topo({ eu, seletorCelular, podeNovo }: { eu?: Usuario; seletorCelular: 
 }
 
 export default function App() {
-  const rota = useRota()
+  // Rota sem os parâmetros (#/visitantes?grupo=cuidado → /visitantes): os
+  // parâmetros só pré-selecionam filtros dentro da tela.
+  const rotaCompleta = useRota()
+  const rota = rotaCompleta.split('?')[0]
   const estado = useAppState()
   const sessao = useSessaoReal()
   const sessaoCarregada = useSessaoCarregada()
@@ -297,7 +300,8 @@ export default function App() {
   let pagina: JSX.Element
   if (rota === '/') pagina = paginaInicial
   else if (rota === '/jornada') pagina = <Jornada />
-  else if (rota === '/visitantes') pagina = <Visitantes />
+  // key: parâmetros novos (filtro vindo do Painel) remontam a lista com eles
+  else if (rota === '/visitantes') pagina = <Visitantes key={rotaCompleta} />
   else if (rota.startsWith('/visitante/') && rota.endsWith('/dados')) pagina = <VisitanteDados id={rota.split('/')[2]} />
   else if (rota.startsWith('/visitante/')) pagina = <VisitanteDetalhe id={rota.split('/')[2]} />
   else if (rota === '/novo') pagina = <NovoVisitante />

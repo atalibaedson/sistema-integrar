@@ -20,11 +20,22 @@ const GRUPOS: { id: string; rotulo: string; statuses?: Status[]; soCuidado?: boo
   { id: 'cuidado', rotulo: '🚨 Cuidado', soCuidado: true },
 ]
 
+// Filtro inicial pelo endereço (#/visitantes?grupo=cuidado&resp=sem) — é como os
+// itens do Painel ("Para resolver hoje") abrem a lista já filtrada.
+function parametroDoEndereco(nome: string): string | null {
+  const q = window.location.hash.split('?')[1]
+  return q ? new URLSearchParams(q).get(nome) : null
+}
+
 export default function Visitantes() {
   const s = useAppState()
-  const [grupo, setGrupo] = useState('todos')
+  const [grupo, setGrupo] = useState(() => {
+    const g = parametroDoEndereco('grupo')
+    return GRUPOS.some((x) => x.id === g) ? (g as string) : 'todos'
+  })
   const [busca, setBusca] = useState('')
-  const [consolidador, setConsolidador] = useState('') // '' = todos · 'sem' = sem responsável · id
+  // '' = todos · 'sem' = sem responsável · id
+  const [consolidador, setConsolidador] = useState(() => (parametroDoEndereco('resp') === 'sem' ? 'sem' : ''))
   const consolidadores = consolidadoresAtivos(s)
 
   // Base: só os visitantes que a identidade atual pode ver

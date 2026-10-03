@@ -50,3 +50,7 @@ export const IcoSair = (p: IcoProps) => <Ico {...p}><path d="M9 21H5a2 2 0 0 1-2
 export const IcoTrocar = (p: IcoProps) => <Ico {...p}><polyline points="7 15 12 20 17 15" /><polyline points="7 9 12 4 17 9" /></Ico>
 export const IcoEscudo = (p: IcoProps) => <Ico {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></Ico>
 export const IcoOlhoFechado = (p: IcoProps) => <Ico {...p}><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></Ico>
+export const IcoSeta = (p: IcoProps) => <Ico {...p}><polyline points="9 18 15 12 9 6" /></Ico>
+export const IcoRelogio = (p: IcoProps) => <Ico {...p}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Ico>
+export const IcoGota = (p: IcoProps) => <Ico {...p}><path d="M12 2.7S6 9.5 6 14a6 6 0 0 0 12 0c0-4.5-6-11.3-6-11.3z" /></Ico>
+export const IcoQr = (p: IcoProps) => <Ico {...p}><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3" /></Ico>

@@ -1295,69 +1295,119 @@ details summary:hover { color: var(--acento-texto); }
 }
 .rel-mini-barra span { display: block; height: 100%; border-radius: 999px; background: var(--ok); }
 
-/* ---- Painel profissional (Dashboard) ---- */
-.dash-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.dash-hoje {
-  display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
-  color: var(--acento-texto); background: var(--primary-soft); border: 1px solid var(--border);
-  padding: 8px 14px; border-radius: 999px; white-space: nowrap;
-}
-.dash-dica-arrastar { font-size: 12px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.dash-blocos { display: flex; flex-direction: column; gap: 16px; }
-.dash-bloco { position: relative; }
-.dash-bloco .dash-kpis { margin-bottom: 0; }
-.dash-bloco-alca {
-  position: absolute; top: 8px; right: 8px; z-index: 4;
-  width: 28px; height: 26px; border-radius: 7px; border: 1px solid var(--border);
-  background: var(--surface); color: var(--text-3); cursor: grab; font-size: 13px; line-height: 1;
-  display: inline-flex; align-items: center; justify-content: center;
-  opacity: .4; transition: opacity var(--transition), color var(--transition), border-color var(--transition);
-}
-.dash-bloco:hover .dash-bloco-alca { opacity: 1; }
-.dash-bloco-alca:hover { color: var(--acento-texto); border-color: var(--primary); }
-.dash-bloco-alca:active { cursor: grabbing; }
-.dash-bloco.arrastando { opacity: .4; }
-.dash-bloco.alvo { border-radius: var(--radius); outline: 1.5px dashed color-mix(in srgb, var(--primary) 45%, transparent); outline-offset: 4px; }
-.dash-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
-.dash-kpi {
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 15px 16px; display: flex; flex-direction: column; gap: 2px; position: relative;
-}
-.dash-kpi .dash-kpi-top { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 12px; font-weight: 600; }
-.dash-kpi .dash-kpi-icone { display: inline-flex; width: 26px; height: 26px; border-radius: 8px; align-items: center; justify-content: center; color: #fff; }
-.dash-kpi .dash-kpi-valor { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
-.dash-kpi .dash-kpi-nota { font-size: 11.5px; color: var(--text-3); }
+/* ---- Painel (Dashboard) — padrão da família iFE ----
+   Duas colunas no computador; no celular uma coluna só, reordenada por
+   prioridade (cuidado → resolver → jornada → ações → …) via `order`. */
+.painel-grade { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.painel-col { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.painel-secao-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.painel-secao-cab h2 { font-size: 15.5px; font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
+.painel-secao-cab a { font-size: 13px; font-weight: 600; color: var(--acento-texto); text-decoration: none; white-space: nowrap; }
+.painel-secao-cab a:hover { text-decoration: underline; }
+.painel-contagem { font-size: 11.5px; font-weight: 700; color: var(--acento-texto); background: var(--primary-soft); border-radius: 999px; padding: 1px 8px; }
+.painel .card { margin-bottom: 0; }
+.painel-vazio { padding: 22px 16px; text-align: center; color: var(--text-2); font-size: 13.5px; }
+.painel-nota { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
 
-/* Barra empilhada de distribuição por status */
-.dash-stack { display: flex; height: 26px; border-radius: 7px; background: var(--surface2); }
-.dash-stack { overflow: visible; }
-.dash-stack > :first-child { border-radius: 7px 0 0 7px; }
-.dash-stack > :last-child { border-radius: 0 7px 7px 0; }
-.dash-stack-seg { height: 100%; min-width: 2px; position: relative; cursor: default; transition: filter var(--transition); }
-.dash-stack-seg:hover { filter: brightness(1.12); }
-
-/* Balão de porcentagem — o "quanto pesa" que a legenda abaixo não mostra */
-.dash-stack-tip {
-  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
-  background: var(--text); color: var(--surface);
-  padding: 5px 9px; border-radius: var(--radius-sm);
-  font-size: 12px; line-height: 1; white-space: nowrap;
-  opacity: 0; visibility: hidden; transition: opacity var(--transition);
-  pointer-events: none; z-index: 5; box-shadow: var(--shadow);
+/* Jornada: colunas por etapa (altura proporcional) */
+.painel-jornada { padding: 0; overflow: hidden; }
+.painel-funil { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; padding: 18px 18px 14px; }
+.painel-etapa {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0;
+  background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; color: var(--text);
 }
-.dash-stack-tip::after {
-  content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
-  border: 5px solid transparent; border-top-color: var(--text);
+.painel-etapa-n { font-size: 21px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.painel-etapa-barra { height: 72px; width: 100%; background: var(--surface2); border-radius: 8px; display: flex; align-items: flex-end; overflow: hidden; }
+.painel-etapa-barra i { display: block; width: 100%; border-radius: 8px 8px 0 0; opacity: .9; transition: opacity var(--transition); }
+.painel-etapa:hover .painel-etapa-barra i { opacity: 1; }
+.painel-etapa-rotulo {
+  font-size: 11.5px; font-weight: 600; color: var(--text-2); text-align: center; line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.dash-stack-seg:hover .dash-stack-tip { opacity: 1; visibility: visible; }
-.dash-stack-legenda { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 12px; }
-.dash-stack-legenda span { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); }
-.dash-stack-legenda i { width: 10px; height: 10px; border-radius: 3px; }
-.dash-stack-legenda b { color: var(--text); font-variant-numeric: tabular-nums; }
+.painel-jornada-pe {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 11px 18px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--text-2);
+}
 
-.dash-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; }
+/* Linhas de lista (pendências, ações, pessoas) */
+.painel-lista { padding: 0; overflow: hidden; }
+.painel-linha {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 12px 16px; border-top: 1px solid var(--border);
+  background: none; border-left: none; border-right: none; border-bottom: none;
+  font-family: inherit; text-align: left; color: var(--text);
+}
+.painel-linha:first-child { border-top: none; }
+.painel-linha-clicavel { cursor: pointer; transition: background var(--transition); }
+.painel-linha-clicavel:hover { background: var(--surface2); }
+.painel-linha-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.35; }
+.painel-linha-txt b { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.painel-linha-txt span { font-size: 12.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.painel-linha-link { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; text-align: left; color: inherit; }
+.painel-linha-link:hover b { color: var(--acento-texto); }
+.painel-urgente { color: var(--danger) !important; font-weight: 600; }
+.painel-seta { color: var(--text-3); display: grid; place-items: center; }
+.painel-status { flex-shrink: 0; }
+.painel-whats { flex-shrink: 0; text-decoration: none; }
 
-.dash-alertas { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.painel-ico { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; }
+.painel-ico-crit { background: var(--danger-soft); color: var(--danger); }
+.painel-ico-warn { background: var(--warn-soft); color: var(--warn); }
+.painel-ico-gold { background: var(--dourado-soft); color: color-mix(in srgb, var(--dourado) 70%, var(--text)); }
+.painel-ico-acc { background: var(--primary-soft); color: var(--acento-texto); }
+
+.painel-avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; color: #fff; font-size: 12.5px; font-weight: 700;
+}
+
+/* Etiquetas com bolinha (padrão .chip da família) */
+.painel-chip {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+}
+.painel-chip::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.painel-chip-ok { background: var(--ok-soft); color: var(--ok); }
+.painel-chip-crit { background: var(--danger-soft); color: var(--danger); }
+.painel-chip-warn { background: var(--warn-soft); color: var(--warn); }
+.painel-chip-gold { background: var(--dourado-soft); color: color-mix(in srgb, var(--dourado) 70%, var(--text)); }
+.painel-chip-acc { background: var(--primary-soft); color: var(--acento-texto); }
+.painel-chip-acc::before { display: none; }
+
+.painel-cuidado { border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
+.painel-destaque { display: flex; align-items: center; gap: 14px; padding: 16px 18px; }
+.painel-destaque .btn { text-decoration: none; }
+
+/* Atalhos */
+.painel-atalhos { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; }
+.painel-atalho {
+  display: flex; flex-direction: column; align-items: center; gap: 7px; text-align: center;
+  padding: 13px 8px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border);
+  font-size: 12.5px; font-weight: 600; line-height: 1.25; color: var(--text); text-decoration: none;
+  transition: border-color var(--transition), background var(--transition);
+}
+.painel-atalho svg { color: var(--acento-texto); }
+.painel-atalho:hover { border-color: var(--border-strong); background: var(--surface2); }
+
+@media (max-width: 1100px) {
+  .painel-grade { grid-template-columns: 1fr; }
+  .painel-col { display: contents; }
+  .painel-grade { display: flex; flex-direction: column; align-items: stretch; gap: 22px; }
+  .painel-grade > * { min-width: 0; }
+  .ordem-cuidado { order: 1; } .ordem-resolver { order: 2; } .ordem-jornada { order: 3; }
+  .ordem-acoes { order: 4; } .ordem-recentes { order: 5; } .ordem-batismo { order: 6; }
+  .ordem-atalhos { order: 7; } .ordem-canais { order: 8; }
+}
+@media (max-width: 600px) {
+  .painel-funil { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 10px; padding: 14px; }
+  .painel-etapa-barra { height: 40px; }
+  .painel-status { display: none; }          /* no celular a etiqueta de etapa pesa; fica o essencial */
+  .painel-whats span { display: none; }
+  .painel-linha { padding: 12px 14px; }
+  /* no celular o texto quebra em vez de ser cortado (até 2 linhas no detalhe) */
+  .painel-linha-txt b { white-space: normal; }
+  .painel-linha-txt span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+}
 
 @media print {
   .sidebar, .topbar, .bottomnav, .cab-chips, .rel-acoes-topo, .rel-abas, .rel-periodo { display: none !important; }
@@ -1370,7 +1420,6 @@ details summary:hover { color: var(--acento-texto); }
   .rel-bar-rotulo { width: auto; }
   .rel-funil-linha { grid-template-columns: 1fr; }
   .rel-funil-rotulo { text-align: left; }
-  .dash-grid { grid-template-columns: 1fr; }
   .rel-chart-bar { width: 6px; }
 }
 
