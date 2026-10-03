@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react'
-import { useAppState } from './store'
+import { useEffect, useState, type ReactNode } from 'react'
+import { carregarConfigPublica, useAppState } from './store'
 import { rotuloPapel } from './types'
 import { alternarModoTema, getModoTema } from './tema-modo'
 import { IcoEscudo, IcoLua, IcoSol } from './icones'
@@ -27,6 +27,11 @@ export default function TelaPublica({ children, publico = 'equipe', larga = fals
   const [modo, setModo] = useState(getModoTema())
   const termoGrupo = cfg.termoGrupo?.trim() || 'Conexão'
   const equipe = publico === 'equipe'
+
+  // Antes do login o app não lê os dados da igreja (RLS): sem isto, num aparelho
+  // novo a tela mostrava o nome e as cores padrão em vez dos DESTA igreja (a do
+  // endereço). Só a identidade pública — nada de dados pessoais.
+  useEffect(() => { void carregarConfigPublica() }, [])
 
   return (
     <div className={`tp ${equipe ? 'tp-equipe' : 'tp-visitante'}`}>
