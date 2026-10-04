@@ -78,6 +78,16 @@ O `supabase/config.toml` já deixa a verificação de JWT desligada para esta fu
 (necessário para a rotina agendada; as ações de cada pessoa validam o login por
 dentro). Se publicar pelo painel, desligue **"Verify JWT"** depois.
 
+Confira se a função subiu e se as chaves estão boas (resposta esperada: `"vapid":true`):
+
+```bash
+curl -s -X POST "https://yzexsklhixqcbmnbrtdl.supabase.co/functions/v1/alertas-push" -H "Content-Type: application/json" -d '{"acao":"saude"}'
+```
+
+Se vier `"vapid":false`, o campo `motivo` diz o que falta (segredo ausente ou chave
+inválida — por exemplo, um texto de exemplo colado no lugar da chave). Corrija o
+segredo e **publique a função de novo** (os segredos são lidos na partida).
+
 ### 6. Testar no seu aparelho
 
 1. Abra o sistema → **Avisos** (sino no topo) → card **Notificações no celular** →

@@ -1,6 +1,7 @@
 // Edge Function: avisos por push (notificação no celular / computador).
 //
 // Faz quatro coisas, escolhidas pelo campo `acao` do corpo (POST/JSON):
+//   • saude   — (aberta) diz se as chaves de envio estão prontas
 //   • chave   — devolve a chave pública VAPID (o app precisa dela para se inscrever)
 //   • assinar — guarda a inscrição de push de UM aparelho de uma pessoa
 //   • cancelar— apaga a inscrição de um aparelho
@@ -20,7 +21,6 @@
 // publicada com verify_jwt = false (supabase/config.toml), porque a rotina
 // agendada não tem JWT; por isso a validação é feita aqui dentro.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import webpush from 'npm:web-push@3.6.7'
 import { alertasConfig, alertasDoUsuario, calcularAlertas, partesBR, textoPush, textoPushImediato } from '../_shared/alertas.ts'
 import type { Alerta } from '../_shared/alertas.ts'
 import type { AppState, Usuario } from '../_shared/types.ts'
@@ -49,8 +49,26 @@ const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
 
 const admin = createClient(URL_SUPABASE, SERVICE, { auth: { autoRefreshToken: false, persistSession: false } })
 
-const vapidPronto = VAPID_PUBLIC && VAPID_PRIVATE && VAPID_SUBJECT
-if (vapidPronto) webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE)
+// A biblioteca de push e as chaves são preparadas AQUI, dentro de try/catch: chave
+// inválida (ex.: um texto de exemplo colado no lugar da chave) ou falha ao
+// carregar a biblioteca não pode derrubar a função na partida — vira uma
+// mensagem clara (ação `saude`, `chave` e `testar`) e o resto continua de pé.
+// deno-lint-ignore no-explicit-any
+let webpush: any = null
+let vapidErro = ''
+try {
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE || !VAPID_SUBJECT) {
+    vapidErro = 'faltam segredos (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY ou VAPID_SUBJECT)'
+  } else {
+    const mod = await import('npm:web-push@3.6.7')
+    webpush = mod.default ?? mod
+    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE)
+  }
+} catch (e) {
+  webpush = null
+  vapidErro = `chaves inválidas ou biblioteca indisponível (${(e as Error).message})`
+}
+const vapidPronto = webpush !== null && vapidErro === ''
 
 // Segredos comparados sem atalho de tamanho/posição
 function iguais(a: string, b: string): boolean {
@@ -158,7 +176,7 @@ async function acaoCancelar(user: { id: string }, corpo: Record<string, unknown>
 async function acaoTestar(user: { id: string }, corpo: Record<string, unknown>) {
   const igrejaId = texto(corpo.igrejaId)
   if (!igrejaId) return resposta({ error: 'Igreja não identificada.' }, 400)
-  if (!vapidPronto) return resposta({ error: 'O servidor ainda não tem as chaves de notificação configuradas.' }, 503)
+  if (!vapidPronto) return resposta({ error: `O servidor ainda não tem as chaves de notificação configuradas: ${vapidErro}.` }, 503)
   const { data } = await admin
     .from('assinaturas_push').select('id, igreja_id, usuario_id, endpoint, p256dh, auth')
     .eq('auth_user_id', user.id).eq('igreja_id', igrejaId)
@@ -183,7 +201,7 @@ async function acaoEnviar(corpo: Record<string, unknown>) {
   if (!simular && (hora < JANELA_INICIO || hora >= JANELA_FIM)) {
     return resposta({ ok: true, motivo: 'fora do horário de envio', hora })
   }
-  if (!simular && !vapidPronto) return resposta({ error: 'Chaves VAPID não configuradas.' }, 503)
+  if (!simular && !vapidPronto) return resposta({ error: `Chaves VAPID não configuradas: ${vapidErro}.` }, 503)
 
   const { data: linhas, error } = await admin.from('assinaturas_push').select('id, igreja_id, usuario_id, endpoint, p256dh, auth')
   if (error) return resposta({ error: `Falha ao ler as inscrições: ${error.message}` }, 500)
@@ -295,6 +313,11 @@ Deno.serve(async (req) => {
   const acao = texto(corpo.acao)
 
   try {
+    // Diagnóstico aberto: só diz se o envio está pronto (nenhum segredo vaza)
+    if (acao === 'saude') {
+      return resposta({ ok: true, vapid: vapidPronto, motivo: vapidPronto ? undefined : vapidErro, cron: CRON_SECRET.length > 0 })
+    }
+
     // Rotina agendada: segredo próprio, sem usuário
     if (acao === 'enviar') {
       if (!iguais(req.headers.get('x-cron-secret') ?? '', CRON_SECRET)) return resposta({ error: 'Não autorizado.' }, 401)
@@ -305,7 +328,9 @@ Deno.serve(async (req) => {
     const user = await usuarioDoToken(req)
     if (!user) return resposta({ error: 'Sessão inválida.' }, 401)
     switch (acao) {
-      case 'chave': return resposta({ chave: VAPID_PUBLIC })
+      case 'chave':
+        if (!vapidPronto) return resposta({ error: `As notificações ainda não estão configuradas no servidor: ${vapidErro}.` }, 503)
+        return resposta({ chave: VAPID_PUBLIC })
       case 'assinar': return await acaoAssinar(user, corpo)
       case 'cancelar': return await acaoCancelar(user, corpo)
       case 'testar': return await acaoTestar(user, corpo)
