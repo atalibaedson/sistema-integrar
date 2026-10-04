@@ -5,7 +5,8 @@ import { rotuloStatus, STATUS_COR, type Status } from '../types'
 import { mudarStatus } from '../actions'
 import { navegar } from '../router'
 import { useUsuarioAtualId, usuarioAtual, visitantesVisiveis } from '../acesso'
-import { IcoAlerta } from '../icones'
+import { IcoAlerta, IcoSino } from '../icones'
+import { useAvisos } from '../avisos'
 import Avatar from '../Avatar'
 
 // Quadro Kanban da jornada: arraste o cartão para mudar a etapa.
@@ -18,6 +19,7 @@ const COLUNAS_EXCECAO: Status[] = ['em_espera', 'recusou', 'encerrado']
 
 export default function Jornada() {
   const s = useAppState()
+  const { porVisitante: avisosPorVisitante } = useAvisos()
   const eu = usuarioAtual(s, useUsuarioAtualId())
   const visiveis = visitantesVisiveis(s, eu)
   const [erro, setErro] = useState('')
@@ -99,8 +101,13 @@ export default function Jornada() {
                           </div>
                         </div>
                       </div>
-                      {(v.flagCuidado || v.flagMenorIdade || mostraDias) && (
+                      {(v.flagCuidado || v.flagMenorIdade || mostraDias || avisosPorVisitante.has(v.id)) && (
                         <div className="kanban-chips">
+                          {avisosPorVisitante.has(v.id) && (
+                            <span className="aviso-selo" title={avisosPorVisitante.get(v.id)!.map((a) => a.titulo).join(' · ')}>
+                              <IcoSino size={11} /> aviso
+                            </span>
+                          )}
                           {v.flagCuidado && <span className="painel-chip painel-chip-crit">cuidado</span>}
                           {v.flagMenorIdade && <span className="painel-chip painel-chip-warn">menor</span>}
                           {mostraDias && (

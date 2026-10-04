@@ -212,6 +212,9 @@ function migrar(raw: any): AppState {
   // v5 → v6: lápides de exclusão (sincronização com mesclagem)
   base.excluidos = base.excluidos ?? []
 
+  // Central de avisos: avisos adiados / resolvidos por pessoa
+  base.dispensas = base.dispensas ?? []
+
   // Igrejas que ainda usam a lista de cultos padrão antiga ganham o culto da tarde
   const cultosPadraoAntigo = ['Domingo — manhã', 'Domingo — noite', 'Quarta — noite']
   if (JSON.stringify(base.config.cultos) === JSON.stringify(cultosPadraoAntigo)) {

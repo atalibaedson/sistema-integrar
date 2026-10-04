@@ -4,7 +4,8 @@ import { diasDesde } from '../machine'
 import { estiloStatus, rotuloStatus, STATUS_COR, type Status, type Visitante } from '../types'
 import { linkWhatsApp, normalizarTexto, proximaAcao } from '../actions'
 import { navegar } from '../router'
-import { IcoBusca, IcoRelogio, IcoWhats } from '../icones'
+import { IcoBusca, IcoRelogio, IcoSino, IcoWhats } from '../icones'
+import { useAvisos } from '../avisos'
 import Avatar from '../Avatar'
 import { useUsuarioAtualId, usuarioAtual, visitantesVisiveis } from '../acesso'
 
@@ -37,7 +38,12 @@ export default function Visitantes() {
   })
   const [busca, setBusca] = useState('')
   // '' = todos · 'sem' = sem responsável · id
-  const [consolidador, setConsolidador] = useState(() => (parametroDoEndereco('resp') === 'sem' ? 'sem' : ''))
+  // (id de pessoa vem dos avisos: "fulano tem 3 fichas paradas")
+  const [consolidador, setConsolidador] = useState(() => {
+    const r = parametroDoEndereco('resp')
+    return r === 'sem' || (r && s.usuarios.some((u) => u.id === r)) ? r! : ''
+  })
+  const { porVisitante: avisosPorVisitante } = useAvisos()
   const consolidadores = consolidadoresAtivos(s)
 
   // Base: só os visitantes que a identidade atual pode ver
@@ -143,6 +149,11 @@ export default function Visitantes() {
                     {v.nome}
                     {v.flagCuidado && <span className="painel-chip painel-chip-crit">cuidado</span>}
                     {v.flagMenorIdade && <span className="painel-chip painel-chip-warn">menor</span>}
+                    {avisosPorVisitante.has(v.id) && (
+                      <span className="aviso-selo" title={avisosPorVisitante.get(v.id)!.map((a) => a.titulo).join(' · ')}>
+                        <IcoSino size={11} /> aviso
+                      </span>
+                    )}
                   </b>
                   <span>
                     {v.whatsapp}

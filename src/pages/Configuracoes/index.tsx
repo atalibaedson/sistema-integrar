@@ -6,10 +6,11 @@ import AbaGrupos from './AbaGrupos'
 import AbaMensagens from './AbaMensagens'
 import AbaAutocadastro from './AbaAutocadastro'
 import AbaDados from './AbaDados'
-import { IcoBanco, IcoCalendario, IcoCasa, IcoCelular, IcoIgreja, IcoMapa, IcoMensagem } from '../../icones'
+import AbaAvisos from './AbaAvisos'
+import { IcoBanco, IcoCalendario, IcoCasa, IcoCelular, IcoIgreja, IcoMapa, IcoMensagem, IcoSino } from '../../icones'
 import { useAppState } from '../../store'
 
-type Aba = 'igreja' | 'jornada' | 'cultos' | 'grupos' | 'mensagens' | 'autocadastro' | 'dados'
+type Aba = 'igreja' | 'jornada' | 'cultos' | 'grupos' | 'mensagens' | 'avisos' | 'autocadastro' | 'dados'
 
 // Seções no padrão das configurações da família iFE: menu lateral (ícone,
 // nome, o que tem dentro) no computador; pílulas roláveis no celular.
@@ -19,6 +20,7 @@ const ABAS: { id: Aba; rotulo: string; dica: string; icone: ReactNode }[] = [
   { id: 'cultos', rotulo: 'Cultos', dica: 'Cultos fixos e suas datas', icone: <IcoCalendario size={18} /> },
   { id: 'grupos', rotulo: 'Grupos', dica: 'Grupos e seus líderes', icone: <IcoCasa size={18} /> },
   { id: 'mensagens', rotulo: 'Mensagens', dica: 'Textos do fluxo de contato', icone: <IcoMensagem size={18} /> },
+  { id: 'avisos', rotulo: 'Avisos', dica: 'Prazos dos alertas da equipe', icone: <IcoSino size={18} /> },
   { id: 'autocadastro', rotulo: 'Autocadastro', dica: 'Página pública do QR code', icone: <IcoCelular size={18} /> },
   { id: 'dados', rotulo: 'Dados & Nuvem', dica: 'Backup e sincronização', icone: <IcoBanco size={18} /> },
 ]
@@ -66,6 +68,7 @@ export default function Configuracoes() {
           {aba === 'cultos' && <AbaCultos />}
           {aba === 'grupos' && <AbaGrupos />}
           {aba === 'mensagens' && <AbaMensagens />}
+          {aba === 'avisos' && <AbaAvisos />}
           {aba === 'autocadastro' && <AbaAutocadastro />}
           {aba === 'dados' && <AbaDados />}
         </div>

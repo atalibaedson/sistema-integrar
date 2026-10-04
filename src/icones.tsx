@@ -63,3 +63,4 @@ export const IcoCoracao = (p: IcoProps) => <Ico {...p}><path d="M20.84 4.61a5.5 
 export const IcoLampada = (p: IcoProps) => <Ico {...p}><path d="M9 18h6M10 22h4" /><path d="M12 2a7 7 0 0 0-4 12.74V16h8v-1.26A7 7 0 0 0 12 2z" /></Ico>
 export const IcoCadeado = (p: IcoProps) => <Ico {...p}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></Ico>
 export const IcoEmail = (p: IcoProps) => <Ico {...p}><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 6-10 7L2 6" /></Ico>
+export const IcoSino = (p: IcoProps) => <Ico {...p}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></Ico>

@@ -1,3 +1,4 @@
+// ⚠️ CÓPIA GERADA de src/types.ts — NÃO edite aqui. Mude a fonte e rode: npm run sincronizar:servidor
 // Modelo de dados — seção 5 da especificação
 
 export type Status =

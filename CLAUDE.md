@@ -62,7 +62,9 @@ aprovação de conta e aplica a identidade da igreja (cores + rótulos).
   `cadastrarVisitantePublico`) — a página pública NÃO baixa o estado da igreja.
 - `mesclar.ts` — mescla estado local × nuvem por id (evita sobrescrita entre aparelhos).
 - `supabaseClient.ts` — cliente Supabase (auth + storage; sessão para o RLS).
-- `acesso.ts` — controle de acesso por papel/hierarquia (quem vê/acessa o quê).
+- `acesso.ts` — controle de acesso por papel/hierarquia (quem vê/acessa o quê). As regras
+  PURAS (supervisiona, podeVerVisitante, podeVerCuidado…) ficam em `regras-acesso.ts`
+  (o servidor usa a mesma) e são reexportadas por `acesso.ts`.
 - `auditoria.ts` — trilha de auditoria (LGPD): quem fez o quê, quando.
 
 ### Apoio
@@ -74,12 +76,20 @@ aprovação de conta e aplica a identidade da igreja (cores + rótulos).
   em vez de montar círculos à mão.
 - `TelaPublica.tsx` — moldura das telas públicas (entrar, criar acesso, nova senha,
   aguardando, autocadastro): painel institucional + conteúdo, padrão da família iFE.
+- `alertas.ts` — **central de avisos**, regras PURAS (sem navegador): `calcularAlertas`
+  gera cada aviso com destinatários e nível (o aviso SOBE: responsável → líder acima →
+  Gestão); `alertasDoUsuario` filtra por pessoa e tira os adiados; `alertasConfig` aplica
+  os prazos de Configurações → Avisos. Roda no app **e** no servidor (push).
+- `avisos.ts` — liga o `alertas.ts` ao app: `useAvisos()` (sino, Painel, selos nas listas),
+  `dispensarAviso` (adiar / já resolvi, guardado em `AppState.dispensas`) e `reativarAviso`.
+- `push.ts` + `public/sw.js` — notificações push (inscrever/cancelar/testar via função
+  `alertas-push`; o service worker só exibe a notificação, **sem cache**).
 - `demo.ts` — modo demonstração (`npm run dev:demo`): igreja e sessão fictícias.
 - `carregar.ts` — `lazyComRecarga`: telas menos usadas carregam sob demanda (App.tsx);
   se um deploy novo trocou os arquivos, recarrega a página uma vez em vez de quebrar.
 
 ### Telas (`src/pages/`)
-Painel (`Dashboard`), `Jornada`, `Visitantes` (lista) → `VisitanteDetalhe` (ficha,
+Painel (`Dashboard`), `Avisos` (central de avisos + ativar push), `Jornada`, `Visitantes` (lista) → `VisitanteDetalhe` (ficha,
 grande), `NovoVisitante`, `PainelLider`, `Equipe`, `Aprovacoes`, `Auditoria`,
 `Relatorios`, `Configuracoes` (grande, por abas), `Ajuda`. Públicas: `Autocadastro`,
 `CadastroIntegrante`, `Entrar`, `NovaSenha` (link "esqueci a senha"), `AguardandoAprovacao`.
@@ -98,8 +108,21 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe`, `Aprovacoes`, `Auditoria`,
   lê só a config (`carregarConfigPublica`) e grava pela Edge Function
   `cadastrar-visitante` (servidor, service role). Ver `IMPLANTACAO-PRIORIDADE-1.md`.
 
+### Avisos e push (não quebrar)
+
+- `src/alertas.ts`, `src/regras-acesso.ts` e `src/types.ts` têm CÓPIA em
+  `supabase/functions/_shared/` (gerada por `npm run sincronizar:servidor`). Mudou um deles?
+  Rode o script e republique a função `alertas-push` — o teste `servidor-sincronizado`
+  barra o deploy se esquecer. Esses arquivos não podem importar nada de navegador/React.
+- O texto do push só tem **contagens**: nunca ponha nome de visitante na notificação
+  (aparece na tela bloqueada; LGPD).
+- Cuidado/crise só vai para quem `podeVerCuidado` (pastores + responsável).
+- Runbook do push (VAPID, SQL 08, cron): `IMPLANTACAO-ALERTAS-PUSH.md`.
+
 ### Servidor (Supabase — implantação manual)
 - `supabase/functions/cadastrar-visitante/` — grava o autocadastro no servidor.
+- `supabase/functions/alertas-push/` — inscrições e envio dos pushes (rotina agendada a
+  cada 30 min); usa `_shared/` (cópia das regras dos avisos). `supabase/sql/08_alertas_push.sql`.
 - `supabase/sql/01..04_*.sql` — RPCs (append atômico, config pública), backup e
   endurecimento do RLS. Rodar na ordem; o 04 (RLS) por último. Ver o runbook.
 
@@ -131,6 +154,7 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe`, `Aprovacoes`, `Auditoria`,
 
 Na raiz há especificações e manual longos — só consulte quando a tarefa pedir:
 `Consolidacao-iFE-Especificacao.md`, `PADRAO-SISTEMA-INTEGRACAO.md`, `manual/manual.html`,
+`IMPLANTACAO-ALERTAS-PUSH.md`,
 `README.md`, `SUPABASE.md`, `SUPABASE-AUTH.md`.
 
 ## Manual do usuário

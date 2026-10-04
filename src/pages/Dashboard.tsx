@@ -10,6 +10,7 @@ import {
   IcoUserCheck, IcoUserPlus, IcoUsuarios, IcoWhats,
 } from '../icones'
 import Avatar from '../Avatar'
+import { ICONE_ALERTA, textoNivel, useAvisos } from '../avisos'
 
 // Painel — padrão da família iFE (Louvor / Check-iFE): a saudação fica no topo,
 // e o conteúdo responde "onde estão as pessoas" (Jornada), "o que resolver"
@@ -82,6 +83,7 @@ export default function Dashboard() {
   const s = useAppState()
   const eu = usuarioAtual(s, useUsuarioAtualId())
   const vs = visitantesVisiveis(s, eu) // só o que a identidade atual pode ver
+  const { ativos: avisos } = useAvisos()
 
   const porStatus = (st: Status) => vs.filter((v) => v.status === st).length
   const emAcompanhamento = porStatus('novo') + porStatus('em_contato') + porStatus('aguardando_resposta')
@@ -159,6 +161,32 @@ export default function Dashboard() {
     <div className="painel">
       <div className="painel-grade">
         <div className="painel-col">
+          {/* ---- Precisa de atenção: avisos da central (só aparece quando há) ---- */}
+          {avisos.length > 0 && (
+            <Secao
+              titulo="Precisa de atenção" extra={<span className="painel-contagem">{avisos.length}</span>}
+              acao={{ rotulo: 'Ver todos', rota: '/avisos' }} classe="ordem-atencao"
+            >
+              <div className="card painel-lista">
+                {avisos.slice(0, 4).map((a) => {
+                  const Icone = ICONE_ALERTA[a.tipo]
+                  const nivel = textoNivel(a)
+                  return (
+                    <button type="button" key={a.chave} className="painel-linha painel-linha-clicavel" onClick={() => navegar(a.rota)}>
+                      <span className={`painel-ico painel-ico-${a.gravidade}`}><Icone size={18} /></span>
+                      <span className="painel-linha-txt"><b>{a.titulo}</b><span>{a.detalhe}</span></span>
+                      {nivel && <span className="painel-chip painel-chip-crit">{nivel}</span>}
+                      <span className="painel-seta"><IcoSeta size={16} /></span>
+                    </button>
+                  )
+                })}
+                {avisos.length > 4 && (
+                  <a className="painel-mais" href="#/avisos">+ {avisos.length - 4} {avisos.length - 4 === 1 ? 'aviso' : 'avisos'}</a>
+                )}
+              </div>
+            </Secao>
+          )}
+
           {/* ---- Jornada: onde cada pessoa está agora ---- */}
           <Secao titulo="Jornada" acao={{ rotulo: 'Abrir jornada', rota: '/jornada' }} classe="ordem-jornada">
             <div className="card painel-jornada">

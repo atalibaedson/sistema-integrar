@@ -10,7 +10,9 @@ import { getIgrejaAtiva } from './nuvem'
 import { garantirFichaMembroRede } from './actions'
 import { aplicarRotulos, rotuloPapel, type Usuario } from './types'
 import { corDeContraste } from './tema'
-import { IcoAjuda, IcoAuditoria, IcoCasa, IcoConfig, IcoJornada, IcoLua, IcoMais, IcoMenu, IcoPainel, IcoRelatorios, IcoSair, IcoSol, IcoTrocar, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
+import { IcoAjuda, IcoAuditoria, IcoCasa, IcoConfig, IcoJornada, IcoLua, IcoMais, IcoMenu, IcoPainel, IcoRelatorios, IcoSair, IcoSino, IcoSol, IcoTrocar, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
+import { useAvisos } from './avisos'
+import { renovarAssinaturaPush } from './push'
 import { lazyComRecarga } from './carregar'
 import Dashboard from './pages/Dashboard'
 import Visitantes from './pages/Visitantes'
@@ -33,6 +35,7 @@ const CadastroIntegrante = lazyComRecarga(() => import('./pages/CadastroIntegran
 const Aprovacoes = lazyComRecarga(() => import('./pages/Aprovacoes'))
 const Relatorios = lazyComRecarga(() => import('./pages/Relatorios'))
 const VisitanteDados = lazyComRecarga(() => import('./pages/VisitanteDados'))
+const Avisos = lazyComRecarga(() => import('./pages/Avisos'))
 
 type ItemMenu = { rota: string; icone: (p: { size?: number }) => JSX.Element; rotulo: string }
 
@@ -41,6 +44,7 @@ const MENU: { secao: string; itens: ItemMenu[] }[] = [
     secao: 'Acompanhamento',
     itens: [
       { rota: '/', icone: IcoPainel, rotulo: 'Painel' },
+      { rota: '/avisos', icone: IcoSino, rotulo: 'Avisos' },
       { rota: '/jornada', icone: IcoJornada, rotulo: 'Jornada' },
       { rota: '/visitantes', icone: IcoUsuarios, rotulo: 'Visitantes' },
       { rota: '/novo', icone: IcoUserPlus, rotulo: 'Novo visitante' },
@@ -73,6 +77,7 @@ const NAV_PRINCIPAL: (ItemMenu & { destaque?: boolean })[] = [
   { rota: '/visitantes', icone: IcoUsuarios, rotulo: 'Visitantes' },
 ]
 const NAV_MAIS: ItemMenu[] = [
+  { rota: '/avisos', icone: IcoSino, rotulo: 'Avisos' },
   { rota: '/lideres', icone: IcoUserCheck, rotulo: 'Painel do líder' },
   { rota: '/relatorios', icone: IcoRelatorios, rotulo: 'Relatórios' },
   { rota: '/equipe', icone: IcoUsuarios, rotulo: 'Equipe' },
@@ -141,7 +146,7 @@ function SeletorIgreja({ igrejas, ativa, classe }: { igrejas: IgrejaAcesso[]; at
 }
 
 // Topo: saudação + data, estado da sincronização, tema e o atalho principal
-function Topo({ eu, seletorCelular, podeNovo }: { eu?: Usuario; seletorCelular: JSX.Element | null; podeNovo: boolean }) {
+function Topo({ eu, seletorCelular, podeNovo, avisos }: { eu?: Usuario; seletorCelular: JSX.Element | null; podeNovo: boolean; avisos: number | null }) {
   const nuvem = useNuvem()
   const [modo, setModo] = useState(getModoTema())
   const data = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -179,6 +184,16 @@ function Topo({ eu, seletorCelular, podeNovo }: { eu?: Usuario; seletorCelular: 
             <span className="ponto" />{chip.rotulo}
           </span>
         )}
+        {avisos !== null && (
+          <a
+            className="topbar-icone topbar-sino" href="#/avisos"
+            title={avisos > 0 ? `${avisos} ${avisos === 1 ? 'aviso' : 'avisos'} para você` : 'Avisos'}
+            aria-label={avisos > 0 ? `Avisos: ${avisos} pendentes` : 'Avisos'}
+          >
+            <IcoSino size={18} />
+            {avisos > 0 && <span className="sino-n">{avisos > 9 ? '9+' : avisos}</span>}
+          </a>
+        )}
         <button
           type="button" className="topbar-icone"
           onClick={() => setModo(alternarModoTema())}
@@ -204,6 +219,7 @@ export default function App() {
   const sessao = useSessaoReal()
   const sessaoCarregada = useSessaoCarregada()
   const atualId = useUsuarioAtualId()
+  const avisos = useAvisos()
   const [maisAberto, setMaisAberto] = useState(false)
 
   // Garante uma sessão Supabase (anônima serve) para o sync passar no RLS
@@ -263,6 +279,11 @@ export default function App() {
     }
   }, [sessao, overrideAtivo, usuarioSessao, ehMembroRede])
 
+  // Com a permissão de notificações já dada, renova a inscrição no servidor
+  useEffect(() => {
+    if (contaLiberada && usuarioSessao) renovarAssinaturaPush(usuarioSessao.id)
+  }, [contaLiberada, usuarioSessao?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Rotas públicas — sem menu/sidebar (não exigem login)
   // Subdomínio público do visitante (ex.: visitante.suaigreja.com.br): a raiz já
   // abre o formulário de autocadastro — URL limpa para divulgar/colocar no site.
@@ -310,6 +331,7 @@ export default function App() {
   else if (rota.startsWith('/visitante/')) pagina = <VisitanteDetalhe id={rota.split('/')[2]} />
   else if (rota === '/novo') pagina = <NovoVisitante />
   else if (rota === '/lideres') pagina = <PainelLider />
+  else if (rota === '/avisos') pagina = <Avisos />
   else if (rota === '/equipe') pagina = <Equipe />
   else if (rota === '/aprovacoes') pagina = <Aprovacoes />
   else if (rota === '/relatorios') pagina = <Relatorios />
@@ -336,6 +358,7 @@ export default function App() {
   const navPrincipal: (ItemMenu & { destaque?: boolean })[] = soLider(eu)
     ? [
         { rota: '/lideres', icone: IcoUserCheck, rotulo: 'Meu painel' },
+        { rota: '/avisos', icone: IcoSino, rotulo: 'Avisos' },
         { rota: '/ajuda', icone: IcoAjuda, rotulo: 'Ajuda' },
       ]
     : NAV_PRINCIPAL.filter((m) => podeAcessarRota(m.rota, eu))
@@ -364,6 +387,7 @@ export default function App() {
                 <a key={m.rota} href={`#${m.rota}`} className={rotaAtiva(m.rota, rotaMenu) ? 'ativo' : ''}>
                   <m.icone size={18} /> {m.rotulo}
                   {m.rota === '/' && cuidados > 0 && <span className="contador">{cuidados}</span>}
+                  {m.rota === '/avisos' && avisos.ativos.length > 0 && <span className="contador">{avisos.ativos.length}</span>}
                   {m.rota === '/aprovacoes' && aprovacoesPendentes > 0 && (
                     <span className="contador contador-aviso">{aprovacoesPendentes}</span>
                   )}
@@ -391,6 +415,7 @@ export default function App() {
         <Topo
           eu={eu}
           podeNovo={podeAcessarRota('/novo', eu)}
+          avisos={podeAcessarRota('/avisos', eu) ? avisos.ativos.length : null}
           seletorCelular={<SeletorIgreja igrejas={igrejas} ativa={ativa} classe="seletor-igreja-celular" />}
         />
         <main className="conteudo"><Suspense fallback={<Carregando />}>{pagina}</Suspense></main>
@@ -407,6 +432,7 @@ export default function App() {
             <span className="icone">
               {m.destaque ? <IcoMais size={24} /> : <m.icone size={21} />}
               {m.rota === '/' && cuidados > 0 && <span className="ponto-alerta" />}
+              {m.rota === '/avisos' && avisos.ativos.length > 0 && <span className="ponto-alerta" />}
             </span>
             {m.rotulo}
           </a>
@@ -429,6 +455,7 @@ export default function App() {
               {navMais.map((m) => (
                 <a key={m.rota} href={`#${m.rota}`} className={rotaAtiva(m.rota, rotaMenu) ? 'ativo' : ''}>
                   <m.icone size={20} /> <span>{m.rotulo}</span>
+                  {m.rota === '/avisos' && avisos.ativos.length > 0 && <span className="contador">{avisos.ativos.length}</span>}
                   {m.rota === '/aprovacoes' && aprovacoesPendentes > 0 && (
                     <span className="contador contador-aviso">{aprovacoesPendentes}</span>
                   )}

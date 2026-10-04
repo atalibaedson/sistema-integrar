@@ -2,7 +2,7 @@
 // Substitui o modelo "última gravação vence", que perdia cadastros quando
 // dois computadores usavam o sistema ao mesmo tempo: agora os dados se somam,
 // e as exclusões se propagam pelas lápides (AppState.excluidos).
-import type { AppState, Exclusao, RegistroAuditoria, StatusAcesso, Usuario } from './types'
+import type { AppState, Dispensa, Exclusao, RegistroAuditoria, StatusAcesso, Usuario } from './types'
 
 // Quão "decidido/avançado" está o acesso da conta — quanto maior, mais forte.
 // Usado para não deixar uma ficha antiga (sem login) sobrescrever uma conta já
@@ -92,6 +92,16 @@ export function mesclarEstados(local: AppState, remoto: AppState): AppState {
     ? local.configAtualizadaEm
     : remoto.configAtualizadaEm
 
+  // Dispensas de aviso (adiar / já resolvi): união por id, vale a mais recente.
+  // As vencidas há mais de 1 dia saem — o aviso já voltou e a linha só pesa.
+  const dispMap = new Map<string, Dispensa>()
+  for (const d of [...(remoto.dispensas ?? []), ...(local.dispensas ?? [])]) {
+    const atual = dispMap.get(d.id)
+    if (!atual || d.em > atual.em) dispMap.set(d.id, d)
+  }
+  const corteDispensas = Date.now() - 86_400_000
+  const dispensas = [...dispMap.values()].filter((d) => new Date(d.ate).getTime() > corteDispensas)
+
   const excluidos = [...lapides.values()]
     .sort((a, b) => b.em.localeCompare(a.em))
     .slice(0, LIMITE_LAPIDES)
@@ -107,5 +117,6 @@ export function mesclarEstados(local: AppState, remoto: AppState): AppState {
     templates,
     auditoria,
     excluidos,
+    dispensas,
   }
 }
