@@ -175,7 +175,7 @@ export default function Dashboard() {
                     <button type="button" key={a.chave} className="painel-linha painel-linha-clicavel" onClick={() => navegar(a.rota)}>
                       <span className={`painel-ico painel-ico-${a.gravidade}`}><Icone size={18} /></span>
                       <span className="painel-linha-txt"><b>{a.titulo}</b><span>{a.detalhe}</span></span>
-                      {nivel && <span className="painel-chip painel-chip-crit">{nivel}</span>}
+                      {nivel && <span className="painel-chip painel-chip-crit painel-nivel">{nivel}</span>}
                       <span className="painel-seta"><IcoSeta size={16} /></span>
                     </button>
                   )

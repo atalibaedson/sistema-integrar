@@ -1899,4 +1899,5 @@ details summary:hover { color: var(--acento-texto); }
   .aviso-acoes { max-width: none; width: 100%; justify-content: flex-start; padding-left: 50px; }
   .aviso-linha-adiada .btn { margin-left: auto; }
   .aviso-push { padding: 14px; }
+  .painel-nivel { display: none; }          /* no celular o título precisa da largura; o nível aparece na página Avisos */
 }
