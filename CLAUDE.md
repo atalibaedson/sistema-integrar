@@ -130,5 +130,16 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe`, `Aprovacoes`, `Auditoria`,
 ## Documentos de referência (NÃO leia sem necessidade)
 
 Na raiz há especificações e manual longos — só consulte quando a tarefa pedir:
-`Consolidacao-iFE-Especificacao.md`, `PADRAO-SISTEMA-INTEGRACAO.md`, `manual.html`,
+`Consolidacao-iFE-Especificacao.md`, `PADRAO-SISTEMA-INTEGRACAO.md`, `manual/manual.html`,
 `README.md`, `SUPABASE.md`, `SUPABASE-AUTH.md`.
+
+## Manual do usuário
+
+`manual/manual.html` (fonte, com imagens em `manual/img/`, tiradas do `dev:demo` —
+só dados fictícios) gera o PDF `public/Manual-Integracao-iFE.pdf`, baixado pela
+tela Ajuda. Depois de mudar telas que aparecem no manual, atualize as imagens e
+gere o PDF de novo (Chrome instalado no Mac):
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --no-pdf-header-footer --virtual-time-budget=8000 --print-to-pdf=public/Manual-Integracao-iFE.pdf "file://$PWD/manual/manual.html"
+```

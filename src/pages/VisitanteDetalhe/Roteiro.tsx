@@ -155,7 +155,7 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
 
         {v.status === 'em_espera' && (
           <div className="alerta alerta-warn" style={{ marginBottom: 10 }}>
-            ⏸️ <div>Em espera ({s.config.prazoEsperaDias} dias sem resposta). Envie só informativos; ao responder, registre o contato.</div>
+            <IcoRelogio size={16} /><div>Em espera ({s.config.prazoEsperaDias} dias sem resposta). Envie só informativos; ao responder, registre o contato.</div>
           </div>
         )}
         {v.status === 'recusou' && (
@@ -234,7 +234,7 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
               <IcoCheck size={14} /> O líder confirmou que assumiu
             </button>
             <button className="btn btn-sec" onClick={() => setAguardando(true)}>
-              ⏸️ Ainda não assumiu — aguardando
+              <IcoRelogio size={14} /> Ainda não assumiu — aguardando
             </button>
           </div>
         )}
@@ -538,7 +538,7 @@ function RegistroGuiado({ v, onFechar }: { v: Visitante; onFechar: () => void })
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12.5, color: 'var(--text-2)', fontWeight: 600 }}>Abertura:</span>
           {(['alto', 'medio', 'baixo'] as GrauAbertura[]).map((g) => (
-            <button key={g} className={`chip ${grau === g ? 'sel' : ''}`} onClick={() => setGrau(g)}>{GRAU_LABEL[g]}</button>
+            <button key={g} type="button" className={`pilula pilula-simples ${grau === g ? 'sel' : ''}`} onClick={() => setGrau(g)}>{GRAU_LABEL[g]}</button>
           ))}
         </div>
       )}

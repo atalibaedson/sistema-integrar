@@ -5,9 +5,10 @@ import {
 } from '../icones'
 
 // PDF do manual servido como arquivo estático (pasta public/), publicado na raiz.
-const URL_MANUAL_PDF = '/Manual-Consolidacao-iFE.pdf'
+const URL_MANUAL_PDF = '/Manual-Integracao-iFE.pdf'
 
-// Manual de uso dentro do app. Espelha o conteúdo de manual.html (fonte do PDF).
+// Manual de uso dentro do app (resumo). O manual completo, com imagens, é
+// manual/manual.html → PDF em public/ (ver CLAUDE.md).
 type Bloco = {
   h?: string // subtítulo dentro da seção (ex.: nome de um papel)
   p?: string

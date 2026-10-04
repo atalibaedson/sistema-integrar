@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual do Usuário — Integração de Visitantes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Manual do usuário — mesmo padrão visual do sistema (família iFE):
+     azul-marinho institucional, títulos em Fraunces, texto em Plus Jakarta Sans.
+     Fonte do PDF: gere com o Chrome (ver manual/README.md). */
+  :root {
+    --navy: #12314F;
+    --primary: #1F4E79;
+    --primary-soft: #E6EDF5;
+    --papel: #EEF2F8;
+    --surface: #FFFFFF;
+    --border: #D9E1EC;
+    --text: #17212C;
+    --text-2: #4E5E70;
+    --text-3: #8592A2;
+    --dourado: #B98F3A;
+    --dourado-soft: #F6EEDC;
+    --ok: #1C7A4B;  --ok-soft: #E1F2E9;
+    --warn: #9A6412; --warn-soft: #F7EDD8;
+    --danger: #A62121; --danger-soft: #F8E1E1;
+    --serif: 'Fraunces', Georgia, serif;
+    --font: 'Plus Jakarta Sans', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin: 0; background: var(--papel); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  .folha { max-width: 880px; margin: 0 auto; background: var(--surface); box-shadow: 0 10px 40px rgba(18,49,79,.08); }
+  .miolo { padding: 8px 64px 64px; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -.01em; color: var(--navy); line-height: 1.2; }
+  h2 { font-size: 30px; margin: 0 0 6px; }
+  h3 { font-size: 21px; margin: 34px 0 10px; }
+  h4 { font-size: 15.5px; margin: 22px 0 6px; color: var(--navy); }
+  p { margin: 0 0 12px; }
+  ul, ol { margin: 0 0 14px; padding-left: 22px; }
+  li { margin-bottom: 5px; }
+  b, strong { font-weight: 700; }
+  a { color: var(--primary); }
+
+  /* ---------- Capa ---------- */
+  .capa {
+    min-height: 1120px; padding: 72px 64px 56px; color: #fff; position: relative; overflow: hidden;
+    background: radial-gradient(120% 80% at 0% 0%, #2B5C8A 0%, var(--navy) 55%, #0B2036 100%);
+    display: flex; flex-direction: column;
+  }
+  .capa::after { content: ''; position: absolute; right: -220px; top: -220px; width: 560px; height: 560px; border-radius: 50%; border: 1px solid rgba(255,255,255,.09); }
+  .capa-marca { display: flex; align-items: center; gap: 14px; }
+  .capa-selo { width: 54px; height: 54px; border-radius: 14px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.08); display: grid; place-items: center; font-family: var(--serif); font-size: 21px; font-weight: 600; }
+  .capa-marca small { display: block; font-size: 13px; opacity: .75; }
+  .capa-marca b { font-family: var(--serif); font-weight: 600; font-size: 19px; }
+  .capa-meio { margin-top: auto; margin-bottom: auto; padding-top: 120px; }
+  .capa-tipo { font-size: 13px; letter-spacing: .18em; text-transform: uppercase; color: #E2C68C; font-weight: 700; }
+  .capa h1 { color: #fff; font-size: 58px; margin: 14px 0 18px; line-height: 1.05; }
+  .capa-sub { font-size: 19px; max-width: 560px; opacity: .88; line-height: 1.55; }
+  .capa-trilha { display: flex; gap: 8px; align-items: center; margin-top: 34px; flex-wrap: wrap; }
+  .capa-trilha span { border: 1px solid rgba(255,255,255,.28); border-radius: 999px; padding: 5px 14px; font-size: 13px; font-weight: 600; }
+  .capa-trilha i { opacity: .5; font-style: normal; }
+  .capa-trilha .fim { background: var(--dourado); border-color: var(--dourado); color: #1b1408; }
+  .capa-rodape { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; font-size: 13px; opacity: .85; position: relative; z-index: 1; }
+  .capa-verso { font-family: var(--serif); font-style: italic; font-size: 16px; max-width: 420px; }
+  .capa-verso small { display: block; font-family: var(--font); font-style: normal; letter-spacing: .14em; font-size: 11px; margin-top: 6px; opacity: .8; }
+
+  /* ---------- Sumário ---------- */
+  .sumario { padding: 64px 64px 40px; }
+  .sumario h2 { font-size: 34px; margin-bottom: 26px; }
+  .sum-parte { margin-bottom: 18px; break-inside: avoid; }
+  .sum-parte > b { display: block; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--dourado); margin-bottom: 6px; }
+  .sum-parte a { display: flex; gap: 10px; text-decoration: none; color: var(--text); padding: 5px 0; border-bottom: 1px dotted var(--border); font-size: 14.5px; }
+  .sum-parte a span:first-child { width: 30px; color: var(--primary); font-weight: 700; flex-shrink: 0; }
+
+  /* ---------- Abertura de parte ---------- */
+  .parte { margin: 0 -64px 30px; padding: 46px 64px 34px; background: linear-gradient(135deg, var(--navy), #1B4470); color: #fff; }
+  .parte small { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #E2C68C; font-weight: 700; }
+  .parte h2 { color: #fff; font-size: 34px; margin: 8px 0 8px; }
+  .parte p { opacity: .85; margin: 0; max-width: 620px; font-size: 15.5px; }
+  .capitulo { padding-top: 10px; }
+  .cap-num { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 34px; padding: 0 8px; border-radius: 10px; background: var(--primary-soft); color: var(--primary); font-family: var(--font); font-size: 15px; font-weight: 700; margin-right: 10px; vertical-align: 4px; }
+  .lead { font-size: 16.5px; color: var(--text-2); margin-bottom: 18px; }
+
+  /* ---------- Passo a passo ---------- */
+  ol.passos { list-style: none; padding: 0; counter-reset: passo; margin: 6px 0 18px; }
+  ol.passos > li { counter-increment: passo; position: relative; padding: 2px 0 12px 46px; margin: 0; }
+  ol.passos > li::before {
+    content: counter(passo); position: absolute; left: 0; top: 0;
+    width: 30px; height: 30px; border-radius: 50%; background: var(--primary); color: #fff;
+    display: grid; place-items: center; font-weight: 700; font-size: 14px;
+  }
+  ol.passos > li:not(:last-child)::after { content: ''; position: absolute; left: 14px; top: 32px; bottom: 2px; width: 2px; background: var(--border); }
+
+  /* Botão/rótulo como aparece na tela */
+  .bt { display: inline-block; padding: 1px 9px; border-radius: 7px; background: var(--primary); color: #fff; font-weight: 600; font-size: .9em; white-space: nowrap; line-height: 1.6; }
+  .bt-sec { background: #fff; color: var(--text); border: 1px solid #C9D3E0; }
+  .bt-whats { background: #22c55e; }
+  .bt-perigo { background: var(--danger-soft); color: var(--danger); border: 1px solid #E8B4B4; }
+  .tela { font-weight: 700; color: var(--navy); }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 11px; border-radius: 999px; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+  .chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .chip-ok { background: var(--ok-soft); color: var(--ok); }
+  .chip-warn { background: var(--warn-soft); color: var(--warn); }
+  .chip-crit { background: var(--danger-soft); color: var(--danger); }
+  .chip-cinza { background: #EEF1F5; color: #6B7A8B; }
+
+  /* ---------- Caixas ---------- */
+  .caixa { border-radius: 12px; padding: 14px 18px 14px 52px; margin: 16px 0; position: relative; break-inside: avoid; font-size: 14.5px; }
+  .caixa p:last-child, .caixa ul:last-child { margin-bottom: 0; }
+  .caixa::before { position: absolute; left: 16px; top: 13px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #fff; }
+  .caixa > b:first-child { display: block; margin-bottom: 2px; }
+  .dica { background: var(--primary-soft); border: 1px solid #C7D6E8; }
+  .dica::before { content: 'i'; background: var(--primary); font-family: Georgia, serif; font-style: italic; }
+  .atencao { background: var(--warn-soft); border: 1px solid #E9D3A6; }
+  .atencao::before { content: '!'; background: var(--warn); }
+  .perigo { background: var(--danger-soft); border: 1px solid #E8B4B4; }
+  .perigo::before { content: '!'; background: var(--danger); }
+  .certo { background: var(--ok-soft); border: 1px solid #B7DFC9; }
+  .certo::before { content: '✓'; background: var(--ok); }
+
+  /* ---------- Figuras ---------- */
+  figure { margin: 18px 0 22px; break-inside: avoid; }
+  figure .moldura { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 6px 22px rgba(18,49,79,.10); background: #fff; }
+  figure img { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 12.5px; color: var(--text-3); margin-top: 8px; text-align: center; }
+  figure.celular { max-width: 300px; margin-left: auto; margin-right: auto; }
+  figure.celular .moldura { border-radius: 30px; border: 9px solid #1A2533; box-shadow: 0 10px 30px rgba(18,49,79,.18); }
+  .lado-a-lado { display: grid; grid-template-columns: 290px 1fr; gap: 30px; align-items: start; margin: 16px 0 10px; break-inside: avoid; }
+  .lado-a-lado figure { margin-top: 0; }
+  .lado-a-lado.inverte { grid-template-columns: 1fr 290px; }
+  .dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; break-inside: avoid; }
+  .dupla figure.celular { max-width: 100%; }
+  /* Marcadores numerados sobre a imagem */
+  .mk { position: absolute; transform: translate(-50%, -50%); width: 26px; height: 26px; border-radius: 50%; background: var(--dourado); color: #fff; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.3); display: grid; place-items: center; font-size: 12.5px; font-weight: 800; font-family: var(--font); }
+  .legenda { list-style: none; padding: 0; margin: 4px 0 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 22px; font-size: 14px; }
+  .legenda li { display: flex; gap: 10px; align-items: flex-start; margin: 0; }
+  .legenda li > span:first-child { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--dourado); color: #fff; display: grid; place-items: center; font-size: 11.5px; font-weight: 800; margin-top: 2px; }
+
+  /* ---------- Tabelas ---------- */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 14px; }
+  tr { break-inside: avoid; }
+  thead { display: table-header-group; }
+  th { text-align: left; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); background: var(--papel); padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
+  .num-jornada { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 12.5px; margin-right: 8px; }
+
+  /* ---------- Cartões de função ---------- */
+  .funcao { border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px 8px; margin: 18px 0; break-inside: avoid; border-top: 4px solid var(--primary); }
+  .funcao h3 { margin-top: 0; }
+  .funcao .quem { font-size: 14px; color: var(--text-2); margin-bottom: 12px; }
+  .funcao.f-acolhedor { border-top-color: #ec4899; }
+  .funcao.f-integrador { border-top-color: #0ea5e9; }
+  .funcao.f-lider { border-top-color: #10b981; }
+  .funcao.f-gestao { border-top-color: #8b5cf6; }
+  .funcao.f-pastor { border-top-color: #f59e0b; }
+  .ve { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; font-size: 13.5px; margin-bottom: 12px; }
+  .ve div { padding: 8px 12px; border-radius: 9px; background: var(--papel); }
+  .ve b { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+
+  /* ---------- Perguntas ---------- */
+  .faq { border-bottom: 1px solid var(--border); padding: 12px 0; break-inside: avoid; }
+  .faq h4 { margin: 0 0 4px; }
+  .faq p { margin: 0; color: var(--text-2); font-size: 14.5px; }
+
+  /* ---------- Checklist ---------- */
+  .check { list-style: none; padding: 0; }
+  .check li { padding-left: 28px; position: relative; }
+  .check li::before { content: ''; position: absolute; left: 0; top: 4px; width: 15px; height: 15px; border: 2px solid var(--primary); border-radius: 4px; }
+
+  .encerramento { text-align: center; padding: 40px 20px 10px; color: var(--text-2); }
+  .encerramento p:first-child { font-family: var(--serif); font-style: italic; font-size: 20px; color: var(--navy); }
+
+  .quebra { break-before: page; }
+  h3, h4, .lead { break-after: avoid; }
+  .parte { break-after: avoid; }
+  .nao-quebra { break-inside: avoid; }
+
+  @page { size: A4; margin: 14mm 0 16mm;
+    @bottom-left { content: "Integração de Visitantes · Manual do usuário"; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 8.5pt; color: #8592A2; margin-left: 17mm; }
+    @bottom-right { content: counter(page); font-family: 'Plus Jakarta Sans', sans-serif; font-size: 9pt; color: #4E5E70; margin-right: 17mm; }
+  }
+  @page :first { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
+
+  @media print {
+    body { background: #fff; font-size: 10.5pt; }
+    .folha { box-shadow: none; max-width: none; }
+    .capa { min-height: 297mm; break-after: page; }
+    .sumario { break-after: page; padding-top: 10mm; }
+    .miolo { padding: 0 17mm; }
+    .parte { margin: 0 -17mm 22px; padding: 30px 17mm 24px; }
+    a { color: inherit; text-decoration: none; }
+  }
+  @media (max-width: 700px) {
+    .miolo, .sumario { padding-left: 20px; padding-right: 20px; }
+    .parte { margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; }
+    .capa { padding: 40px 24px; min-height: auto; }
+    .capa h1 { font-size: 40px; }
+    .lado-a-lado, .lado-a-lado.inverte, .dupla, .legenda, .ve { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="folha">
+
+<!-- ======================= CAPA ======================= -->
+<section class="capa">
+  <div class="capa-marca">
+    <span class="capa-selo">iFE</span>
+    <span><b>Igreja Família Extraordinária</b><small>Integração de visitantes</small></span>
+  </div>
+  <div class="capa-meio">
+    <div class="capa-tipo">Manual do usuário · versão 2.3</div>
+    <h1>Integração de Visitantes</h1>
+    <p class="capa-sub">O guia completo, passo a passo, para quem vai usar o sistema pela primeira vez — do primeiro acesso ao acompanhamento de cada pessoa até a recepção como membro.</p>
+    <div class="capa-trilha"><span>Visitou</span><i>›</i><span>Contato</span><i>›</i><span>Conexão</span><i>›</i><span class="fim">Família</span></div>
+  </div>
+  <div class="capa-rodape">
+    <div class="capa-verso">“Portanto, acolhei-vos uns aos outros, como também Cristo nos acolheu.”<small>ROMANOS 15.7</small></div>
+    <div>Outubro de 2026</div>
+  </div>
+</section>
+
+<!-- ======================= SUMÁRIO ======================= -->
+<section class="sumario">
+  <h2>Sumário</h2>
+  <div class="sum-parte"><b>Parte 1 · Antes de começar</b>
+    <a href="#c1"><span>1</span><span>O que é o sistema e para que serve</span></a>
+    <a href="#c2"><span>2</span><span>O que você precisa ter</span></a>
+    <a href="#c3"><span>3</span><span>Palavras que você vai encontrar</span></a>
+  </div>
+  <div class="sum-parte"><b>Parte 2 · Seu primeiro acesso</b>
+    <a href="#c4"><span>4</span><span>Criar o seu acesso</span></a>
+    <a href="#c5"><span>5</span><span>Aguardar a liberação</span></a>
+    <a href="#c6"><span>6</span><span>Entrar no sistema</span></a>
+    <a href="#c7"><span>7</span><span>Esqueci minha senha</span></a>
+    <a href="#c8"><span>8</span><span>Colocar o sistema na tela do celular</span></a>
+  </div>
+  <div class="sum-parte"><b>Parte 3 · Conhecendo a tela</b>
+    <a href="#c9"><span>9</span><span>No computador</span></a>
+    <a href="#c10"><span>10</span><span>No celular</span></a>
+    <a href="#c11"><span>11</span><span>O aviso de sincronização</span></a>
+    <a href="#c12"><span>12</span><span>Tema escuro, troca de igreja e sair da conta</span></a>
+  </div>
+  <div class="sum-parte"><b>Parte 4 · O acompanhamento, passo a passo</b>
+    <a href="#c13"><span>13</span><span>A jornada do visitante em 7 passos</span></a>
+    <a href="#c14"><span>14</span><span>Cadastrar um visitante no culto</span></a>
+    <a href="#c15"><span>15</span><span>O visitante se cadastra sozinho (QR code)</span></a>
+    <a href="#c16"><span>16</span><span>Encontrar uma pessoa: a lista de Visitantes</span></a>
+    <a href="#c17"><span>17</span><span>A ficha do visitante</span></a>
+    <a href="#c18"><span>18</span><span>Primeira semana: enviar a mensagem e registrar o contato</span></a>
+    <a href="#c19"><span>19</span><span>Entregar ao líder e confirmar a visita</span></a>
+    <a href="#c20"><span>20</span><span>Batismo e recepção como membro</span></a>
+    <a href="#c21"><span>21</span><span>Corrigir um engano</span></a>
+    <a href="#c22"><span>22</span><span>Cuidado e crise</span></a>
+    <a href="#c23"><span>23</span><span>O Painel e o quadro da Jornada</span></a>
+  </div>
+  <div class="sum-parte"><b>Parte 5 · Guia por função</b>
+    <a href="#c24"><span>24</span><span>Acolhedor · Integrador pós-culto · Líder de Conexão · Gestão · Pastores</span></a>
+  </div>
+  <div class="sum-parte"><b>Parte 6 · Administração (Gestão e Pastores)</b>
+    <a href="#c25"><span>25</span><span>Aprovar novos acessos</span></a>
+    <a href="#c26"><span>26</span><span>Equipe: pessoas, funções e hierarquia</span></a>
+    <a href="#c27"><span>27</span><span>Configurações</span></a>
+    <a href="#c28"><span>28</span><span>Relatórios e Auditoria</span></a>
+  </div>
+  <div class="sum-parte"><b>Parte 7 · Segurança, perguntas e problemas</b>
+    <a href="#c29"><span>29</span><span>Privacidade e boas práticas (LGPD)</span></a>
+    <a href="#c30"><span>30</span><span>Perguntas frequentes</span></a>
+    <a href="#c31"><span>31</span><span>Quando algo não funciona</span></a>
+  </div>
+</section>
+
+<div class="miolo">
+
+<!-- ======================= PARTE 1 ======================= -->
+<div class="parte quebra"><small>Parte 1</small><h2>Antes de começar</h2><p>Leia esta parte com calma uma vez. Ela explica a ideia do sistema e as palavras que aparecem em todas as telas.</p></div>
+
+<section class="capitulo" id="c1">
+  <div class="nao-quebra">
+  <h3><span class="cap-num">1</span>O que é o sistema e para que serve</h3>
+  <p class="lead">O <b>Integração de Visitantes</b> é a ferramenta da equipe para cuidar de cada pessoa que visita a igreja, do dia em que ela chega até o dia em que é recebida como membro.</p>
+  </div>
+  <p>Toda pessoa que visita a igreja ganha uma <b>ficha</b>. Nessa ficha, a equipe vê em que ponto a pessoa está, o que precisa ser feito agora e tudo o que já foi conversado com ela. Assim:</p>
+  <ul>
+    <li><b>ninguém é esquecido</b>: o sistema avisa quem está sem responsável ou sem contato há muitos dias;</li>
+    <li><b>ninguém recebe mensagem repetida</b>: todos veem o que já foi feito;</li>
+    <li><b>a passagem entre as pessoas da equipe é tranquila</b>: o integrador entrega ao líder do grupo, e o líder sabe exatamente quem está chegando;</li>
+    <li><b>a liderança acompanha os números</b>: quantos chegaram, quantos estão em grupos, quantos viraram membros.</li>
+  </ul>
+  <p>O sistema funciona <b>no navegador</b>, no celular ou no computador, e tudo o que você registra é salvo automaticamente na nuvem. O que você anota no celular aparece no computador da coordenação na mesma hora.</p>
+  <div class="caixa dica"><b>Não estamos falando de um produto, e sim de pessoas.</b><p>O sistema existe para que nenhuma pessoa que visitou a igreja fique sem cuidado. Cada clique representa alguém sendo lembrado, acolhido e acompanhado.</p></div>
+</section>
+
+<section class="capitulo" id="c2">
+  <h3><span class="cap-num">2</span>O que você precisa ter</h3>
+  <table>
+    <thead><tr><th>Item</th><th>Detalhe</th></tr></thead>
+    <tr><td>Celular ou computador</td><td>Qualquer celular (iPhone ou Android) ou computador com internet.</td></tr>
+    <tr><td>Navegador</td><td>Safari (iPhone), Chrome (Android ou computador), Edge ou Firefox. <b>Não precisa instalar nenhum aplicativo.</b></td></tr>
+    <tr><td>Um e-mail seu</td><td>Ele será o seu login. Use um e-mail que você consegue abrir, porque o link de troca de senha chega por ele.</td></tr>
+    <tr><td>O endereço do sistema</td><td>A coordenação da sua igreja envia o link de acesso. Guarde-o nos favoritos ou coloque o ícone na tela do celular (capítulo 8).</td></tr>
+  </table>
+</section>
+
+<section class="capitulo" id="c3">
+  <div class="nao-quebra">
+  <h3><span class="cap-num">3</span>Palavras que você vai encontrar</h3>
+  <p>Cada igreja pode dar nomes próprios a algumas coisas. Os grupos, por exemplo, podem se chamar Conexão, Célula ou PG. Neste manual usamos os nomes padrão.</p>
+  </div>
+  <table>
+    <thead><tr><th>Palavra</th><th>O que significa</th></tr></thead>
+    <tr><td>Visitante</td><td>A pessoa que visitou a igreja e está sendo acompanhada.</td></tr>
+    <tr><td>Ficha</td><td>A página de cada visitante, com os dados, a etapa atual e o histórico de contatos.</td></tr>
+    <tr><td>Jornada</td><td>O caminho do visitante em 7 passos, do cadastro até virar membro (capítulo 13).</td></tr>
+    <tr><td>Etapa</td><td>Em que ponto da jornada a pessoa está agora (ex.: <span class="chip chip-cinza">Em contato</span>).</td></tr>
+    <tr><td>Conexão</td><td>O grupo pequeno que se reúne nas casas (pode ter outro nome na sua igreja).</td></tr>
+    <tr><td>Responsável</td><td>A pessoa da equipe que cuida do visitante na primeira fase (o integrador).</td></tr>
+    <tr><td>Registrar o contato</td><td>Anotar no sistema como foi a conversa com o visitante. É o gesto mais importante do dia a dia.</td></tr>
+    <tr><td>Cuidado / crise</td><td>Sinal de que a pessoa está passando por sofrimento ou urgência e a liderança precisa ser acionada.</td></tr>
+    <tr><td>Sincronizado</td><td>Aviso no topo da tela que confirma que tudo está salvo na nuvem.</td></tr>
+  </table>
+  <h4>As funções da equipe</h4>
+  <p>Cada pessoa da equipe tem uma ou mais funções. A função define o que a pessoa vê e o que pode fazer no sistema.</p>
+  <table>
+    <thead><tr><th>Função</th><th>Papel no acompanhamento</th></tr></thead>
+    <tr><td>Acolhedor</td><td>Recebe o visitante no culto e faz o cadastro na hora.</td></tr>
+    <tr><td>Integrador pós-culto</td><td>Faz os contatos da primeira semana e encaminha a pessoa ao grupo.</td></tr>
+    <tr><td>Líder de Conexão</td><td>Recebe a pessoa no grupo e cuida dela até virar membro.</td></tr>
+    <tr><td>Gestão Integração</td><td>Coordena tudo: distribui, acompanha, aprova acessos e configura.</td></tr>
+    <tr><td>Pastores e Gestão Ministerial</td><td>Cobertura pastoral; veem tudo, inclusive os casos de cuidado.</td></tr>
+  </table>
+</section>
+
+<!-- ======================= PARTE 2 ======================= -->
+<div class="parte quebra"><small>Parte 2</small><h2>Seu primeiro acesso</h2><p>Você faz isso uma única vez. Depois, é só entrar com seu e-mail e senha.</p></div>
+
+<section class="capitulo" id="c4">
+  <div class="nao-quebra">
+  <h3><span class="cap-num">4</span>Criar o seu acesso</h3>
+  <p class="lead">O cadastro tem 3 passos curtos e leva cerca de 2 minutos.</p>
+  </div>
+  <figure><div class="moldura"><img src="img/d-criar.jpg" alt="Tela Criar meu acesso"></div><figcaption>Tela “Criar meu acesso”: os 3 passos aparecem no topo do formulário.</figcaption></figure>
+  <ol class="passos">
+    <li>Abra o link do sistema que a coordenação enviou. Na tela de entrada, toque em <span class="tela">Criar meu acesso</span> (embaixo do botão Entrar).</li>
+    <li><b>Passo 1 · Seus dados.</b> Preencha <b>nome completo</b>, <b>WhatsApp</b> e <b>e-mail</b> (obrigatórios). O e-mail será o seu login. Se quiser, informe data de nascimento, situação civil e de qual grupo você faz parte. Toque em <span class="bt">Continuar →</span>.</li>
+    <li><b>Passo 2 · Funções e foto.</b> Marque <b>todas</b> as funções que você exerce no ministério (por exemplo, Integrador pós-culto e Líder de Conexão). A foto é opcional. Toque em <span class="bt">Continuar →</span>.</li>
+    <li><b>Passo 3 · Seu acesso.</b> Escolha se prefere entrar com o e-mail ou com o WhatsApp, crie uma <b>senha de no mínimo 8 caracteres</b> e repita-a no campo de confirmação.</li>
+    <li>Leia o aviso de privacidade, marque <b>“Autorizo o uso dos meus dados para esse fim”</b> e envie.</li>
+    <li>Aparece a mensagem <b>“Cadastro recebido!”</b>. Pronto, agora é aguardar a liberação (próximo capítulo).</li>
+  </ol>
+  <div class="caixa dica"><b>Errou algo?</b><p>Use <span class="bt bt-sec">← Voltar</span> para voltar ao passo anterior sem perder o que já foi digitado.</p></div>
+  <div class="caixa atencao"><b>Use uma senha só sua.</b><p>Não use a mesma senha de banco ou do e-mail. E nunca compartilhe sua senha: cada pessoa tem o próprio acesso, e tudo o que é feito fica registrado no nome de quem fez.</p></div>
+</section>
+
+<section class="capitulo" id="c5">
+  <div class="nao-quebra">
+  <h3><span class="cap-num">5</span>Aguardar a liberação</h3>
+  <p>Por segurança, <b>ninguém entra sem aprovação</b>. A Gestão Integração ou um pastor confere o seu cadastro, confirma as suas funções e libera o acesso.</p>
+  </div>
+  <p>Se você tentar entrar antes da aprovação, verá a tela <b>“Quase lá!”</b>. Isso é normal. Assim que for liberado, basta entrar de novo.</p>
+  <table>
+    <thead><tr><th>Mensagem na tela</th><th>O que fazer</th></tr></thead>
+    <tr><td>Quase lá!</td><td>Seu cadastro foi recebido. Aguarde a aprovação da liderança.</td></tr>
+    <tr><td>Acesso não liberado</td><td>A liderança não aprovou (o motivo aparece na tela). Se achar que é engano, fale com a coordenação.</td></tr>
+    <tr><td>Acesso desativado</td><td>Sua conta foi pausada. Se você voltou ao ministério, peça à coordenação para reativar.</td></tr>
+  </table>
+</section>
+
+<section class="capitulo" id="c6">
+  <h3><span class="cap-num">6</span>Entrar no sistema</h3>
+  <div class="lado-a-lado">
+    <figure class="celular"><div class="moldura"><img src="img/m-entrar.jpg" alt="Tela de entrada no celular"></div><figcaption>Tela de entrada no celular.</figcaption></figure>
+    <div>
+      <ol class="passos">
+        <li>Abra o sistema. A tela <b>“Bem-vindo de volta”</b> aparece.</li>
+        <li>No campo <b>E-mail ou WhatsApp</b>, digite o seu e-mail <b>ou</b> o seu número de WhatsApp com DDD.</li>
+        <li>Digite a sua <b>senha</b>. Para conferir o que digitou, toque no ícone de olho ao lado do campo.</li>
+        <li>Toque em <span class="bt">Entrar</span>.</li>
+      </ol>
+      <div class="caixa dica"><b>Mais de uma conta no mesmo WhatsApp?</b><p>Se o sistema encontrar mais de uma pessoa com aquele número (por exemplo, um casal que divide o celular), ele pergunta <b>“qual é você?”</b>. Escolha o seu nome e continue.</p></div>
+      <p>Você continua conectado mesmo fechando o navegador. Só precisa entrar de novo se tocar em <b>Sair da conta</b>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="capitulo" id="c7">
+  <h3><span class="cap-num">7</span>Esqueci minha senha</h3>
+  <ol class="passos">
+    <li>Na tela de entrada, digite o seu <b>e-mail ou WhatsApp</b> no primeiro campo.</li>
+    <li>Toque em <span class="tela">Esqueci a senha</span> (ao lado do título “Senha”).</li>
+    <li>O sistema mostra para qual e-mail enviou o link. Abra a sua caixa de entrada; se não encontrar, <b>procure no spam</b>.</li>
+    <li>Toque no link do e-mail. Abre a tela <b>“Definir nova senha”</b>.</li>
+    <li>Digite a nova senha duas vezes e confirme. Pronto, você já entra com a senha nova.</li>
+  </ol>
+</section>
+
+<section class="capitulo" id="c8">
+  <div class="nao-quebra">
+  <h3><span class="cap-num">8</span>Colocar o sistema na tela do celular</h3>
+  <p>Não é preciso baixar nada na loja de aplicativos. Mas você pode criar um ícone na tela inicial do celular: o sistema passa a abrir em tela cheia, como um aplicativo.</p>
+  </div>
+  <div class="dupla">
+    <div><h4>iPhone (Safari)</h4>
+      <ol class="passos">
+        <li>Abra o sistema no <b>Safari</b>.</li>
+        <li>Toque no botão <b>Compartilhar</b> (quadrado com seta para cima).</li>
+        <li>Role e toque em <b>Adicionar à Tela de Início</b>.</li>
+        <li>Toque em <b>Adicionar</b>.</li>
+      </ol></div>
+    <div><h4>Android (Chrome)</h4>
+      <ol class="passos">
+        <li>Abra o sistema no <b>Chrome</b>.</li>
+        <li>Toque no menu <b>⋮</b> (três pontinhos, no canto de cima).</li>
+        <li>Toque em <b>Adicionar à tela inicial</b> ou <b>Instalar app</b>.</li>
+        <li>Confirme em <b>Adicionar</b>.</li>
+      </ol></div>
+  </div>
+</section>
+
+<!-- ======================= PARTE 3 ======================= -->
+<div class="parte quebra"><small>Parte 3</small><h2>Conhecendo a tela</h2><p>O sistema tem a mesma organização no computador e no celular; só muda o lugar do menu.</p></div>
+
+<section class="capitulo" id="c9">
+  <h3><span class="cap-num">9</span>No computador</h3>
+  <figure><div class="moldura">
+    <img src="img/d-painel.jpg" alt="Painel no computador">
+    <span class="mk" style="left:9%;top:13%">1</span>
+    <span class="mk" style="left:18.2%;top:3%">2</span>
+    <span class="mk" style="left:70.6%;top:3.6%">3</span>
+    <span class="mk" style="left:89%;top:1.4%">4</span>
+    <span class="mk" style="left:18.2%;top:13%">5</span>
+    <span class="mk" style="left:18.2%;top:42%">6</span>
+    <span class="mk" style="left:18.2%;top:84%">7</span>
+    <span class="mk" style="left:65.7%;top:15.5%">8</span>
+    <span class="mk" style="left:65.7%;top:28%">9</span>
+    <span class="mk" style="left:3%;top:94%">10</span>
+  </div><figcaption>O Painel, a primeira tela depois de entrar. As imagens foram feitas no modo de demonstração (dados fictícios), por isso a etiqueta diz “Somente neste aparelho”; no seu sistema aparece “Sincronizado”.</figcaption></figure>
+  <ul class="legenda">
+    <li><span>1</span><span><b>Menu lateral.</b> Leva a cada área do sistema, separada em Acompanhamento, Gestão e Igreja. Você só vê as áreas da sua função. O número vermelho indica pendências.</span></li>
+    <li><span>2</span><span><b>Saudação e data.</b> Confirma que você entrou com a sua conta.</span></li>
+    <li><span>3</span><span><b>Aviso de sincronização.</b> Mostra se tudo está salvo (capítulo 11).</span></li>
+    <li><span>4</span><span><b>Tema e Novo visitante.</b> A lua alterna para o tema escuro; o botão azul abre o cadastro de visitante de qualquer tela.</span></li>
+    <li><span>5</span><span><b>Jornada.</b> Quantas pessoas estão em cada etapa.</span></li>
+    <li><span>6</span><span><b>Para resolver hoje.</b> As pendências mais importantes; toque em uma para ver a lista já filtrada.</span></li>
+    <li><span>7</span><span><b>Ações de hoje.</b> Quem precisa de contato agora, com o botão de enviar a mensagem pronta.</span></li>
+    <li><span>8</span><span><b>Cuidado pastoral.</b> Pessoas sinalizadas com cuidado/crise (só para quem tem permissão).</span></li>
+    <li><span>9</span><span><b>Chegaram esta semana.</b> Os cadastros mais recentes.</span></li>
+    <li><span>10</span><span><b>Você.</b> Seu nome e funções, o botão de sair e a versão do sistema.</span></li>
+  </ul>
+</section>
+
+<section class="capitulo" id="c10">
+  <h3><span class="cap-num">10</span>No celular</h3>
+  <div class="dupla">
+    <figure class="celular"><div class="moldura"><img src="img/m-painel.jpg" alt="Painel no celular"></div><figcaption>No celular, o menu fica na barra de baixo.</figcaption></figure>
+    <figure class="celular"><div class="moldura"><img src="img/m-mais.jpg" alt="Menu Mais"></div><figcaption>O botão “Mais” abre as outras áreas e o “Sair da conta”.</figcaption></figure>
+  </div>
+  <p>A barra fixa na parte de baixo da tela fica sempre ao alcance do polegar:</p>
+  <table>
+    <thead><tr><th>Botão</th><th>Para que serve</th></tr></thead>
+    <tr><td>Painel</td><td>A tela inicial com o resumo do dia. A bolinha vermelha indica pendências.</td></tr>
+    <tr><td>Jornada</td><td>O quadro com as pessoas separadas por etapa.</td></tr>
+    <tr><td>+ Novo (centro)</td><td>Cadastrar um visitante. É o botão grande e redondo do meio.</td></tr>
+    <tr><td>Visitantes</td><td>A lista de todas as pessoas que você acompanha.</td></tr>
+    <tr><td>Mais</td><td>As demais áreas (Painel do líder, Relatórios, Equipe, Aprovações, Auditoria, Configurações e Ajuda) e o botão <b>Sair da conta</b>.</td></tr>
+  </table>
+  <p>No celular, o Painel mostra primeiro o que é mais urgente: cuidado pastoral, depois “Para resolver hoje”, depois a jornada.</p>
+</section>
+
+<section class="capitulo" id="c11">
+  <div class="nao-quebra">
+  <h3><span class="cap-num">11</span>O aviso de sincronização</h3>
+  <p>No topo da tela há uma pequena etiqueta que diz se os seus registros já estão salvos na nuvem:</p>
+  </div>
+  <table>
+    <thead><tr><th>Etiqueta</th><th>Significado e o que fazer</th></tr></thead>
+    <tr><td><span class="chip chip-ok">Sincronizado</span></td><td>Tudo salvo. O que você fez já aparece para toda a equipe. (No celular, quando está tudo certo, a etiqueta fica escondida para economizar espaço.)</td></tr>
+    <tr><td><span class="chip chip-warn">Sincronizando…</span></td><td>Salvando agora. Aguarde alguns segundos antes de fechar.</td></tr>
+    <tr><td><span class="chip chip-crit">Sem conexão · tentar ⟳</span></td><td>Não foi possível salvar. Verifique a internet. O que você registrou fica guardado no aparelho e é enviado quando a conexão voltar. Toque na etiqueta para tentar de novo.</td></tr>
+    <tr><td><span class="chip chip-cinza">Somente neste aparelho</span></td><td>A nuvem não está ligada neste aparelho. Avise a coordenação.</td></tr>
+  </table>
+</section>
+
+<section class="capitulo" id="c12">
+  <h3><span class="cap-num">12</span>Tema escuro, troca de igreja e sair da conta</h3>
+  <h4>Tema escuro</h4>
+  <p>Toque no ícone de <b>lua</b> no topo para usar o tema escuro, que é mais confortável à noite. Toque no <b>sol</b> para voltar ao claro. A escolha vale só para o seu aparelho.</p>
+  <h4>Igrejas da rede (só para quem atende mais de uma igreja)</h4>
+  <p>Se você atende mais de uma igreja da rede (por exemplo, pastores de rede), aparece o nome da igreja atual com um seletor no topo do menu lateral; no celular, logo abaixo da saudação. Toque nele e escolha a igreja. O sistema recarrega mostrando somente os dados daquela igreja. As igrejas nunca se misturam.</p>
+  <h4>Sair da conta</h4>
+  <p>No computador, use o ícone de saída ao lado do seu nome, no pé do menu lateral. No celular, toque em <b>Mais → Sair da conta</b>. <b>Sempre saia</b> quando usar um aparelho emprestado ou compartilhado.</p>
+</section>
+
+<!-- ======================= PARTE 4 ======================= -->
+<div class="parte quebra"><small>Parte 4</small><h2>O acompanhamento, passo a passo</h2><p>O coração do sistema: como cada visitante é cadastrado, acompanhado, entregue ao grupo e recebido como membro.</p></div>
+
+<section class="capitulo" id="c13">
+  <div class="nao-quebra">
+  <h3><span class="cap-num">13</span>A jornada do visitante em 7 passos</h3>
+  <p class="lead">Todo visitante percorre o mesmo caminho. Na ficha, o sistema mostra em qual passo a pessoa está e o que fazer agora. <b>Você não precisa decorar nada.</b></p>
+  </div>
+  <table>
+    <thead><tr><th>Passo</th><th>O que acontece</th><th>Quem faz</th></tr></thead>
+    <tr><td><span class="num-jornada">1</span>Cadastro</td><td>A pessoa é cadastrada no culto ou se cadastra pelo QR code.</td><td>Acolhedor ou o próprio visitante</td></tr>
+    <tr><td><span class="num-jornada">2</span>1ª semana</td><td>Três contatos pelo WhatsApp: segunda (aproximação), quarta (convite ao grupo) e sábado (convite para a celebração). O texto vem pronto.</td><td>Integrador pós-culto</td></tr>
+    <tr><td><span class="num-jornada">3</span>Entrega</td><td>A pessoa aceitou conhecer o grupo: o contato passa ao líder, que fala com ela <b>antes</b> da visita.</td><td>Integrador → Líder</td></tr>
+    <tr><td><span class="num-jornada">4</span>Visita</td><td>A pessoa participa do grupo pela primeira vez.</td><td>Líder</td></tr>
+    <tr><td><span class="num-jornada">5</span>Líder assume</td><td>O líder confirma que assumiu o acompanhamento e registra quando a pessoa começou a frequentar.</td><td>Líder</td></tr>
+    <tr><td><span class="num-jornada">6</span>Batismo</td><td>Para quem ainda não é batizado. Quem já é batizado pula este passo.</td><td>Líder e Pastores</td></tr>
+    <tr><td><span class="num-jornada">7</span>Membro</td><td>A pessoa é recebida como membro: a jornada está concluída.</td><td>Líder e Pastores</td></tr>
+  </table>
+  <div class="caixa dica"><b>O sistema avança sozinho.</b><p>Ao registrar um contato ou tocar no botão do passo, a etapa muda automaticamente, e o sistema mostra a confirmação, por exemplo: <i>“Beatriz avançou: Em contato → Encaminhado ao líder”</i>.</p></div>
+  <h4>Situações fora do caminho</h4>
+  <table>
+    <thead><tr><th>Etapa</th><th>Quando acontece</th></tr></thead>
+    <tr><td><span class="chip chip-cinza">Em espera</span></td><td>A pessoa ficou <b>14 dias sem responder</b> (prazo ajustável pela Gestão). O sistema move sozinho. Envie apenas informativos; se ela responder, registre o contato e o fluxo volta.</td></tr>
+    <tr><td><span class="chip chip-crit">Recusou</span></td><td>A pessoa pediu para não ser mais contatada. Os contatos param, com gentileza. Se um dia ela voltar a responder, registre e o caminho reabre.</td></tr>
+    <tr><td><span class="chip chip-cinza">Encerrado</span></td><td>Cadastro inválido ou repetido, ou visitante de passagem (de outra cidade).</td></tr>
+  </table>
+</section>
+
+<section class="capitulo" id="c14">
+  <h3><span class="cap-num">14</span>Cadastrar um visitante no culto</h3>
+  <div class="lado-a-lado">
+    <figure class="celular"><div class="moldura"><img src="img/m-novo.jpg" alt="Cadastro de novo visitante"></div><figcaption>Novo visitante no celular.</figcaption></figure>
+    <div>
+      <ol class="passos">
+        <li>Toque no botão <b>+ Novo</b> (centro da barra de baixo) ou em <span class="bt">+ Novo visitante</span> no computador.</li>
+        <li><b>Dados da pessoa:</b> preencha <b>Nome</b> e <b>WhatsApp</b>, os únicos obrigatórios. Data de nascimento, e-mail e estado civil ajudam no acompanhamento.</li>
+        <li><b>Onde mora:</b> digite o <b>CEP</b>, e o endereço, o bairro e a cidade se preenchem sozinhos. O bairro é usado para sugerir o grupo mais próximo.</li>
+        <li><b>Sobre a visita:</b> escolha o culto em que a pessoa veio, se é a primeira vez, como conheceu a igreja e se quer participar de um grupo. Toque nas opções em formato de pílula, sem digitar.</li>
+        <li><b>Caminhada de fé</b> e <b>Contato e oração:</b> se ela é membro de outra igreja, se já é batizada, se quer ser contatada (e em que horário) e o pedido de oração.</li>
+        <li><b>Sinalizações:</b> marque se é <b>menor de idade</b> (o contato será com o responsável) ou se é <b>de outra cidade / de passagem</b>.</li>
+        <li>Explique à pessoa que os dados são usados só para o acompanhamento, marque a <b>autorização</b> e toque em <span class="bt">Cadastrar visitante</span>.</li>
+      </ol>
+    </div>
+  </div>
+  <div class="caixa atencao"><b>Aviso amarelo de “Já existe um cadastro”?</b><p>Ao digitar o WhatsApp ou o e-mail, o sistema confere se a pessoa já está cadastrada. Se aparecer o aviso, toque em <b>Abrir a ficha existente</b> em vez de cadastrar de novo.</p></div>
+  <div class="caixa dica"><b>Sugestão de grupo.</b><p>Com o bairro e o estado civil preenchidos, aparece uma caixa azul com o grupo sugerido (por proximidade e perfil). A escolha final é feita depois, na ficha.</p></div>
+  <p>Depois de cadastrar, você é levado direto para a ficha da pessoa. Se você é <b>Acolhedor</b>, aparece a confirmação “foi cadastrado(a)!” e o formulário fica limpo para o próximo visitante.</p>
+</section>
+
+<section class="capitulo" id="c15">
+  <h3><span class="cap-num">15</span>O visitante se cadastra sozinho (QR code)</h3>
+  <div class="lado-a-lado inverte">
+    <div>
+      <p>Além do cadastro feito pela equipe, o visitante pode preencher o próprio cadastro pelo celular, apontando a câmera para um <b>QR code</b> impresso nas mesas, no telão ou nos folhetos.</p>
+      <ol class="passos">
+        <li>O visitante aponta a câmera do celular para o QR code e toca no link que aparece.</li>
+        <li>Abre a página <b>“Foi uma alegria receber você!”</b>, com as cores e o nome da igreja.</li>
+        <li>Ele preenche nome, WhatsApp e as demais perguntas, e toca em <b>Enviar</b>.</li>
+        <li>O cadastro cai direto no sistema, com a etiqueta <b>QR code</b>, e entra na lista de quem precisa de responsável.</li>
+      </ol>
+      <div class="caixa dica"><b>Onde pegar o QR code?</b><p>A Gestão encontra o QR code em <b>Configurações → Autocadastro</b>, com os botões <span class="bt">Imprimir QR</span> e <span class="bt bt-sec">Copiar link</span> (capítulo 27). Também há um atalho “QR do cadastro” no Painel.</p></div>
+      <p>O visitante <b>não</b> vê nada da igreja além do formulário: a página pública só envia o cadastro, sem mostrar dados de outras pessoas.</p>
+    </div>
+    <figure class="celular"><div class="moldura"><img src="img/m-autocadastro.jpg" alt="Autocadastro do visitante"></div><figcaption>O que o visitante vê ao ler o QR code.</figcaption></figure>
+  </div>
+</section>
+
+<section class="capitulo" id="c16">
+  <h3><span class="cap-num">16</span>Encontrar uma pessoa: a lista de Visitantes</h3>
+  <figure><div class="moldura"><img src="img/d-visitantes.jpg" alt="Lista de visitantes"></div><figcaption>A lista de Visitantes no computador.</figcaption></figure>
+  <p>Toque em <b>Visitantes</b> no menu. Cada linha mostra a pessoa, o WhatsApp, o responsável, a etapa (etiqueta colorida) e a <b>próxima ação</b>, ou seja, o que precisa ser feito agora.</p>
+  <ol class="passos">
+    <li><b>Filtre pela etapa</b> tocando nas pílulas do topo: Em consolidação, Com o líder, Acompanhando, Batismo, Membros, Parados, Sem atualização 7d+ e Cuidado. O número ao lado mostra quantas pessoas há em cada uma.</li>
+    <li><b>Busque</b> pelo nome ou pelo número de WhatsApp no campo de busca.</li>
+    <li><b>Filtre por responsável</b> no seletor “Todos os consolidadores”. A opção “Sem responsável” mostra quem ainda precisa ser distribuído.</li>
+    <li><b>Toque na pessoa</b> para abrir a ficha, ou no botão verde para abrir o WhatsApp dela.</li>
+  </ol>
+  <table>
+    <thead><tr><th>Sinal na lista</th><th>Significado</th></tr></thead>
+    <tr><td><span style="color:var(--danger)">Texto vermelho</span></td><td>A próxima ação é urgente (ex.: fazer o 1º contato).</td></tr>
+    <tr><td><span style="color:var(--warn)">“X dias sem atualização”</span></td><td>Ninguém registrou nada sobre essa pessoa há 7 dias ou mais.</td></tr>
+    <tr><td><span style="color:var(--warn)">“sem responsável”</span></td><td>Ninguém foi designado para cuidar da pessoa ainda.</td></tr>
+    <tr><td><span class="chip chip-crit">cuidado</span></td><td>Pessoa sinalizada com cuidado/crise.</td></tr>
+    <tr><td><span class="chip chip-warn">menor</span></td><td>Menor de idade: o contato é feito com o responsável.</td></tr>
+  </table>
+  <div class="caixa dica"><b>Você vê só quem está sob o seu cuidado.</b><p>O integrador vê os visitantes pelos quais é responsável; o líder, os encaminhados ao seu grupo; quem supervisiona outras pessoas vê também os visitantes delas. Gestão e Pastores veem todos.</p></div>
+</section>
+
+<section class="capitulo quebra" id="c17">
+  <h3><span class="cap-num">17</span>A ficha do visitante</h3>
+  <figure><div class="moldura">
+    <img src="img/d-ficha.jpg" alt="Ficha do visitante">
+    <span class="mk" style="left:18.4%;top:17%">1</span>
+    <span class="mk" style="left:18.4%;top:44%">2</span>
+    <span class="mk" style="left:18.4%;top:58.3%">3</span>
+    <span class="mk" style="left:42.8%;top:23%">4</span>
+    <span class="mk" style="left:42.8%;top:33%">5</span>
+    <span class="mk" style="left:42.8%;top:44.6%">6</span>
+    <span class="mk" style="left:42.8%;top:52.2%">7</span>
+    <span class="mk" style="left:42.8%;top:68%">8</span>
+  </div><figcaption>A ficha no computador: à esquerda, a pessoa; à direita, o acompanhamento.</figcaption></figure>
+  <ul class="legenda">
+    <li><span>1</span><span><b>A pessoa.</b> Nome, etapa atual e dados de contato: WhatsApp, grupo, responsável e o culto da 1ª visita.</span></li>
+    <li><span>2</span><span><b>WhatsApp e Sinalizar cuidado.</b> Abre a conversa no WhatsApp; o botão vermelho aciona o protocolo de cuidado (capítulo 22).</span></li>
+    <li><span>3</span><span><b>Quem acompanha.</b> Troque o responsável e o grupo designado. Em <b>Dados completos</b> ficam todos os dados cadastrais.</span></li>
+    <li><span>4</span><span><b>Marcos da jornada.</b> Os 7 passos: verde = concluído; contorno azul = passo atual.</span></li>
+    <li><span>5</span><span><b>O passo atual.</b> Diz em que etapa a pessoa está (ex.: “Etapa 2 de 7”).</span></li>
+    <li><span>6</span><span><b>Mensagem pronta.</b> O texto sugerido para este momento, já com o nome da pessoa.</span></li>
+    <li><span>7</span><span><b>Botões do passo.</b> Sempre na ordem: 1) enviar, 2) registrar.</span></li>
+    <li><span>8</span><span><b>Atividade.</b> Tudo o que já aconteceu, do mais recente ao mais antigo.</span></li>
+  </ul>
+  <p>No celular a ficha é a mesma, em uma coluna: primeiro a pessoa, depois a jornada, a atividade e, no fim, “Quem acompanha”.</p>
+  <h4>Dados completos</h4>
+  <p>Em <b>Dados completos</b> você edita todos os dados (contato, endereço, visita, batismo, membresia, preferências de contato e pedido de oração) e vê se há consentimento LGPD registrado. <b>As alterações são salvas automaticamente</b>, sem botão de salvar.</p>
+</section>
+
+<section class="capitulo" id="c18">
+  <div class="nao-quebra">
+  <h3><span class="cap-num">18</span>Primeira semana: enviar a mensagem e registrar o contato</h3>
+  <p class="lead">Este é o gesto mais importante do dia a dia: <b>falou com a pessoa, registre</b>. Leva menos de um minuto.</p>
+  </div>
+  <div class="lado-a-lado">
+    <figure class="celular"><div class="moldura"><img src="img/m-ficha.jpg" alt="Ficha no celular"></div><figcaption>O passo atual com os contatos da semana.</figcaption></figure>
+    <div>
+      <h4>Parte A · Enviar a mensagem</h4>
+      <ol class="passos">
+        <li>Abra a ficha da pessoa (pelo Painel, pela lista de Visitantes ou pelas Ações de hoje).</li>
+        <li>No cartão do passo atual, veja os três contatos da semana: <b>Seg · Aproximação</b>, <b>Qua · Convite ao grupo</b> e <b>Sáb · Celebração</b>. Os já feitos ficam com um ✓ verde.</li>
+        <li>Confira a <b>mensagem pronta</b>. Se houver mais de um modelo, escolha no seletor acima do texto.</li>
+        <li>Toque em <span class="bt bt-whats">1. Enviar mensagem</span>. O WhatsApp abre com o texto já escrito: revise, ajuste se quiser e envie.</li>
+      </ol>
+    </div>
+  </div>
+  <div class="dupla">
+    <figure class="celular"><div class="moldura"><img src="img/m-registrar-opcoes.jpg" alt="Como a pessoa respondeu"></div><figcaption>A pergunta “Como ela respondeu?”.</figcaption></figure>
+    <figure class="celular"><div class="moldura"><img src="img/m-registrar-form.jpg" alt="Registro da conversa"></div><figcaption>O resumo da conversa e o próximo passo.</figcaption></figure>
+  </div>
+  <h4>Parte B · Registrar o contato</h4>
+  <ol class="passos">
+    <li>Depois de conversar (ou de tentar), volte à ficha e toque em <span class="bt">2. Registrar o contato</span>.</li>
+    <li>Responda à pergunta <b>“Como ela respondeu?”</b> tocando na opção que descreve a conversa (veja a tabela abaixo).</li>
+    <li>Escreva em uma ou duas linhas <b>o que a pessoa disse</b>, escolha o grau de <b>abertura</b> (Alto, Médio ou Baixo) e, se houver, o <b>próximo passo combinado</b>.</li>
+    <li>Toque em <span class="bt">Salvar registro</span>. O sistema confirma e, quando for o caso, avança a etapa sozinho.</li>
+  </ol>
+  <table>
+    <thead><tr><th>Opção</th><th>Quando escolher</th><th>O que o sistema faz</th></tr></thead>
+    <tr><td>Quer visitar o grupo!</td><td>A pessoa aceitou conhecer o grupo.</td><td>Encaminha ao líder (passo 3).</td></tr>
+    <tr><td>Respondeu, a conversa continua</td><td>Conversou, mas ainda não decidiu.</td><td>Registra e segue nos contatos da semana.</td></tr>
+    <tr><td>Não respondeu</td><td>Você mandou mensagem e não teve retorno.</td><td>Registra a tentativa <b>na hora</b>, sem mais perguntas. Tente de novo no próximo dia do fluxo.</td></tr>
+    <tr><td>Pediu para parar</td><td>A pessoa não quer mais ser contatada.</td><td>Encerra os contatos com gentileza; a porta segue aberta.</td></tr>
+    <tr><td>Situação de cuidado/crise</td><td>A conversa revelou sofrimento ou urgência.</td><td>Sinaliza a liderança sem interromper o registro.</td></tr>
+  </table>
+  <p>Precisa de mais detalhes? Toque em <b>“Mais campos”</b> para informar encaminhamentos, o tipo de contato e quem fez.</p>
+  <div class="caixa certo"><b>Princípio da casa: registre sempre.</b><p>Um contato que não é registrado não existe para o resto da equipe. O registro protege a pessoa (ninguém manda mensagem repetida) e protege você (fica claro que você fez a sua parte).</p></div>
+</section>
+
+<section class="capitulo" id="c19">
+  <h3><span class="cap-num">19</span>Entregar ao líder e confirmar a visita</h3>
+  <figure><div class="moldura"><img src="img/d-ficha-entrega.jpg" alt="Passo de entrega ao líder"></div><figcaption>Passo 3 · Entrega ao líder do grupo.</figcaption></figure>
+  <h4>Passo 3 · Entrega ao líder</h4>
+  <ol class="passos">
+    <li>Quando a pessoa aceita visitar o grupo, a ficha mostra <b>“Entrega ao líder do grupo”</b>, com o nome do líder.</li>
+    <li>Confira se o <b>grupo designado</b> está certo em “Quem acompanha”. O líder do grupo passa a ver a pessoa no Painel do líder.</li>
+    <li>Toque em <span class="bt bt-whats">1. Passar contato ao líder</span>: abre o WhatsApp <b>do líder</b> com a mensagem pronta e o contato da pessoa. Revise e envie.</li>
+    <li>O líder fala com a pessoa <b>antes</b> da visita, para que ela chegue esperada.</li>
+    <li>Quando a pessoa visitar o grupo, toque em <span class="bt">2. … visitou o grupo</span>.</li>
+  </ol>
+  <h4>Passo 4 · O líder assume</h4>
+  <p>Depois da visita, o líder confirma que assumiu tocando em <span class="bt">O líder confirmou que assumiu</span>. Se ainda não assumiu, toque em <span class="bt bt-sec">Ainda não assumiu — aguardando</span> e escreva o motivo. A pessoa fica <span class="chip chip-cinza">Em espera</span>, com o motivo guardado no histórico.</p>
+  <h4>Passo 5 · Acompanhamento do líder</h4>
+  <p>Daqui em diante o líder registra as novidades em <span class="bt bt-sec">Registrar contato / novidade sobre…</span>. Se a pessoa parar de frequentar, use <span class="bt bt-sec">… parou de frequentar</span>: ela volta para o acompanhamento do time de integração.</p>
+</section>
+
+<section class="capitulo" id="c20">
+  <h3><span class="cap-num">20</span>Batismo e recepção como membro</h3>
+  <figure><div class="moldura"><img src="img/d-ficha-batismo.jpg" alt="Batismo e membresia"></div><figcaption>Passo 6 · Batismo, com a alternativa de receber como membro.</figcaption></figure>
+  <h4>Se a pessoa ainda não é batizada</h4>
+  <ol class="passos">
+    <li>No passo 5, toque em <span class="bt">Encaminhar … para o batismo</span>.</li>
+    <li>Depois do batismo, escolha a <b>data do batismo</b> (as datas marcadas pela igreja aparecem na lista) e toque em <span class="bt">Batizado(a)!</span>.</li>
+    <li>Se a pessoa adiar, use <span class="bt bt-sec">Adiou o batismo</span>: ela volta ao acompanhamento do líder.</li>
+  </ol>
+  <h4>Receber como membro</h4>
+  <p>Antes de concluir, o sistema confere os <b>requisitos</b> definidos pela igreja. O padrão é:</p>
+  <ul>
+    <li>estar no grupo há pelo menos <b>3 meses</b>: informe a data em que a pessoa começou a frequentar;</li>
+    <li>ter tido mais de <b>80% de frequência</b> nesse período: marque a confirmação.</li>
+  </ul>
+  <ol class="passos">
+    <li>Preencha a <b>data em que a pessoa começou a frequentar o grupo</b>, se ainda não estiver preenchida.</li>
+    <li>Marque a confirmação de frequência.</li>
+    <li>Escolha a <b>data da recepção como membro</b> e toque em <span class="bt">Concluir: virou membro!</span>.</li>
+  </ol>
+  <div class="caixa dica"><b>Já chegou batizada?</b><p>Quem já é batizado não passa pelo batismo de novo: vai direto de “Líder assume” para “Membro”. Se o tempo mínimo ainda não foi atingido, é possível receber <b>como exceção</b>, e isso fica registrado no histórico.</p></div>
+</section>
+
+<section class="capitulo" id="c21">
+  <h3><span class="cap-num">21</span>Corrigir um engano</h3>
+  <table>
+    <thead><tr><th>Situação</th><th>Como corrigir</th></tr></thead>
+    <tr><td>Avancei a etapa sem querer</td><td>No fim do cartão da jornada, toque em <span class="bt bt-sec">Voltar para a etapa anterior</span>.</td></tr>
+    <tr><td>A etapa está errada</td><td>Abra <b>Dados completos</b> → seção <b>Acompanhamento</b> → <b>Marcou errado?</b> → <span class="bt bt-sec">Corrigir para outro status…</span>.</td></tr>
+    <tr><td>Responsável ou grupo errado</td><td>Na ficha, em <b>Quem acompanha</b>, escolha a pessoa ou o grupo certo.</td></tr>
+    <tr><td>Nome ou telefone com erro</td><td>Em <b>Dados completos</b>, corrija; salva sozinho.</td></tr>
+    <tr><td>Cadastro em dobro</td><td>Continue usando uma das fichas e encerre a outra pela seção Acompanhamento.</td></tr>
+  </table>
+  <p>Toda correção fica registrada no histórico da ficha, com quem fez e quando.</p>
+</section>
+
+<section class="capitulo" id="c22">
+  <div class="nao-quebra">
+  <h3><span class="cap-num">22</span>Cuidado e crise</h3>
+  <p class="lead">Quando uma conversa revela sofrimento, risco ou urgência, <b>o cuidado vem antes do roteiro</b>.</p>
+  </div>
+  <ol class="passos">
+    <li>Na ficha, toque em <span class="bt bt-perigo">Sinalizar cuidado</span>, ou escolha <b>“Situação de cuidado/crise”</b> ao registrar o contato.</li>
+    <li>A ficha passa a mostrar o aviso vermelho <b>Protocolo de cuidado</b>, e a pessoa aparece em <b>Cuidado pastoral</b> no Painel dos pastores.</li>
+    <li><b>Saia do roteiro</b> de mensagens e <b>acione a liderança ou o pastor</b> imediatamente.</li>
+    <li>Registre na ficha o encaminhamento que foi feito.</li>
+    <li>Quando a situação estiver resolvida, o pastor ou o responsável toca em <span class="bt bt-sec">Resolver cuidado</span>.</li>
+  </ol>
+  <div class="caixa perigo"><b>Nunca aja sozinho e nunca prometa nada em nome da igreja.</b><p>Havendo risco imediato à vida, oriente a procurar os serviços de emergência (SAMU 192, CVV 188). Esses registros são os mais sensíveis do sistema: só o pastor e o responsável direto os veem. Escreva com sobriedade e mantenha sigilo.</p></div>
+</section>
+
+<section class="capitulo" id="c23">
+  <h3><span class="cap-num">23</span>O Painel e o quadro da Jornada</h3>
+  <h4>O Painel: comece o dia por aqui</h4>
+  <ol class="passos">
+    <li><b>Cuidado pastoral</b> (se aparecer): veja primeiro quem está em situação de cuidado.</li>
+    <li><b>Para resolver hoje:</b> toque em cada pendência (sem responsável, fichas paradas há 7+ dias, aguardando o líder confirmar, contas aguardando aprovação). O sistema abre a lista já filtrada.</li>
+    <li><b>Ações de hoje:</b> quem precisa de contato agora. O botão <span class="bt bt-whats">Enviar</span> abre o WhatsApp com a mensagem pronta.</li>
+    <li><b>Chegaram esta semana</b> e <b>Batismo</b>: acompanhe quem acabou de chegar e a próxima data de batismo.</li>
+  </ol>
+  <h4>O quadro da Jornada</h4>
+  <figure><div class="moldura"><img src="img/d-jornada.jpg" alt="Quadro da Jornada"></div><figcaption>Cada coluna é uma etapa; cada cartão, uma pessoa.</figcaption></figure>
+  <p>No quadro da <b>Jornada</b>, cada coluna é uma etapa. No computador você pode <b>arrastar um cartão</b> para a próxima coluna para avançar a pessoa; toque no cartão para abrir a ficha. Movimentos que pulam etapas são bloqueados, e o sistema explica o motivo. No celular, deslize o quadro para o lado para ver as outras colunas. O botão <b>Mostrar exceções</b> exibe as colunas Em espera, Recusou e Encerrado.</p>
+</section>
+
+<!-- ======================= PARTE 5 ======================= -->
+<div class="parte quebra"><small>Parte 5</small><h2>Guia por função</h2><p>Encontre a sua função e siga o roteiro. Quem tem mais de uma função soma os acessos.</p></div>
+
+<section class="capitulo" id="c24">
+  <h3><span class="cap-num">24</span>O que cada função faz no sistema</h3>
+
+  <div class="funcao f-acolhedor">
+    <h3>Acolhedor</h3>
+    <p class="quem">Recebe o visitante no dia do culto e faz o cadastro na hora.</p>
+    <div class="ve"><div><b>Vê</b>O formulário de Novo visitante e a Ajuda.</div><div><b>Não vê</b>Fichas, listas e relatórios.</div></div>
+    <ol class="passos">
+      <li>Entre com o seu login: a tela <b>Novo visitante</b> abre sozinha.</li>
+      <li>Cadastre a pessoa (nome e WhatsApp, no mínimo) com a autorização dela.</li>
+      <li>Se aparecer o aviso de cadastro repetido, avise a equipe em vez de recadastrar.</li>
+      <li>Toque em <span class="bt">Cadastrar outro visitante</span> e siga para o próximo.</li>
+    </ol>
+  </div>
+
+  <div class="funcao f-integrador">
+    <h3>Integrador pós-culto</h3>
+    <p class="quem">É o responsável pela pessoa na primeira semana: faz os contatos e a encaminha ao grupo.</p>
+    <div class="ve"><div><b>Vê</b>Painel, Jornada, Visitantes e as fichas das pessoas sob a sua responsabilidade.</div><div><b>Rotina</b>Todos os dias, abrir o Painel e as Ações de hoje.</div></div>
+    <ol class="passos">
+      <li>No <b>Painel</b>, veja as <b>Ações de hoje</b>.</li>
+      <li>Abra cada ficha, toque em <b>1. Enviar mensagem</b> e depois em <b>2. Registrar o contato</b> (capítulo 18).</li>
+      <li>Quando a pessoa aceitar visitar, escolha <b>“Quer visitar o grupo!”</b> e passe o contato ao líder (capítulo 19).</li>
+      <li>Em caso de sofrimento ou urgência, use <b>Sinalizar cuidado</b> (capítulo 22).</li>
+    </ol>
+  </div>
+
+  <div class="funcao f-lider">
+    <h3>Líder de Conexão</h3>
+    <p class="quem">Recebe a pessoa no grupo, fala com ela antes da visita e a acompanha até virar membro.</p>
+    <div class="lado-a-lado">
+      <figure class="celular"><div class="moldura"><img src="img/m-lider.jpg" alt="Painel do líder"></div><figcaption>Painel do líder no celular.</figcaption></figure>
+      <div>
+        <div class="ve" style="grid-template-columns:1fr"><div><b>Vê</b>O Painel do líder, as fichas das pessoas encaminhadas ao seu grupo e a Ajuda.</div></div>
+        <ol class="passos">
+          <li>Abra o <b>Painel do líder</b>. Suas pessoas aparecem separadas por tarefa: <b>Falar antes da visita</b>, <b>Confirmar que assumiu</b> e <b>Acompanhando</b>.</li>
+          <li>Para quem vai visitar, toque no botão verde para enviar a mensagem de pré-visita.</li>
+          <li>Depois do encontro, toque em <span class="bt">Visitou</span>.</li>
+          <li>Confirme que assumiu o acompanhamento em <span class="bt">Assumi</span>.</li>
+          <li>Pelo lápis, registre as novidades e, na ficha, informe quando a pessoa começou a frequentar.</li>
+          <li>Conduza ao batismo (se for o caso) e à recepção como membro (capítulo 20).</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="funcao f-gestao">
+    <h3>Gestão Integração</h3>
+    <p class="quem">Coordena todo o ministério: distribui, acompanha os números, aprova acessos e configura o sistema.</p>
+    <div class="ve"><div><b>Vê</b>Tudo: todas as fichas e todas as áreas, exceto os detalhes de cuidado/crise (restritos ao pastor e ao responsável).</div><div><b>Rotina</b>Diária: Painel e “Para resolver hoje”. Semanal: Relatórios e Aprovações.</div></div>
+    <ol class="passos">
+      <li>Distribua os visitantes <b>sem responsável</b> (filtro no Painel ou na lista).</li>
+      <li>Cobre quem tem <b>fichas paradas</b> há 7 dias ou mais.</li>
+      <li>Libere os novos acessos em <b>Aprovações</b> (capítulo 25).</li>
+      <li>Mantenha a <b>Equipe</b> e as <b>Configurações</b> em dia (capítulos 26 e 27).</li>
+      <li>Acompanhe os <b>Relatórios</b> e a <b>Auditoria</b> (capítulo 28).</li>
+    </ol>
+  </div>
+
+  <div class="funcao f-pastor">
+    <h3>Pastores e Gestão Ministerial</h3>
+    <p class="quem">Dá cobertura pastoral ao ministério.</p>
+    <div class="ve"><div><b>Vê</b>Tudo, inclusive os registros de cuidado/crise.</div><div><b>Rotina</b>Acompanhar o Cuidado pastoral no Painel e os Relatórios.</div></div>
+    <ol class="passos">
+      <li>Atenda as pessoas em <b>Cuidado pastoral</b> e marque <b>Resolver cuidado</b> quando concluído.</li>
+      <li>Ajude a liberar novos acessos em <b>Aprovações</b>.</li>
+      <li>Acompanhe os indicadores em <b>Relatórios</b>.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ======================= PARTE 6 ======================= -->
+<div class="parte quebra"><small>Parte 6</small><h2>Administração</h2><p>Áreas restritas a Gestão Integração e Pastores.</p></div>
+
+<section class="capitulo" id="c25">
+  <h3><span class="cap-num">25</span>Aprovar novos acessos</h3>
+  <figure><div class="moldura"><img src="img/d-aprovacoes.jpg" alt="Aprovações de acesso"></div><figcaption>Um pedido de acesso aguardando aprovação.</figcaption></figure>
+  <ol class="passos">
+    <li>Quando alguém cria o próprio acesso, o Painel mostra <b>“conta aguardando aprovação”</b> e o menu <b>Aprovações</b> ganha um número.</li>
+    <li>Abra <b>Aprovações</b>. Confira o nome, o contato e as funções que a pessoa pediu.</li>
+    <li><b>Confirme ou ajuste as funções</b> marcando e desmarcando as caixas. É a função que define o que a pessoa vai ver.</li>
+    <li>Toque em <span class="bt">Aprovar acesso</span>. A pessoa já pode entrar.</li>
+    <li>Para recusar, toque em <span class="bt bt-sec">Rejeitar…</span>, escreva o motivo (fica registrado) e confirme.</li>
+  </ol>
+  <div class="caixa atencao"><b>Só aprove quem você conhece.</b><p>O acesso dá visão sobre dados pessoais de visitantes. Na dúvida, confirme com a pessoa antes de aprovar.</p></div>
+</section>
+
+<section class="capitulo" id="c26">
+  <h3><span class="cap-num">26</span>Equipe: pessoas, funções e hierarquia</h3>
+  <figure><div class="moldura"><img src="img/d-equipe.jpg" alt="Equipe"></div><figcaption>A Equipe, filtrada por função.</figcaption></figure>
+  <ul>
+    <li><b>Filtrar:</b> toque nas pílulas coloridas para ver cada função, ou em <b>Todos</b>. Marque <b>Mostrar inativos</b> para ver quem foi desativado.</li>
+    <li><b>Editar:</b> toque no lápis do cartão para mudar nome, WhatsApp e funções e clique em <span class="bt">Salvar alterações</span>. O grupo que o líder lidera e o supervisor são salvos na hora.</li>
+    <li><b>Novo membro:</b> o botão <span class="bt">+ Novo membro</span> faz um cadastro rápido, <b>sem login</b>. Para a pessoa ter a própria senha, envie a ela o link de <b>Criar meu acesso</b>.</li>
+    <li><b>Hierarquia:</b> no fim da página, defina <b>quem supervisiona quem</b>. O supervisor passa a ver o acompanhamento de quem está abaixo dele.</li>
+  </ul>
+  <table>
+    <thead><tr><th>Ação</th><th>Quando usar</th></tr></thead>
+    <tr><td>Desativar</td><td>A pessoa saiu por um tempo. O acesso é bloqueado, mas o histórico fica guardado e dá para reativar depois.</td></tr>
+    <tr><td>Excluir</td><td>Remoção definitiva. Os visitantes que ela acompanhava ficam sem responsável e precisam ser redistribuídos. Prefira <b>Desativar</b>.</td></tr>
+  </table>
+</section>
+
+<section class="capitulo" id="c27">
+  <h3><span class="cap-num">27</span>Configurações</h3>
+  <figure><div class="moldura"><img src="img/d-config.jpg" alt="Configurações"></div><figcaption>O menu de seções das Configurações.</figcaption></figure>
+  <p>As Configurações adaptam o sistema à realidade da sua igreja. Escolha a seção no menu da esquerda (no celular, nas pílulas do topo):</p>
+  <table>
+    <thead><tr><th>Seção</th><th>O que você ajusta</th></tr></thead>
+    <tr><td>Igreja</td><td>Nome, subtítulo, cidade e estado; como vocês chamam o grupo pequeno (Conexão, Célula, PG…); as cores do sistema; o prazo de dias sem resposta até “Em espera” e as opções de “Como conheceu a igreja?”.</td></tr>
+    <tr><td>Jornada</td><td>Os nomes das etapas e das funções; as datas marcadas de batismo e de recepção de membros; os requisitos para receber como membro (tempo mínimo e frequência).</td></tr>
+    <tr><td>Cultos</td><td>Os cultos fixos (dia e horário), usados no cadastro para registrar a 1ª visita.</td></tr>
+    <tr><td>Grupos</td><td>Os grupos, com bairro, perfil, dia e horário e os líderes (até 2). Dá para buscar e editar cada um.</td></tr>
+    <tr><td>Mensagens</td><td>Os textos prontos do fluxo de contato. Use as variáveis (como o nome da pessoa) para personalizar.</td></tr>
+    <tr><td>Autocadastro</td><td>O QR code e o link público do visitante: <span class="bt">Imprimir QR</span>, <span class="bt bt-sec">Copiar link</span>, prévia e quais perguntas aparecem no formulário.</td></tr>
+    <tr><td>Dados &amp; Nuvem</td><td>A situação da sincronização, a exportação/restauração de backup e a zona de perigo.</td></tr>
+  </table>
+  <figure><div class="moldura"><img src="img/d-qr.jpg" alt="Autocadastro e QR code"></div><figcaption>Configurações → Autocadastro: o QR code para imprimir.</figcaption></figure>
+  <div class="caixa atencao"><b>Salve antes de sair da seção.</b><p>Nas seções com botão <span class="bt">Salvar alterações</span>, as mudanças só valem depois de salvar. O aviso “Tudo salvo” confirma.</p></div>
+  <div class="caixa perigo"><b>Zona de perigo.</b><p>“Zerar todos os dados” apaga visitantes, contatos e cadastros <b>em todos os aparelhos</b>. Não tem volta. Exporte um backup antes de qualquer ação desse tipo.</p></div>
+</section>
+
+<section class="capitulo" id="c28">
+  <h3><span class="cap-num">28</span>Relatórios e Auditoria</h3>
+  <figure><div class="moldura"><img src="img/d-relatorios.jpg" alt="Relatórios"></div><figcaption>Relatórios de gestão: visão geral.</figcaption></figure>
+  <h4>Relatórios</h4>
+  <ol class="passos">
+    <li>Escolha o <b>período</b>: Tudo, 30 dias, 90 dias, 12 meses, ou datas “De” e “Até”.</li>
+    <li>Navegue pelas abas: <b>Visão geral</b> (números e funil de conversão), <b>Origem &amp; canais</b>, <b>Equipe</b>, <b>Conexões</b>, <b>Engajamento</b>, <b>Perfil dos visitantes</b> e <b>Retenção &amp; perdas</b>.</li>
+    <li>Use <span class="bt bt-sec">Exportar CSV</span> para abrir a lista no Excel, ou <span class="bt bt-sec">Imprimir</span> para gerar um PDF da tela.</li>
+  </ol>
+  <h4>Auditoria</h4>
+  <p>A <b>Auditoria</b> registra automaticamente quem fez o quê, e quando: aprovações, mudanças na equipe, correções de etapa, acessos a fichas com cuidado ativo e outras ações sensíveis. Busque por pessoa, ação ou visitante e filtre por período. Não há como apagar ou editar esses registros pela tela: eles protegem a equipe e os visitantes.</p>
+</section>
+
+<!-- ======================= PARTE 7 ======================= -->
+<div class="parte quebra"><small>Parte 7</small><h2>Segurança, perguntas e problemas</h2><p>Boas práticas de privacidade, as dúvidas mais comuns e o que fazer quando algo não sai como esperado.</p></div>
+
+<section class="capitulo" id="c29">
+  <div class="nao-quebra">
+  <h3><span class="cap-num">29</span>Privacidade e boas práticas (LGPD)</h3>
+  <p>O sistema guarda dados pessoais de pessoas que confiaram na igreja. Cuidar bem desses dados também é cuidar delas.</p>
+  </div>
+  <ul class="check">
+    <li>Peça <b>autorização</b> antes de cadastrar e explique para que os dados servem.</li>
+    <li><b>Não compartilhe</b> sua senha nem deixe o sistema aberto em aparelho de outra pessoa.</li>
+    <li><b>Não tire prints</b> de fichas para enviar em grupos de WhatsApp.</li>
+    <li>Registre os fatos com respeito; evite opiniões sobre a pessoa.</li>
+    <li>Casos de <b>cuidado/crise</b> são sigilosos: converse só com a liderança.</li>
+    <li>Se a pessoa pedir para não ser mais contatada, registre <b>“Pediu para parar”</b>.</li>
+    <li>Saia da conta ao terminar em um computador compartilhado.</li>
+  </ul>
+  <p>Cada igreja vê somente os próprios dados, e cada pessoa da equipe vê apenas o que a sua função permite.</p>
+</section>
+
+<section class="capitulo" id="c30">
+  <h3><span class="cap-num">30</span>Perguntas frequentes</h3>
+  <div class="faq"><h4>Preciso instalar algum aplicativo?</h4><p>Não. O sistema abre no navegador. Para ter um ícone na tela do celular, veja o capítulo 8.</p></div>
+  <div class="faq"><h4>Se eu cadastrar no meu celular, aparece no celular de outra pessoa?</h4><p>Sim. Tudo é salvo na nuvem automaticamente; quem tiver permissão vê os mesmos dados atualizados.</p></div>
+  <div class="faq"><h4>Meus registros podem se perder?</h4><p>Não. Se estiver sem internet, o registro fica guardado no aparelho e é enviado quando a conexão voltar. Antes de fechar, confira se não aparece “Sem conexão”.</p></div>
+  <div class="faq"><h4>Por que não encontro um visitante na lista?</h4><p>Você vê apenas quem está sob o seu cuidado. Confira também se não há um filtro ligado (pílula de etapa, busca ou responsável). Se for necessário, peça à Gestão para designar a pessoa a você.</p></div>
+  <div class="faq"><h4>A pessoa mudou de ideia e quer participar do grupo. E agora?</h4><p>Registre o novo contato normalmente; o fluxo volta a andar a partir do que você registrar.</p></div>
+  <div class="faq"><h4>Posso usar no computador e no celular ao mesmo tempo?</h4><p>Sim. Entre com a mesma conta nos dois; tudo fica sincronizado.</p></div>
+  <div class="faq"><h4>Por que algumas áreas do menu não aparecem para mim?</h4><p>O menu mostra só as áreas da sua função. Relatórios, Equipe, Aprovações, Auditoria e Configurações são de Gestão e Pastores.</p></div>
+  <div class="faq"><h4>Mudou de nome na minha igreja (ex.: “Célula” em vez de “Conexão”)?</h4><p>É normal: cada igreja configura os próprios nomes de grupos, etapas e funções. O funcionamento é o mesmo.</p></div>
+</section>
+
+<section class="capitulo" id="c31">
+  <h3><span class="cap-num">31</span>Quando algo não funciona</h3>
+  <table>
+    <thead><tr><th>O que aparece</th><th>O que fazer</th></tr></thead>
+    <tr><td>“Quase lá!” ao entrar</td><td>Seu acesso ainda não foi aprovado. Aguarde ou avise a Gestão.</td></tr>
+    <tr><td>Senha incorreta</td><td>Confira as maiúsculas e minúsculas (use o olho para ver o que digitou) ou use “Esqueci a senha”.</td></tr>
+    <tr><td>O e-mail de nova senha não chega</td><td>Procure no spam e confira se digitou o e-mail certo. Espere alguns minutos e tente de novo.</td></tr>
+    <tr><td><span class="chip chip-crit">Sem conexão</span> no topo</td><td>Verifique a internet. Toque na etiqueta para tentar de novo. Seus registros não se perdem.</td></tr>
+    <tr><td>A tela ficou estranha ou travou</td><td>Recarregue a página (puxe a tela para baixo no celular ou aperte F5 no computador).</td></tr>
+    <tr><td>“Você não tem acesso à ficha desta pessoa”</td><td>A pessoa não está sob o seu cuidado. Peça à Gestão para designá-la a você, se for o caso.</td></tr>
+    <tr><td>Recarregou sozinho depois de uma atualização</td><td>É normal: o sistema foi atualizado e carregou a versão nova. Continue de onde parou.</td></tr>
+  </table>
+  <p>Se o problema continuar, fale com a <b>Gestão Integração</b> da sua igreja informando: o que você estava fazendo, a mensagem que apareceu (um print ajuda, desde que não mostre dados de visitantes) e a versão do sistema, que aparece no pé do menu (ex.: “Integração · v2.3.0”).</p>
+
+  <div class="encerramento">
+    <p>“Não estamos falando de um produto, e sim de pessoas.”</p>
+    <p>Integração de Visitantes · Igreja Família Extraordinária<br><small>As imagens deste manual usam uma igreja e pessoas fictícias.</small></p>
+  </div>
+</section>
+
+</div><!-- /miolo -->
+</div><!-- /folha -->
+</body>
+</html>

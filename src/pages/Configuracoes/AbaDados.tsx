@@ -61,7 +61,7 @@ export default function AbaDados() {
         </div>
       </div>
 
-      <div className="card" style={{ borderColor: '#fecaca' }}>
+      <div className="card" style={{ borderColor: 'color-mix(in srgb, var(--danger) 30%, var(--border))' }}>
         <h3 style={{ color: 'var(--danger)' }}>Zona de perigo</h3>
         <p className="descricao-secao">
           Apaga todos os visitantes, contatos e cadastros da igreja — <b>em todos os aparelhos sincronizados</b>, não só neste.

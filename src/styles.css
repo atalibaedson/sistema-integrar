@@ -655,9 +655,6 @@ select::-ms-expand { display: none; }
   .ficha-pessoa { padding: 16px; }
   .ficha-nome { font-size: 19px; }
   .ficha-info li { grid-template-columns: 18px 84px minmax(0, 1fr); }
-  /* 7 marcos em ~330px: rótulos menores para "Batismo" e "Membro" não colarem */
-  .step { min-width: 0; }
-  .step-rotulo { font-size: 9.5px; letter-spacing: -.02em; white-space: nowrap; }
 }
 
 .guia-acao {
@@ -1147,6 +1144,8 @@ details summary:hover { color: var(--acento-texto); }
 .ac-pessoa-info small { font-size: 12px; color: var(--text-2); }
 .ac-pessoa-seta { color: var(--acento-texto); font-weight: 700; font-size: 18px; }
 .ac-rodape-link { font-size: 13px; text-align: center; margin-top: 14px; color: var(--text-2); }
+.ac-rodape-link a { color: var(--acento-texto); font-weight: 700; text-decoration: none; }
+.ac-rodape-link a:hover { text-decoration: underline; }
 
 /* ===== Assistente de cadastro (wizard) ===== */
 .ac-cartao-lg { max-width: 540px; }
@@ -1831,3 +1830,14 @@ details summary:hover { color: var(--acento-texto); }
   transition: background var(--transition);
 }
 .toggle-item:hover { background: var(--bg); }
+
+/* Jornada da ficha no celular: 7 marcos não cabem com nome. Fica só o nome da
+   etapa ATUAL (as outras viram os círculos numerados); o cartão logo abaixo
+   repete "Etapa X de 7" com o nome completo. Vem por último para valer sobre
+   as regras de celular acima. */
+@media (max-width: 600px) {
+  .step { min-width: 0; }
+  .step-rotulo { font-size: 11px; white-space: nowrap; }
+  .step:not(.atual) .step-rotulo { visibility: hidden; }
+  .stepper { padding-bottom: 0 !important; }
+}
