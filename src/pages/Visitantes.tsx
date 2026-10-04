@@ -1,23 +1,25 @@
 import { useState } from 'react'
-import { consolidadoresAtivos, diasSemAtualizacao, semAtualizacao, semResponsavel, useAppState, ultimaRespostaOuCadastro } from '../store'
+import { consolidadoresAtivos, diasSemAtualizacao, semAtualizacao, semResponsavel, useAppState, ultimaRespostaOuCadastro, usuarioPorId } from '../store'
 import { diasDesde } from '../machine'
-import { estiloStatus, rotuloStatus, type Status, type Visitante } from '../types'
+import { estiloStatus, rotuloStatus, STATUS_COR, type Status, type Visitante } from '../types'
 import { linkWhatsApp, normalizarTexto, proximaAcao } from '../actions'
 import { navegar } from '../router'
-import { IcoBusca, IcoMais, IcoWhats } from '../icones'
+import { IcoBusca, IcoRelogio, IcoWhats } from '../icones'
+import Avatar from '../Avatar'
 import { useUsuarioAtualId, usuarioAtual, visitantesVisiveis } from '../acesso'
 
-// Filtros por ETAPA da jornada (o modelo mental do fluxo), não por status técnico
-const GRUPOS: { id: string; rotulo: string; statuses?: Status[]; soCuidado?: boolean; soParados?: boolean }[] = [
+// Filtros por ETAPA da jornada (o modelo mental do fluxo), não por status técnico.
+// `cor` = bolinha da pílula (a mesma cor da etapa na Jornada e no Painel).
+const GRUPOS: { id: string; rotulo: string; cor?: string; statuses?: Status[]; soCuidado?: boolean; soParados?: boolean }[] = [
   { id: 'todos', rotulo: 'Todos' },
-  { id: 'consolidacao', rotulo: '🤝 Em consolidação', statuses: ['novo', 'em_contato', 'aguardando_resposta'] },
-  { id: 'lider', rotulo: '👥 Com o líder', statuses: ['encaminhado_lider', 'visitou'] },
-  { id: 'acompanhando', rotulo: '🌱 Acompanhando', statuses: ['transferido'] },
-  { id: 'batismo', rotulo: '💧 Batismo', statuses: ['batismo'] },
-  { id: 'integrados', rotulo: '🎉 Membros', statuses: ['integrado'] },
-  { id: 'parados', rotulo: '💤 Parados', statuses: ['em_espera', 'recusou', 'encerrado'] },
-  { id: 'sem_atualizacao', rotulo: '🕐 Sem atualização 7d+', soParados: true },
-  { id: 'cuidado', rotulo: '🚨 Cuidado', soCuidado: true },
+  { id: 'consolidacao', rotulo: 'Em consolidação', cor: STATUS_COR.em_contato, statuses: ['novo', 'em_contato', 'aguardando_resposta'] },
+  { id: 'lider', rotulo: 'Com o líder', cor: STATUS_COR.encaminhado_lider, statuses: ['encaminhado_lider', 'visitou'] },
+  { id: 'acompanhando', rotulo: 'Acompanhando', cor: STATUS_COR.transferido, statuses: ['transferido'] },
+  { id: 'batismo', rotulo: 'Batismo', cor: STATUS_COR.batismo, statuses: ['batismo'] },
+  { id: 'integrados', rotulo: 'Membros', cor: STATUS_COR.integrado, statuses: ['integrado'] },
+  { id: 'parados', rotulo: 'Parados', cor: STATUS_COR.em_espera, statuses: ['em_espera', 'recusou', 'encerrado'] },
+  { id: 'sem_atualizacao', rotulo: 'Sem atualização 7d+', cor: 'var(--warn)', soParados: true },
+  { id: 'cuidado', rotulo: 'Cuidado', cor: 'var(--danger)', soCuidado: true },
 ]
 
 // Filtro inicial pelo endereço (#/visitantes?grupo=cuidado&resp=sem) — é como os
@@ -66,26 +68,33 @@ export default function Visitantes() {
     })
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
 
+  const abrir = (v: Visitante) => navegar(`/visitante/${v.id}`)
+
   return (
-    <div>
+    <div className="vis">
       <h1 className="titulo-pagina">Visitantes</h1>
       <p className="subtitulo">Cada pessoa em uma etapa da jornada — e o que fazer com ela agora.</p>
 
       {/* Filtros por etapa da jornada */}
-      <div className="filtros">
+      <div className="pilulas" role="tablist" aria-label="Filtrar por etapa">
         {GRUPOS.map((gr) => {
           const n = contaGrupo(gr)
           if (gr.id !== 'todos' && n === 0) return null
           return (
-            <button key={gr.id} className={`chip ${grupo === gr.id ? 'sel' : ''}`} onClick={() => setGrupo(gr.id)}>
-              {gr.rotulo} ({n})
+            <button
+              key={gr.id} type="button" role="tab" aria-selected={grupo === gr.id}
+              className={`pilula ${grupo === gr.id ? 'sel' : ''}`} onClick={() => setGrupo(gr.id)}
+            >
+              {gr.cor && <i className="pilula-ponto" style={{ background: gr.cor }} />}
+              {gr.rotulo}
+              <span className="pilula-n">{n}</span>
             </button>
           )
         })}
       </div>
 
-      <div className="filter-bar">
-        <div className="search-box" style={{ flex: 1, maxWidth: 320 }}>
+      <div className="vis-barra">
+        <div className="search-box vis-busca">
           <span className="search-icon"><IcoBusca /></span>
           <input
             type="text"
@@ -95,73 +104,77 @@ export default function Visitantes() {
           />
         </div>
         <select
+          className="vis-resp"
           value={consolidador}
           onChange={(e) => setConsolidador(e.target.value)}
           title="Filtrar pelo consolidador responsável"
-          style={{ maxWidth: 230 }}
         >
-          <option value="">👤 Todos os consolidadores</option>
+          <option value="">Todos os consolidadores</option>
           <option value="sem">— Sem responsável —</option>
           {consolidadores.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
         </select>
-        <button className="btn" onClick={() => navegar('/novo')}><IcoMais size={15} /> Novo visitante</button>
+        <span className="vis-total">{lista.length} {lista.length === 1 ? 'pessoa' : 'pessoas'}</span>
       </div>
 
-      <div className="card" style={{ padding: 0 }}>
-        <div className="table-wrap" style={{ overflowX: 'auto' }}>
-          <table>
-            <thead>
-              <tr>
-                <th>Visitante</th><th>Etapa</th><th>Próxima ação</th><th>Sem resposta</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {lista.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-2)', padding: 32 }}>
-                    Nenhum visitante {grupo === 'todos' ? 'cadastrado ainda' : 'nesta etapa'}.
-                  </td>
-                </tr>
-              ) : (
-                lista.map((v) => {
-                  const acao = proximaAcao(s, v)
-                  const dias = diasDesde(ultimaRespostaOuCadastro(s, v))
-                  const mostraDias = ['em_contato', 'aguardando_resposta', 'em_espera'].includes(v.status)
-                  const parado = semAtualizacao(s, v)
-                  return (
-                    <tr key={v.id} className="clicavel" onClick={() => navegar(`/visitante/${v.id}`)}>
-                      <td>
-                        <div className="cell-title">
-                          {v.nome}
-                          {v.flagCuidado && ' 🚨'}
-                          {v.flagMenorIdade && <span className="badge-flag" style={{ marginLeft: 6 }}>menor</span>}
-                        </div>
-                        <div className="cell-sub">{v.whatsapp}</div>
-                      </td>
-                      <td><span className="badge" style={estiloStatus(v.status)}>{rotuloStatus(v.status)}</span></td>
-                      <td style={{ fontSize: 12.5, color: acao.urgente ? 'var(--danger)' : 'var(--text-2)', fontWeight: acao.urgente ? 700 : 400, maxWidth: 260 }}>
-                        {parado && (
-                          <div style={{ color: 'var(--warn)', fontWeight: 700, marginBottom: 2 }}>
-                            🕐 {diasSemAtualizacao(s, v)} dias sem atualização
-                          </div>
-                        )}
-                        {acao.titulo}
-                      </td>
-                      <td>{mostraDias ? (
-                        <span style={{ color: dias >= 14 ? 'var(--danger)' : dias >= 10 ? 'var(--warn)' : 'inherit', fontWeight: dias >= 10 ? 700 : 400 }}>
-                          {dias}d
-                        </span>
-                      ) : '—'}</td>
-                      <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'right' }}>
-                        <a className="btn-icone whats" href={linkWhatsApp(v.whatsapp)} target="_blank" rel="noreferrer" title="WhatsApp"><IcoWhats /></a>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
+      <div className="card vis-lista">
+        <div className="vis-cab" aria-hidden>
+          <span /><span>Visitante</span><span>Etapa</span><span>Próxima ação</span><span>Sem retorno</span><span />
         </div>
+        {lista.length === 0 ? (
+          <div className="painel-vazio">
+            {busca ? 'Ninguém encontrado com essa busca.' : `Nenhum visitante ${grupo === 'todos' ? 'cadastrado ainda' : 'nesta etapa'}.`}
+          </div>
+        ) : (
+          lista.map((v) => {
+            const acao = proximaAcao(s, v)
+            const dias = diasDesde(ultimaRespostaOuCadastro(s, v))
+            const mostraDias = ['em_contato', 'aguardando_resposta', 'em_espera'].includes(v.status)
+            const parado = semAtualizacao(s, v)
+            const resp = semResponsavel(s, v) ? undefined : usuarioPorId(s, v.responsavelId)
+            return (
+              <div
+                key={v.id} className="vis-linha" role="link" tabIndex={0}
+                onClick={() => abrir(v)}
+                onKeyDown={(e) => { if (e.key === 'Enter') abrir(v) }}
+              >
+                <Avatar nome={v.nome} tom={v.flagCuidado ? 'var(--danger)' : undefined} />
+                <div className="vis-pessoa">
+                  <b>
+                    {v.nome}
+                    {v.flagCuidado && <span className="painel-chip painel-chip-crit">cuidado</span>}
+                    {v.flagMenorIdade && <span className="painel-chip painel-chip-warn">menor</span>}
+                  </b>
+                  <span>
+                    {v.whatsapp}
+                    {' · '}
+                    {resp ? resp.nome.split(' ')[0] : <em className="vis-sem-resp">sem responsável</em>}
+                  </span>
+                </div>
+                <div className="vis-etapa">
+                  <span className="chip-etapa" style={estiloStatus(v.status)} title={rotuloStatus(v.status)}>{rotuloStatus(v.status)}</span>
+                </div>
+                <div className={`vis-acao ${acao.urgente ? 'painel-urgente' : ''}`}>
+                  {parado && (
+                    <span className="vis-parado"><IcoRelogio size={13} /> {diasSemAtualizacao(s, v)} dias sem atualização</span>
+                  )}
+                  {acao.titulo}
+                </div>
+                <div className="vis-dias">
+                  {mostraDias ? (
+                    <span className={dias >= 14 ? 'painel-chip painel-chip-crit' : dias >= 10 ? 'painel-chip painel-chip-warn' : 'vis-dias-n'}>
+                      {dias}d
+                    </span>
+                  ) : <span className="vis-dias-n">—</span>}
+                </div>
+                <a
+                  className="btn-icone whats vis-whats" href={linkWhatsApp(v.whatsapp)} target="_blank" rel="noreferrer"
+                  title="WhatsApp" aria-label={`WhatsApp de ${v.nome}`}
+                  onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}
+                ><IcoWhats /></a>
+              </div>
+            )
+          })
+        )}
       </div>
     </div>
   )

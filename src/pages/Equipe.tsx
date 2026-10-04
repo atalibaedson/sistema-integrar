@@ -6,7 +6,8 @@ import { criariCiclo } from '../acesso'
 import { registrarAuditoria } from '../auditoria'
 import { toast } from '../toast'
 import { confirmar } from '../confirmar'
-import { IcoBusca, IcoCheck, IcoEditar, IcoLixeira, IcoMais, IcoWhats } from '../icones'
+import { IcoAlerta, IcoBusca, IcoCasa, IcoCheck, IcoEditar, IcoLixeira, IcoMais, IcoWhats, IcoX } from '../icones'
+import Avatar from '../Avatar'
 import { supabase } from '../supabaseClient'
 
 // Muda o supervisor de `alvo`, com validação de ciclo e registro em auditoria.
@@ -30,6 +31,19 @@ export function definirSupervisor(s: AppState, alvo: Usuario, novoSupervisorId: 
 export function iniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/).filter(Boolean)
   return ((partes[0]?.[0] ?? '?') + (partes[1]?.[0] ?? '')).toUpperCase()
+}
+
+// Situação do acesso (login) — etiquetas semânticas, legíveis no claro e no escuro
+function TagsAcesso({ u }: { u: Usuario }) {
+  return (
+    <>
+      {!u.ativo && <span className="tag">Inativo</span>}
+      {(u.statusAcesso === 'pendente_aprovacao' || u.statusAcesso === 'pendente_confirmacao_email') && (
+        <span className="tag tag-warn">{STATUS_ACESSO_LABEL[u.statusAcesso]}</span>
+      )}
+      {u.statusAcesso === 'aprovado' && <span className="tag tag-ok">Com login</span>}
+    </>
+  )
 }
 
 function TagsPapeis({ u }: { u: Usuario }) {
@@ -186,13 +200,9 @@ function ModalEditarMembro({ u, onFechar }: { u: Usuario; onFechar: () => void }
 
         {/* Cabeçalho */}
         <div className="modal-cab">
-          <div className="avatar" style={{ background: PAPEL_COR[u.papeis[0]], width: 36, height: 36, fontSize: 13, flexShrink: 0 }}>
-            {u.fotoUrl
-              ? <img src={u.fotoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-              : iniciais(u.nome)}
-          </div>
+          <Avatar nome={u.nome} tom={PAPEL_COR[u.papeis[0]]} foto={u.fotoUrl} />
           <h3>{u.nome}</h3>
-          <button className="btn-icone" onClick={onFechar} title="Fechar" style={{ fontSize: 16, marginLeft: 4 }}>✕</button>
+          <button className="btn-icone" onClick={onFechar} title="Fechar" aria-label="Fechar"><IcoX size={16} /></button>
         </div>
 
         {/* Corpo */}
@@ -202,15 +212,7 @@ function ModalEditarMembro({ u, onFechar }: { u: Usuario; onFechar: () => void }
           {u.statusAcesso && u.statusAcesso !== 'sem_login' && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               <TagsPapeis u={u} />
-              {!u.ativo && <span className="tag">Inativo</span>}
-              {(u.statusAcesso === 'pendente_aprovacao' || u.statusAcesso === 'pendente_confirmacao_email') && (
-                <span className="tag" style={{ background: '#f59e0b18', borderColor: '#f59e0b40', color: '#b47207' }}>
-                  {STATUS_ACESSO_LABEL[u.statusAcesso]}
-                </span>
-              )}
-              {u.statusAcesso === 'aprovado' && (
-                <span className="tag" style={{ background: '#22c55e18', borderColor: '#22c55e40', color: '#15803d' }}>🔑 Com login</span>
-              )}
+              <TagsAcesso u={u} />
             </div>
           )}
 
@@ -266,13 +268,13 @@ function ModalEditarMembro({ u, onFechar }: { u: Usuario; onFechar: () => void }
           <div className="modal-perigo">
             <span>{u.ativo ? 'Desativar bloqueia o acesso sem excluir o histórico.' : 'Membro está inativo.'}</span>
             <button className="btn btn-sec btn-mini" onClick={alternarAtivo}>
-              {u.ativo ? '⏸ Desativar' : '▶ Reativar'}
+              {u.ativo ? 'Desativar' : 'Reativar'}
             </button>
           </div>
 
           <div className="modal-perigo" style={{ marginTop: 0 }}>
             <span>Excluir remove permanentemente e libera o e-mail.</span>
-            <button className="btn btn-mini" style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }} onClick={remover}>
+            <button className="btn btn-mini btn-perigo-forte" onClick={remover}>
               <IcoLixeira size={13} /> Excluir
             </button>
           </div>
@@ -328,83 +330,81 @@ export default function Equipe() {
     : null
 
   return (
-    <div>
-      <h1 className="titulo-pagina">Equipe</h1>
-      <p className="subtitulo">Quem cuida dos visitantes, por categoria. Uma pessoa pode exercer mais de uma função.</p>
+    <div className="equipe">
+      <div className="cab-detalhe">
+        <div>
+          <h1 className="titulo-pagina">Equipe</h1>
+          <p className="subtitulo">Quem cuida dos visitantes, por função. Uma pessoa pode exercer mais de uma.</p>
+        </div>
+        <button className="btn" onClick={() => setNovo(!novo)}>{novo ? 'Fechar' : <><IcoMais size={15} /> Novo membro</>}</button>
+      </div>
 
-      {/* Abas por categoria */}
-      <div className="grid-cards">
+      {novo && (
+        <div className="card">
+          <h3>Novo membro</h3>
+          <FormUsuario onPronto={() => setNovo(false)} />
+        </div>
+      )}
+
+      {/* Filtro por função (com a cor de cada uma) */}
+      <div className="pilulas" role="tablist" aria-label="Filtrar por função">
         {papeis.map((p) => (
           <button
-            key={p}
-            className="kpi kpi-btn"
-            style={{ borderTop: `3px solid ${PAPEL_COR[p]}`, outline: aba === p ? `2px solid ${PAPEL_COR[p]}` : 'none' }}
-            onClick={() => setAba(p)}
-            title={`Ver só ${rotuloPapel(p)}`}
+            key={p} type="button" role="tab" aria-selected={aba === p}
+            className={`pilula ${aba === p ? 'sel' : ''}`} onClick={() => setAba(p)}
           >
-            <div className="valor">{conta(p)}</div>
-            <div className="rotulo">{rotuloPapel(p)}</div>
+            <i className="pilula-ponto" style={{ background: PAPEL_COR[p] }} />
+            {rotuloPapel(p)}
+            <span className="pilula-n">{conta(p)}</span>
           </button>
         ))}
+        <button type="button" role="tab" aria-selected={aba === 'todos'} className={`pilula ${aba === 'todos' ? 'sel' : ''}`} onClick={() => setAba('todos')}>
+          Todos <span className="pilula-n">{s.usuarios.filter((u) => u.ativo).length}</span>
+        </button>
       </div>
 
-      <details className="card">
-        <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 15 }}>Hierarquia — quem supervisiona quem</summary>
+      <div className="vis-barra">
+        <div className="search-box vis-busca">
+          <span className="search-icon"><IcoBusca /></span>
+          <input
+            type="text"
+            placeholder="Buscar por nome, WhatsApp ou grupo…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+        </div>
+        {inativos > 0 && (
+          <label className="check equipe-inativos">
+            <input type="checkbox" checked={mostrarInativos} onChange={() => setMostrarInativos(!mostrarInativos)} />
+            Mostrar inativos ({inativos})
+          </label>
+        )}
+        <span className="vis-total">{lista.length} {lista.length === 1 ? 'pessoa' : 'pessoas'}</span>
+      </div>
+
+      {lista.length === 0 ? (
+        <div className="card"><div className="painel-vazio">Ninguém encontrado com esse filtro.</div></div>
+      ) : (
+        grupos.map((g) => (
+          <section key={g.papel} className="equipe-grupo">
+            {aba === 'todos' && (
+              <div className="painel-secao-cab">
+                <h2><i className="pilula-ponto" style={{ background: PAPEL_COR[g.papel] }} /> {rotuloPapel(g.papel)} <span className="painel-contagem">{g.membros.length}</span></h2>
+              </div>
+            )}
+            <div className="grade-cartoes">
+              {g.membros.map((u) => (
+                <CartaoPessoa key={u.id} u={u} onEditar={() => setPessoaEditando(u)} />
+              ))}
+            </div>
+          </section>
+        ))
+      )}
+
+      <details className="card equipe-hierarquia">
+        <summary>Hierarquia — quem supervisiona quem</summary>
         <CardHierarquia />
       </details>
-
-      <div className="card">
-        <div className="card-cab">
-          <h3>
-            {aba === 'todos' ? 'Todos os membros' : rotuloPapel(aba)} ({lista.length})
-          </h3>
-          <button className="btn" onClick={() => setNovo(!novo)}>{novo ? 'Fechar' : <><IcoMais size={15} /> Novo membro</>}</button>
-        </div>
-
-        {novo && <FormUsuario onPronto={() => setNovo(false)} />}
-
-        <div className="barra-lista">
-          <div className="search-box" style={{ flex: 1 }}>
-            <span className="search-icon"><IcoBusca /></span>
-            <input
-              type="text"
-              placeholder="Buscar por nome, WhatsApp ou grupo…"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-            />
-          </div>
-          <button className={`chip ${aba === 'todos' ? 'sel' : ''}`} onClick={() => setAba(aba === 'todos' ? papeis[0] : 'todos')}>
-            Todos
-          </button>
-          {inativos > 0 && (
-            <button className={`chip ${mostrarInativos ? 'sel' : ''}`} onClick={() => setMostrarInativos(!mostrarInativos)}>
-              Inativos ({inativos})
-            </button>
-          )}
-        </div>
-
-        {lista.length === 0 ? (
-          <div className="vazio">Ninguém encontrado com esse filtro.</div>
-        ) : (
-          grupos.map((g) => (
-            <div key={g.papel} style={{ marginBottom: 20 }}>
-              {aba === 'todos' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: PAPEL_COR[g.papel], display: 'inline-block' }} />
-                  <h4 style={{ margin: 0, fontSize: 13, textTransform: 'uppercase', letterSpacing: '.03em', color: 'var(--text-2)' }}>
-                    {rotuloPapel(g.papel)} ({g.membros.length})
-                  </h4>
-                </div>
-              )}
-              <div className="grade-cartoes">
-                {g.membros.map((u) => (
-                  <CartaoPessoa key={u.id} u={u} onEditar={() => setPessoaEditando(u)} />
-                ))}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
 
       {pessoaAtualizada && (
         <ModalEditarMembro u={pessoaAtualizada} onFechar={() => setPessoaEditando(null)} />
@@ -428,13 +428,13 @@ function CardHierarquia() {
       </p>
       {semSupervisor > 0 && (
         <div className="alerta alerta-warn" style={{ marginBottom: 12 }}>
-          ⚠️ <div>{semSupervisor} pessoa(s) sem supervisor definido — elas só veem o próprio fluxo.</div>
+          <IcoAlerta size={16} /><div>{semSupervisor} pessoa(s) sem supervisor definido — elas só veem o próprio fluxo.</div>
         </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {ativos.map((u) => (
           <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <div className="avatar" style={{ background: PAPEL_COR[u.papeis[0]], width: 30, height: 30, fontSize: 11.5 }}>{iniciais(u.nome)}</div>
+            <Avatar nome={u.nome} tom={PAPEL_COR[u.papeis[0]]} tamanho="p" foto={u.fotoUrl} />
             <span style={{ fontSize: 13.5, fontWeight: 600, minWidth: 150 }}>{u.nome}</span>
             <TagsPapeis u={u} />
             <span style={{ color: 'var(--text-3)', fontSize: 12.5 }}>é supervisionado por</span>
@@ -455,92 +455,29 @@ function CardHierarquia() {
   )
 }
 
-function CardConexoes() {
-  const s = useAppState()
-  const termo = s.config.termoGrupo || 'Conexão'
-  const [busca, setBusca] = useState('')
-  const nomeLider = (id?: string) => s.usuarios.find((u) => u.id === id)?.nome
-  const norm = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-  const q = norm(busca.trim())
-  const lista = s.conexoes
-    .filter((c) => {
-      if (!q) return true
-      const alvo = norm(`${c.nome} ${c.endereco ?? ''} ${c.bairro ?? ''} ${c.cidade ?? ''} ${c.perfil} ${c.diaHorario} ${nomeLider(c.liderId) ?? ''} ${nomeLider(c.lider2Id) ?? ''}`)
-      return alvo.includes(q)
-    })
-    .slice()
-    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-
-  return (
-    <div style={{ marginTop: 10 }}>
-      <p className="descricao-secao">
-        Consulte os grupos e seus líderes — útil para checar se um já existe.
-        Para criar ou editar, vá em <a href="#/config">Configurações → Grupos</a>.
-      </p>
-      <div className="search-box" style={{ marginBottom: 12 }}>
-        <span className="search-icon"><IcoBusca /></span>
-        <input type="text" placeholder={`Buscar ${termo.toLowerCase()} por nome, região, perfil ou líder…`} value={busca} onChange={(e) => setBusca(e.target.value)} />
-      </div>
-      {s.conexoes.length === 0 ? (
-        <div className="vazio">Nenhum grupo cadastrado ainda.</div>
-      ) : lista.length === 0 ? (
-        <div className="vazio">Nenhum grupo encontrado para "{busca}".</div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {lista.map((c) => {
-            const l1 = nomeLider(c.liderId), l2 = nomeLider(c.lider2Id)
-            return (
-              <div key={c.id} className="conexao-linha">
-                <div className="conexao-linha-icone">🏠</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>{c.nome}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                    {[[c.bairro, c.cidade].filter(Boolean).join(' · '), c.perfil, c.diaHorario].filter(Boolean).join(' · ') || 'sem detalhes'}
-                  </div>
-                </div>
-                <div style={{ fontSize: 12.5, color: 'var(--text-2)', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  {(l1 || l2) ? <>👤 {[l1, l2].filter(Boolean).join(' · ')}</> : <span style={{ color: 'var(--warn)' }}>sem líder</span>}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
 function CartaoPessoa({ u, onEditar }: { u: Usuario; onEditar: () => void }) {
   const s = useAppState()
   const conexao = s.conexoes.find((c) => c.id === u.conexaoId)
 
   return (
-    <div className="cartao-pessoa" style={{ opacity: u.ativo ? 1 : 0.55 }}>
-      {u.fotoUrl ? (
-        <img src={u.fotoUrl} alt="" className="avatar" style={{ objectFit: 'cover' }} />
-      ) : (
-        <div className="avatar" style={{ background: PAPEL_COR[u.papeis[0]] }}>{iniciais(u.nome)}</div>
-      )}
+    <div className={`cartao-pessoa ${u.ativo ? '' : 'inativo'}`}>
+      <Avatar nome={u.nome} tom={PAPEL_COR[u.papeis[0]]} foto={u.fotoUrl} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="pessoa-nome">{u.nome}</div>
-        <div style={{ margin: '4px 0 2px', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        <div className="cartao-tags">
           <TagsPapeis u={u} />
-          {!u.ativo && <span className="tag">Inativo</span>}
-          {(u.statusAcesso === 'pendente_aprovacao' || u.statusAcesso === 'pendente_confirmacao_email') && (
-            <span className="tag" style={{ background: '#f59e0b18', borderColor: '#f59e0b40', color: '#b47207' }}>
-              {STATUS_ACESSO_LABEL[u.statusAcesso]}
-            </span>
-          )}
-          {u.statusAcesso === 'aprovado' && <span className="tag" style={{ background: '#22c55e18', borderColor: '#22c55e40', color: '#15803d' }}>🔑 Com login</span>}
+          <TagsAcesso u={u} />
         </div>
-        <div className="pessoa-sub">
-          📱 {u.whatsapp}
-          {u.papeis.includes('lider') && (conexao ? <> · 🏠 {conexao.nome}</> : <> · <span style={{ color: 'var(--warn)' }}>sem grupo</span></>)}
+        <div className="pessoa-sub cartao-sub">
+          <span>{u.whatsapp}</span>
+          {u.papeis.includes('lider') && (
+            <span><IcoCasa size={12} /> {conexao ? conexao.nome : <em className="ficha-falta">sem grupo</em>}</span>
+          )}
         </div>
       </div>
       <div className="cartao-acoes">
-        <a className="btn-icone whats" href={linkWhatsApp(u.whatsapp)} target="_blank" rel="noreferrer" title="WhatsApp"><IcoWhats /></a>
-        <button className="btn-icone" onClick={onEditar} title="Editar"><IcoEditar /></button>
+        <a className="btn-icone whats" href={linkWhatsApp(u.whatsapp)} target="_blank" rel="noreferrer" title="WhatsApp" aria-label={`WhatsApp de ${u.nome}`}><IcoWhats /></a>
+        <button className="btn-icone" onClick={onEditar} title="Editar" aria-label={`Editar ${u.nome}`}><IcoEditar /></button>
       </div>
     </div>
   )
@@ -584,7 +521,7 @@ function FormUsuario({ onPronto }: { onPronto: () => void }) {
   }
 
   return (
-    <form className="bloco-form" onSubmit={adicionar}>
+    <form onSubmit={adicionar}>
       <div className="linha-campos">
         <label className="campo"><span>Nome *</span>
           <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} autoFocus />
@@ -610,7 +547,7 @@ function FormUsuario({ onPronto }: { onPronto: () => void }) {
         </label>
       )}
       <p style={{ fontSize: 12.5, color: 'var(--text-2)', margin: '4px 0' }}>
-        💡 Este cadastro rápido não cria login. Para a pessoa ter a própria senha, envie a ela o
+        Este cadastro rápido não cria login. Para a pessoa ter a própria senha, envie a ela o
         link <b>#/cadastro-integrante</b> — o acesso passa pela aprovação da liderança.
       </p>
       <div style={{ display: 'flex', gap: 8 }}>

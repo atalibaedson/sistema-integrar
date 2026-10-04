@@ -3,7 +3,7 @@ import { comExclusoes, lideres, setEstado, uid, useAppState } from '../../store'
 import { type Conexao } from '../../types'
 import { toast } from '../../toast'
 import { confirmar } from '../../confirmar'
-import { IcoBusca, IcoCheck, IcoEditar, IcoLixeira, IcoMais } from '../../icones'
+import { IcoAlerta, IcoBusca, IcoCalendario, IcoCasa, IcoCheck, IcoEditar, IcoLixeira, IcoMais, IcoMapa, IcoUsuario } from '../../icones'
 import { salvarConfig, semAcento, useRascunho } from './comum'
 
 /* ---------------- Aba: Grupos ---------------- */
@@ -63,7 +63,7 @@ export default function AbaGrupos() {
 
         <div className="grupos-resumo">
           <span><b>{s.conexoes.length}</b> {s.conexoes.length === 1 ? 'grupo' : 'grupos'}</span>
-          {semLiderQtd > 0 && <span className="grupos-resumo-warn">⚠️ {semLiderQtd} sem líder</span>}
+          {semLiderQtd > 0 && <span className="grupos-resumo-warn"><IcoAlerta size={13} /> {semLiderQtd} sem líder</span>}
         </div>
 
         {novo && <FormConexao onPronto={() => setNovo(false)} />}
@@ -571,7 +571,7 @@ function CartaoConexao({ c }: { c: Conexao }) {
   return (
     <div className={`grupo-card ${semLider ? 'sem-lider' : ''}`}>
       <div className="grupo-card-top">
-        <div className="grupo-icone">🏠</div>
+        <div className="grupo-icone"><IcoCasa size={18} /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="grupo-nome">{c.nome}</div>
           {c.perfil && <span className="grupo-tag">{c.perfil}</span>}
@@ -582,10 +582,10 @@ function CartaoConexao({ c }: { c: Conexao }) {
         </div>
       </div>
       <div className="grupo-linhas">
-        <div className="grupo-linha"><span className="grupo-linha-ic">📍</span>{local || <span style={{ color: 'var(--text-3)' }}>local não informado</span>}</div>
-        <div className="grupo-linha"><span className="grupo-linha-ic">🗓️</span>{c.diaHorario || <span style={{ color: 'var(--text-3)' }}>dia a definir</span>}</div>
+        <div className="grupo-linha"><span className="grupo-linha-ic"><IcoMapa size={14} /></span>{local || <span style={{ color: 'var(--text-3)' }}>local não informado</span>}</div>
+        <div className="grupo-linha"><span className="grupo-linha-ic"><IcoCalendario size={14} /></span>{c.diaHorario || <span style={{ color: 'var(--text-3)' }}>dia a definir</span>}</div>
         <div className="grupo-linha">
-          <span className="grupo-linha-ic">👤</span>
+          <span className="grupo-linha-ic"><IcoUsuario size={14} /></span>
           {semLider ? <span className="grupo-semlider">Sem líder definido</span> : [lider1, lider2].filter(Boolean).join(' · ')}
         </div>
       </div>
@@ -645,7 +645,7 @@ function FormConexao({ onPronto }: { onPronto: () => void }) {
       </label>
       {duplicado && (
         <div className="alerta alerta-warn" style={{ marginTop: 0 }}>
-          ⚠️ <div>Já existe um grupo com esse nome: <b>{duplicado.nome}</b>. Escolha outro nome.</div>
+          <IcoAlerta size={16} /><div>Já existe um grupo com esse nome: <b>{duplicado.nome}</b>. Escolha outro nome.</div>
         </div>
       )}
       {!duplicado && parecidos.length > 0 && (

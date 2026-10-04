@@ -70,6 +70,8 @@ aprovação de conta e aplica a identidade da igreja (cores + rótulos).
 - `relatorios.ts` — cálculos puros dos relatórios (funil, batismos, distribuições).
 - `tema.ts` — paletas e cor de contraste (o CSS deriva os tons por color-mix).
 - `toast.ts` — aviso rápido "Salvo ✓". `icones.tsx` — ícones SVG. `ErroBoundary.tsx`.
+- `Avatar.tsx` — avatar de pessoa (iniciais + cor estável por nome, ou foto); use-o
+  em vez de montar círculos à mão.
 - `TelaPublica.tsx` — moldura das telas públicas (entrar, criar acesso, nova senha,
   aguardando, autocadastro): painel institucional + conteúdo, padrão da família iFE.
 - `demo.ts` — modo demonstração (`npm run dev:demo`): igreja e sessão fictícias.
@@ -119,6 +121,9 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe`, `Aprovacoes`, `Auditoria`,
   semânticos `--ok/--warn/--danger` (+ `-soft`). Primária usada como TEXTO é
   `--acento-texto` (clareada no tema escuro), não `--primary`. Paleta padrão:
   "Padrão iFE" (`tema.ts`). Versão no rodapé = `package.json` (`__APP_VERSION__`).
+  Peças reutilizáveis: `.pilulas`/`.pilula` (filtros com bolinha e contagem),
+  `.chip-etapa` (etapa do visitante), `.painel-chip-*` (etiquetas semânticas),
+  `.voltar` (link de voltar). Ícones SVG, não emoji, em títulos e rótulos.
 
 ## Documentos de referência (NÃO leia sem necessidade)
 

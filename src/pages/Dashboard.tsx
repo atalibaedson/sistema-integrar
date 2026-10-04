@@ -9,6 +9,7 @@ import {
   IcoAlerta, IcoCasa, IcoGota, IcoJornada, IcoQr, IcoRelatorios, IcoRelogio, IcoSeta,
   IcoUserCheck, IcoUserPlus, IcoUsuarios, IcoWhats,
 } from '../icones'
+import Avatar from '../Avatar'
 
 // Painel — padrão da família iFE (Louvor / Check-iFE): a saudação fica no topo,
 // e o conteúdo responde "onde estão as pessoas" (Jornada), "o que resolver"
@@ -17,17 +18,6 @@ import {
 
 // Etapas ativas da jornada mostradas no quadro "Jornada" (do início ao grupo)
 const ETAPAS_JORNADA: Status[] = ['novo', 'em_contato', 'aguardando_resposta', 'encaminhado_lider', 'visitou', 'transferido']
-
-const CORES_AVATAR = ['#1F4E79', '#2E6DA4', '#1C7A4B', '#6D3FC4', '#9A6412', '#0E7490', '#7A3E65']
-
-// Iniciais + cor estável por nome (a mesma pessoa tem sempre a mesma cor)
-function Avatar({ nome, tom }: { nome: string; tom?: string }) {
-  const partes = nome.trim().split(/\s+/)
-  const ini = ((partes[0]?.[0] ?? '') + (partes.length > 1 ? partes[partes.length - 1][0] : '')).toUpperCase()
-  let h = 0
-  for (const c of nome) h = (h * 31 + c.charCodeAt(0)) >>> 0
-  return <span className="painel-avatar" style={{ background: tom ?? CORES_AVATAR[h % CORES_AVATAR.length] }}>{ini || '?'}</span>
-}
 
 // "Ana, Bruno, Carla +2"
 function nomes(vs: { nome: string }[], max = 3): string {
@@ -162,7 +152,7 @@ export default function Dashboard() {
     { rota: '/visitantes', icone: <IcoUsuarios size={20} />, rotulo: 'Visitantes' },
     { rota: '/relatorios', icone: <IcoRelatorios size={20} />, rotulo: 'Relatórios' },
     { rota: '/equipe', icone: <IcoUserCheck size={20} />, rotulo: 'Equipe' },
-    { rota: '/config', icone: <IcoQr size={20} />, rotulo: 'QR do cadastro' },
+    { rota: '/config?aba=autocadastro', icone: <IcoQr size={20} />, rotulo: 'QR do cadastro' },
   ].filter((a) => podeAcessarRota(a.rota, eu))
 
   return (

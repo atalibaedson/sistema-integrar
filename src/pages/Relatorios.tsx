@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { useAppState } from '../store'
 import { useUsuarioAtualId, usuarioAtual, visitantesVisiveis } from '../acesso'
 import { estiloStatus, ORIGEM_LABEL, rotuloStatus, SITUACAO_CIVIL_LABEL, STATUS_LABEL, type Status } from '../types'
@@ -35,7 +35,7 @@ function diasAtrasISO(n: number) {
 
 function Stat({ valor, rotulo, cor, sufixo }: { valor: number | string | null; rotulo: string; cor?: string; sufixo?: string }) {
   return (
-    <div className="rel-stat">
+    <div className="rel-stat" style={cor ? { '--rel-cor': cor } as CSSProperties : undefined}>
       <div className="rel-stat-valor" style={cor ? { color: cor } : undefined}>
         {valor == null ? '—' : valor}{valor != null && sufixo ? <span className="rel-stat-sufixo">{sufixo}</span> : null}
       </div>
@@ -130,9 +130,12 @@ export default function Relatorios() {
 
       {/* Filtro de período */}
       <div className="rel-periodo">
-        <div className="filtros" style={{ marginBottom: 0 }}>
+        <div className="pilulas" style={{ marginBottom: 0 }} role="tablist" aria-label="Período">
           {([['tudo', 'Tudo'], ['30', '30 dias'], ['90', '90 dias'], ['365', '12 meses']] as const).map(([p, r]) => (
-            <button key={p} className={`chip ${presetAtivo === p ? 'sel' : ''}`} onClick={() => aplicarPreset(p)}>{r}</button>
+            <button
+              key={p} type="button" role="tab" aria-selected={presetAtivo === p}
+              className={`pilula pilula-simples ${presetAtivo === p ? 'sel' : ''}`} onClick={() => aplicarPreset(p)}
+            >{r}</button>
           ))}
         </div>
         <div className="rel-periodo-datas">
@@ -177,7 +180,7 @@ function Batismos({ vs }: { vs: import('../types').Visitante[] }) {
   return (
     <div className="card">
       <div className="card-cab">
-        <h3>💧 Batismo</h3>
+        <h3>Batismo</h3>
         {b.naoBatizados > 0 && (
           <span className="badge" style={{ background: '#0ea5e922', color: '#0ea5e9' }}>
             {b.naoBatizados} {b.naoBatizados === 1 ? 'candidato' : 'candidatos'} ao batismo
@@ -263,9 +266,9 @@ function AbaOrigem({ vs }: { vs: import('../types').Visitante[] }) {
   const porCulto = distribuicao(vs, (v) => v.cultoPrimeiraVisita)
   return (
     <div className="rel-2col">
-      <div className="card"><h3>📣 Como conheceram a igreja</h3><BarList fatias={porCanal} /></div>
+      <div className="card"><h3>Como conheceram a igreja</h3><BarList fatias={porCanal} /></div>
       <div className="card"><h3>Porta de entrada</h3><BarList fatias={porOrigem} corPadrao="#8b5cf6" /></div>
-      <div className="card"><h3>⛪ Culto da primeira visita</h3><BarList fatias={porCulto} corPadrao="#14b8a6" /></div>
+      <div className="card"><h3>Culto da primeira visita</h3><BarList fatias={porCulto} corPadrao="#14b8a6" /></div>
     </div>
   )
 }

@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { useAppState, ultimaRespostaOuCadastro } from '../store'
+import { semResponsavel, useAppState, ultimaRespostaOuCadastro, usuarioPorId } from '../store'
 import { diasDesde, podeTransitar } from '../machine'
 import { rotuloStatus, STATUS_COR, type Status } from '../types'
 import { mudarStatus } from '../actions'
 import { navegar } from '../router'
 import { useUsuarioAtualId, usuarioAtual, visitantesVisiveis } from '../acesso'
+import { IcoAlerta } from '../icones'
+import Avatar from '../Avatar'
 
 // Quadro Kanban da jornada: arraste o cartão para mudar a etapa.
 // Transições inválidas são bloqueadas pela máquina de estados.
@@ -40,18 +42,20 @@ export default function Jornada() {
   const naoExibidos = COLUNAS_EXCECAO.reduce((n, st) => n + visiveis.filter((v) => v.status === st).length, 0)
 
   return (
-    <div>
+    <div className="jornada">
       <div className="cab-detalhe">
         <div>
           <h1 className="titulo-pagina">Jornada</h1>
           <p className="subtitulo">Arraste o cartão para avançar a etapa — ou clique para abrir a ficha.</p>
         </div>
-        <button className="btn btn-sec" onClick={() => setMostrarExcecoes(!mostrarExcecoes)}>
-          {mostrarExcecoes ? 'Ocultar exceções' : `Mostrar exceções (${naoExibidos})`}
+        <button type="button" className={`pilula ${mostrarExcecoes ? 'sel' : ''}`} onClick={() => setMostrarExcecoes(!mostrarExcecoes)}>
+          <i className="pilula-ponto" style={{ background: STATUS_COR.em_espera }} />
+          {mostrarExcecoes ? 'Ocultar exceções' : 'Mostrar exceções'}
+          <span className="pilula-n">{naoExibidos}</span>
         </button>
       </div>
 
-      {erro && <div className="alerta alerta-warn">⚠️ <div>{erro}</div></div>}
+      {erro && <div className="alerta alerta-warn"><IcoAlerta size={16} /><div>{erro}</div></div>}
 
       <div className="kanban">
         {colunas.map((st) => {
@@ -63,18 +67,21 @@ export default function Jornada() {
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => soltar(e, st)}
             >
-              <div className="kanban-cab" style={{ borderTopColor: STATUS_COR[st] }}>
-                <span>{rotuloStatus(st)}</span>
+              <div className="kanban-cab">
+                <i className="pilula-ponto" style={{ background: STATUS_COR[st] }} />
+                <span className="kanban-titulo" title={rotuloStatus(st)}>{rotuloStatus(st)}</span>
                 <span className="kanban-n">{cards.length}</span>
               </div>
               <div className="kanban-corpo">
                 {cards.map((v) => {
                   const dias = diasDesde(ultimaRespostaOuCadastro(s, v))
                   const mostraDias = ['em_contato', 'aguardando_resposta', 'em_espera'].includes(v.status)
+                  const resp = semResponsavel(s, v) ? undefined : usuarioPorId(s, v.responsavelId)
                   return (
                     <div
                       key={v.id}
                       className={`kanban-card ${arrastando === v.id ? 'arrastando' : ''}`}
+                      style={{ borderLeftColor: STATUS_COR[st] }}
                       draggable
                       onDragStart={(e) => {
                         e.dataTransfer.setData('text/plain', v.id)
@@ -83,23 +90,30 @@ export default function Jornada() {
                       onDragEnd={() => setArrastando(null)}
                       onClick={() => navegar(`/visitante/${v.id}`)}
                     >
-                      <div className="kanban-nome">
-                        {v.nome}
-                        {v.flagCuidado && <span title="Cuidado/Crise"> 🚨</span>}
-                        {v.flagMenorIdade && <span title="Menor de idade"> 🧒</span>}
+                      <div className="kanban-topo">
+                        <Avatar nome={v.nome} tom={v.flagCuidado ? 'var(--danger)' : undefined} />
+                        <div className="kanban-txt">
+                          <div className="kanban-nome">{v.nome}</div>
+                          <div className="kanban-info">
+                            {resp ? resp.nome.split(' ')[0] : <span className="vis-sem-resp">sem responsável</span>}
+                          </div>
+                        </div>
                       </div>
-                      <div className="kanban-info">
-                        {v.whatsapp}
-                        {mostraDias && (
-                          <span className={dias >= 14 ? 'dias-critico' : dias >= 10 ? 'dias-alerta' : ''}>
-                            {' '}· {dias}d sem resposta
-                          </span>
-                        )}
-                      </div>
+                      {(v.flagCuidado || v.flagMenorIdade || mostraDias) && (
+                        <div className="kanban-chips">
+                          {v.flagCuidado && <span className="painel-chip painel-chip-crit">cuidado</span>}
+                          {v.flagMenorIdade && <span className="painel-chip painel-chip-warn">menor</span>}
+                          {mostraDias && (
+                            <span className={`painel-chip ${dias >= 14 ? 'painel-chip-crit' : dias >= 10 ? 'painel-chip-warn' : 'kanban-chip-neutro'}`}>
+                              {dias}d sem retorno
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
-                {cards.length === 0 && <div className="kanban-vazio">—</div>}
+                {cards.length === 0 && <div className="kanban-vazio">Ninguém nesta etapa</div>}
               </div>
             </div>
           )

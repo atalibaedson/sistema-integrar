@@ -25,7 +25,7 @@ export default function AbaAtividade({ v }: { v: Visitante }) {
   return (
     <div className="card">
       <div className="secao-header" style={{ marginBottom: 14 }}>
-        <span>📋 Atividade</span>
+        <h3>Atividade</h3>
         <span className="secao-cont">{interacoes.length} contato{interacoes.length === 1 ? '' : 's'}</span>
       </div>
       {eventos.length === 0 && <div className="vazio">Nada registrado ainda.</div>}

@@ -96,7 +96,8 @@ export function soLider(u: Usuario | undefined): boolean {
   return !!u && u.papeis.includes('lider') && u.papeis.every((p) => p === 'lider')
 }
 
-export function podeAcessarRota(rota: string, u: Usuario | undefined): boolean {
+export function podeAcessarRota(rotaCompleta: string, u: Usuario | undefined): boolean {
+  const rota = rotaCompleta.split('?')[0] // filtros no endereço não mudam a regra
   if (soAcolhedor(u)) {
     return ROTAS_ACOLHEDOR.some((r) => rota === r || rota.startsWith(r + '/'))
   }

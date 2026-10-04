@@ -54,3 +54,8 @@ export const IcoSeta = (p: IcoProps) => <Ico {...p}><polyline points="9 18 15 12
 export const IcoRelogio = (p: IcoProps) => <Ico {...p}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Ico>
 export const IcoGota = (p: IcoProps) => <Ico {...p}><path d="M12 2.7S6 9.5 6 14a6 6 0 0 0 12 0c0-4.5-6-11.3-6-11.3z" /></Ico>
 export const IcoQr = (p: IcoProps) => <Ico {...p}><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3" /></Ico>
+export const IcoIgreja = (p: IcoProps) => <Ico {...p}><path d="M12 2v4M10 4h4" /><path d="M6 21V11l6-5 6 5v10" /><path d="M3 21h18" /><path d="M10 21v-4a2 2 0 0 1 4 0v4" /></Ico>
+export const IcoMapa = (p: IcoProps) => <Ico {...p}><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" /><line x1="8" y1="2" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="22" /></Ico>
+export const IcoMensagem = (p: IcoProps) => <Ico {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></Ico>
+export const IcoCelular = (p: IcoProps) => <Ico {...p}><rect x="5" y="2" width="14" height="20" rx="2" /><line x1="12" y1="18" x2="12.01" y2="18" /></Ico>
+export const IcoBanco = (p: IcoProps) => <Ico {...p}><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></Ico>

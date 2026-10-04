@@ -1,12 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { consolidadoresAtivos, interacoesDe, useAppState, usuarioPorId } from '../../store'
-import { estiloStatus, rotuloStatus, STATUS_COR } from '../../types'
+import { estiloStatus, rotuloStatus, type Visitante } from '../../types'
 import { atualizarVisitante, linkWhatsApp, resolverCuidado, sinalizarCuidado } from '../../actions'
 import { fmtDataVisita } from '../../cultos'
-import { iniciais } from '../Equipe'
 import { podeVerCuidado, podeVerVisitante, useUsuarioAtualId, usuarioAtual } from '../../acesso'
 import { registrarAuditoria } from '../../auditoria'
-import { IcoAlerta, IcoCheck, IcoWhats } from '../../icones'
+import { IcoAlerta, IcoCalendario, IcoCasa, IcoCheck, IcoSeta, IcoUsuario, IcoWhats } from '../../icones'
+import Avatar from '../../Avatar'
 import Roteiro from './Roteiro'
 import AbaAtividade from './AbaAtividade'
 import HistoricoAlteracoes from './HistoricoAlteracoes'
@@ -49,7 +49,10 @@ export default function VisitanteDetalhe({ id }: { id: string }) {
   return <FichaCompleta id={id} />
 }
 
-/* ================= Ficha completa (consolidadores, gestão, admin) ================= */
+/* ================= Ficha completa (consolidadores, gestão, admin) =================
+   Padrão da família iFE: à esquerda a PESSOA (identidade, contato, quem cuida)
+   e a atribuição; à direita o TRABALHO (jornada, atividade, histórico). No
+   celular vira uma coluna só: pessoa → jornada → atividade → atribuição. */
 
 function FichaCompleta({ id }: { id: string }) {
   const s = useAppState()
@@ -60,78 +63,107 @@ function FichaCompleta({ id }: { id: string }) {
   const responsavel = usuarioPorId(s, v.responsavelId)
 
   return (
-    <div className="ficha-wrap">
-      <a href="#/visitantes" style={{ color: 'var(--acento-texto)', fontSize: 13 }}>← Visitantes</a>
+    <div className="ficha">
+      <a href="#/visitantes" className="voltar"><IcoSeta size={15} /> Visitantes</a>
 
-      {/* Hero */}
-      <div className="card" style={{ marginTop: 8 }}>
-        <div className="hero-top">
-          <div className="avatar avatar-hero" style={{ background: STATUS_COR[v.status] }}>{iniciais(v.nome)}</div>
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 19, fontWeight: 700 }}>{v.nome}</span>
-              <span className="badge" style={estiloStatus(v.status)}>{rotuloStatus(v.status)}</span>
-              {v.flagCuidado && verCuidado && <span className="badge-flag">🚨 cuidado</span>}
-              {v.flagMenorIdade && <span className="badge-flag">menor</span>}
+      <div className="ficha-grade">
+        <aside className="ficha-lado">
+          <CartaoPessoa v={v} verCuidado={verCuidado}>
+            <li><IcoWhats size={15} /><span>WhatsApp</span><b>{v.whatsapp}</b></li>
+            <li><IcoCasa size={15} /><span>{s.config.termoGrupo}</span><b>{conexao?.nome ?? <em className="ficha-falta">sem grupo</em>}</b></li>
+            <li>
+              <IcoUsuario size={15} /><span>Responsável</span>
+              <b>
+                {responsavel
+                  ? <>{responsavel.nome}{!responsavel.ativo && <em className="ficha-falta"> (inativo)</em>}</>
+                  : <em className="ficha-falta">sem responsável</em>}
+              </b>
+            </li>
+            {v.cultoPrimeiraVisita && (
+              <li>
+                <IcoCalendario size={15} /><span>1ª visita</span>
+                <b>{v.cultoPrimeiraVisita}{v.dataPrimeiraVisita ? ` · ${fmtDataVisita(v.dataPrimeiraVisita)}` : ''}</b>
+              </li>
+            )}
+          </CartaoPessoa>
+
+          <Atribuicao v={v} />
+        </aside>
+
+        <div className="ficha-principal">
+          {v.flagCuidado && verCuidado && (
+            <div className="alerta alerta-perigo">
+              <IcoAlerta size={16} />
+              <div><b>Protocolo de cuidado:</b> saia do roteiro, acione a liderança/pastor, registre o encaminhamento.
+              Nunca prometa nada em nome da igreja nem aja sozinho.</div>
             </div>
-            <div className="pessoa-sub" style={{ marginTop: 3 }}>
-              📱 {v.whatsapp} · 🏠 {conexao?.nome ?? 'sem grupo'} · 👤 {responsavel
-                ? <>{responsavel.nome.split(' ')[0]}{!responsavel.ativo && <span style={{ color: 'var(--warn)' }}> (inativo)</span>}</>
-                : <span style={{ color: 'var(--warn)', fontWeight: 600 }}>sem responsável</span>}
-              {v.cultoPrimeiraVisita && (
-                <> · ⛪ {v.cultoPrimeiraVisita}{v.dataPrimeiraVisita ? ` (${fmtDataVisita(v.dataPrimeiraVisita)})` : ''}</>
-              )}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <a className="btn btn-whats" href={linkWhatsApp(v.whatsapp)} target="_blank" rel="noreferrer">
-              <IcoWhats size={15} /> WhatsApp
-            </a>
-            {verCuidado && (v.flagCuidado ? (
-              <button className="btn btn-sec" onClick={() => resolverCuidado(v.id)}><IcoCheck size={15} /> Resolver</button>
-            ) : (
-              <button className="btn-icone perigo" style={{ width: 36, height: 36 }} title="Sinalizar cuidado/crise"
-                onClick={() => sinalizarCuidado(v.id)}><IcoAlerta size={16} /></button>
-            ))}
-          </div>
+          )}
+          {v.flagMenorIdade && (
+            <div className="alerta alerta-warn"><IcoAlerta size={16} /><div>Menor de idade — todo contato deve ser feito com o <b>responsável</b>.</div></div>
+          )}
+
+          {/* Jornada */}
+          <Roteiro v={v} />
+
+          {/* Atividade inline — sem tab */}
+          <AbaAtividade v={v} />
+
+          {/* Histórico de alterações (auditoria) — só gestão/pastores */}
+          <HistoricoAlteracoes v={v} />
         </div>
       </div>
-
-      {v.flagCuidado && verCuidado && (
-        <div className="alerta alerta-perigo">
-          🚨 <div><b>Protocolo de cuidado:</b> saia do roteiro, acione a liderança/pastor, registre o encaminhamento.
-          Nunca prometa nada em nome da igreja nem aja sozinho.</div>
-        </div>
-      )}
-      {v.flagMenorIdade && (
-        <div className="alerta alerta-warn">⚠️ <div>Menor de idade — todo contato deve ser feito com o <b>responsável</b>.</div></div>
-      )}
-
-      {/* Jornada */}
-      <Roteiro v={v} />
-
-      {/* Atividade inline — sem tab */}
-      <AbaAtividade v={v} />
-
-      {/* Histórico de alterações (auditoria) — só gestão/pastores */}
-      <HistoricoAlteracoes v={v} />
-
-      {/* Rodapé de configuração rápida */}
-      <RodapeConfig v={v} />
     </div>
   )
 }
 
-/* ================= Rodapé: atribuição rápida + link para dados completos ================= */
+/* ================= Cartão da pessoa (topo da ficha) ================= */
 
-function RodapeConfig({ v }: { v: ReturnType<typeof useAppState>['visitantes'][number] }) {
+function CartaoPessoa({ v, verCuidado, compacto, children }: {
+  v: Visitante; verCuidado: boolean; compacto?: boolean; children?: ReactNode
+}) {
+  return (
+    <div className="card ficha-pessoa">
+      <div className="ficha-pessoa-topo">
+        <Avatar nome={v.nome} tamanho="g" tom={v.flagCuidado && verCuidado ? 'var(--danger)' : undefined} />
+        <div className="ficha-pessoa-id">
+          <h1 className="ficha-nome">{v.nome}</h1>
+          <div className="ficha-chips">
+            <span className="chip-etapa" style={estiloStatus(v.status)}>{rotuloStatus(v.status)}</span>
+            {v.flagCuidado && verCuidado && <span className="painel-chip painel-chip-crit">cuidado</span>}
+            {v.flagMenorIdade && <span className="painel-chip painel-chip-warn">menor</span>}
+          </div>
+        </div>
+      </div>
+
+      {children && <ul className="ficha-info">{children}</ul>}
+
+      <div className="ficha-pessoa-acoes">
+        <a className="btn btn-whats" href={linkWhatsApp(v.whatsapp)} target="_blank" rel="noreferrer">
+          <IcoWhats size={15} /> WhatsApp
+        </a>
+        {!compacto && verCuidado && (v.flagCuidado ? (
+          <button className="btn btn-sec" onClick={() => resolverCuidado(v.id)}><IcoCheck size={15} /> Resolver cuidado</button>
+        ) : (
+          <button className="btn btn-perigo" title="Sinalizar cuidado/crise" onClick={() => sinalizarCuidado(v.id)}>
+            <IcoAlerta size={15} /> Sinalizar cuidado
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ================= Atribuição: responsável + grupo + dados completos ================= */
+
+function Atribuicao({ v }: { v: Visitante }) {
   const s = useAppState()
   const m = (patch: Parameters<typeof atualizarVisitante>[1]) => atualizarVisitante(v.id, patch)
 
   return (
-    <div className="ficha-footer-config">
-      <label className="campo" style={{ marginBottom: 0, flex: 1, minWidth: 180 }}>
-        <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Responsável</span>
+    <div className="card ficha-atribuicao">
+      <h3>Quem acompanha</h3>
+      <label className="campo">
+        <span>Responsável</span>
         <select value={v.responsavelId ?? ''} onChange={(e) => m({ responsavelId: e.target.value || undefined })}>
           <option value="">— sem responsável —</option>
           {consolidadoresAtivos(s)
@@ -147,8 +179,8 @@ function RodapeConfig({ v }: { v: ReturnType<typeof useAppState>['visitantes'][n
           )}
         </select>
       </label>
-      <label className="campo" style={{ marginBottom: 0, flex: 1, minWidth: 180 }}>
-        <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{s.config.termoGrupo} designada</span>
+      <label className="campo">
+        <span>{s.config.termoGrupo} designada</span>
         <select
           value={v.conexaoId ?? ''}
           onChange={(e) => {
@@ -176,8 +208,8 @@ function RodapeConfig({ v }: { v: ReturnType<typeof useAppState>['visitantes'][n
           })()}
         </select>
       </label>
-      <a href={`#/visitante/${v.id}/dados`} style={{ color: 'var(--acento-texto)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', alignSelf: 'center' }}>
-        Dados completos →
+      <a href={`#/visitante/${v.id}/dados`} className="ficha-link">
+        Dados completos <IcoSeta size={14} />
       </a>
     </div>
   )
@@ -193,32 +225,19 @@ function FichaLider({ id }: { id: string }) {
   const responsavel = usuarioPorId(s, v.responsavelId)
 
   return (
-    <div className="ficha-wrap">
-      <a href="#/lideres" style={{ color: 'var(--acento-texto)', fontSize: 13 }}>← Meu painel</a>
+    <div className="ficha ficha-so-lider">
+      <a href="#/lideres" className="voltar"><IcoSeta size={15} /> Meu painel</a>
 
-      {/* Mini hero */}
-      <div className="card" style={{ marginTop: 8 }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div className="avatar" style={{ width: 46, height: 46, fontSize: 16, background: STATUS_COR[v.status] }}>
-            {iniciais(v.nome)}
-          </div>
-          <div style={{ flex: 1, minWidth: 160 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
-              <span style={{ fontSize: 16, fontWeight: 700 }}>{v.nome}</span>
-              <span className="badge" style={estiloStatus(v.status)}>{rotuloStatus(v.status)}</span>
-              {v.flagCuidado && verCuidado && <span className="badge-flag">🚨 cuidado</span>}
-            </div>
-            <div className="pessoa-sub">📱 {v.whatsapp}</div>
-          </div>
-          <a className="btn btn-whats" href={linkWhatsApp(v.whatsapp)} target="_blank" rel="noreferrer">
-            <IcoWhats size={15} />
-          </a>
-        </div>
-      </div>
+      <CartaoPessoa v={v} verCuidado={verCuidado} compacto>
+        {responsavel && <li><IcoUsuario size={15} /><span>Integrador(a)</span><b>{responsavel.nome}</b></li>}
+        {v.bairro && <li><IcoCasa size={15} /><span>Bairro</span><b>{v.bairro}{v.cidade ? ` · ${v.cidade}` : ''}</b></li>}
+        {v.dataCadastro && <li><IcoCalendario size={15} /><span>Cadastro</span><b>{fmt(v.dataCadastro)}</b></li>}
+        {v.situacaoCivil && <li><IcoUsuario size={15} /><span>Situação civil</span><b>{v.situacaoCivil}</b></li>}
+      </CartaoPessoa>
 
       {v.flagCuidado && verCuidado && (
         <div className="alerta alerta-perigo">
-          🚨 <div><b>Cuidado/crise:</b> acione a liderança imediatamente e registre o encaminhamento.</div>
+          <IcoAlerta size={16} /><div><b>Cuidado/crise:</b> acione a liderança imediatamente e registre o encaminhamento.</div>
         </div>
       )}
 
@@ -227,22 +246,11 @@ function FichaLider({ id }: { id: string }) {
 
       {/* Histórico resumido (últimos 4 registros) */}
       <HistoricoResumido v={v} />
-
-      {/* Nota sobre a pessoa */}
-      <div style={{
-        background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-        padding: '10px 14px', fontSize: 12.5, color: 'var(--text-3)', marginTop: 0,
-      }}>
-        {responsavel && <div>Integrador(a): <b style={{ color: 'var(--text-2)' }}>{responsavel.nome}</b></div>}
-        {v.dataCadastro && <div>Cadastrado em {fmt(v.dataCadastro)}</div>}
-        {v.bairro && <div>Bairro: {v.bairro}{v.cidade ? ` · ${v.cidade}` : ''}</div>}
-        {v.situacaoCivil && <div>Situação civil: {v.situacaoCivil}</div>}
-      </div>
     </div>
   )
 }
 
-function HistoricoResumido({ v }: { v: ReturnType<typeof useAppState>['visitantes'][number] }) {
+function HistoricoResumido({ v }: { v: Visitante }) {
   const s = useAppState()
   const interacoes = interacoesDe(s, v.id)
 
@@ -256,9 +264,7 @@ function HistoricoResumido({ v }: { v: ReturnType<typeof useAppState>['visitante
 
   return (
     <div className="card" style={{ paddingTop: 12 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'var(--text-3)', marginBottom: 12 }}>
-        Histórico recente
-      </div>
+      <h3>Histórico recente</h3>
       {eventos.map((e, i) => {
         const contato = e.tipo === 'contato' ? interacoes[e.idx] : undefined
         const mudanca = e.tipo === 'status' ? v.historicoStatus[e.idx] : undefined
