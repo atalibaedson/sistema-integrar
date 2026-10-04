@@ -540,6 +540,25 @@ select::-ms-expand { display: none; }
   font-family: var(--serif); font-size: 18px; font-weight: 600; color: var(--text);
   margin-bottom: 18px; letter-spacing: -0.01em;
 }
+.ac-secao-titulo svg { color: var(--acento-texto); }
+
+/* ---- Novo visitante: formulário + coluna de apoio ---- */
+.novo-grade { display: grid; grid-template-columns: minmax(0, 680px) minmax(0, 300px); gap: 20px; align-items: start; }
+.novo-form { margin-bottom: 0; }
+.novo-lado { display: flex; flex-direction: column; gap: 10px; position: sticky; top: 90px; }
+.novo-lado .card { margin-bottom: 0; align-items: flex-start; }
+.novo-lado-txt { white-space: normal !important; }
+.novo-lado-btn { justify-content: center; text-decoration: none; }
+.novo-lado-nota { padding: 0 4px; line-height: 1.5; }
+.sucesso-selo {
+  width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 12px;
+  display: grid; place-items: center; background: var(--ok-soft); color: var(--ok);
+}
+@media (max-width: 1100px) {
+  .novo-grade { grid-template-columns: minmax(0, 1fr); }
+  .novo-form { max-width: 680px; }
+  .novo-lado { position: static; max-width: 680px; }
+}
 .ac-grupo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
 
 /* Campos lado a lado dentro de uma seção: o espaço entre eles vem da grade
@@ -568,7 +587,8 @@ select::-ms-expand { display: none; }
   border-radius: var(--radius-sm);
   padding: 14px 16px; margin: 4px 0 16px;
 }
-.bloco-destaque-titulo { font-size: 13.5px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.bloco-destaque-titulo { font-size: 13.5px; font-weight: 700; color: var(--text); margin-bottom: 2px; display: flex; align-items: center; gap: 6px; }
+.bloco-destaque-titulo svg { color: var(--acento-texto); }
 
 /* Data já passada continua listada (o histórico aponta para ela), mas apagada */
 .tag-passada { opacity: .6; }
@@ -661,7 +681,16 @@ select::-ms-expand { display: none; }
   width: 100%;
 }
 .opcao-grande:hover { border-color: var(--primary); background: var(--primary-soft); }
-.opcao-grande .op-emoji { font-size: 20px; flex-shrink: 0; }
+.op-ico { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; display: grid; place-items: center; }
+.op-ok { background: var(--ok-soft); color: var(--ok); }
+.op-acc { background: var(--primary-soft); color: var(--acento-texto); }
+.op-neutro { background: var(--surface2); color: var(--text-2); }
+.op-warn { background: var(--warn-soft); color: var(--warn); }
+.op-crit { background: var(--danger-soft); color: var(--danger); }
+.rot-ok { color: var(--ok); vertical-align: -2px; }
+.rot-aviso { color: var(--warn); vertical-align: -2px; }
+.rot-silencio { color: var(--text-3); font-weight: 600; }
+.sucesso-selo.sem-acesso { background: var(--surface2); color: var(--text-2); }
 .op-titulo { font-weight: 700; font-size: 13.5px; color: var(--text); }
 .op-desc { font-size: 12px; color: var(--text-2); margin-top: 1px; }
 
@@ -1014,6 +1043,7 @@ details summary:hover { color: var(--acento-texto); }
   background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
   padding: 12px 14px; margin: 6px 0 14px; font-size: 12.5px; color: var(--text-2); line-height: 1.6;
 }
+.ac-lgpd svg { vertical-align: -2px; margin-right: 4px; color: var(--text-3); }
 .ac-btn-enviar { width: 100%; justify-content: center; margin-top: 6px; font-size: 15px; padding: 13px; }
 .ac-fim { text-align: center; color: var(--text-2); font-size: 13px; margin: 14px 0 0; }
 .ac-cartao-ok { text-align: center; }
@@ -1534,6 +1564,20 @@ details summary:hover { color: var(--acento-texto); }
   .config-nav-item.ativo { border-color: var(--primary); }
 }
 
+/* ---- Aprovações de acesso ---- */
+.aprov-cartao { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 12px; }
+.aprov-pendente { border-left: 3px solid var(--dourado); }
+.aprov-corpo { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 4px; }
+.aprov-idade { font-weight: 500; color: var(--text-2); }
+.aprov-funcoes { margin: 4px 0; }
+.aprov-funcoes > span { display: block; font-size: 12px; color: var(--text-2); margin-bottom: 4px; }
+.aprov-funcoes > div { display: flex; gap: 4px 14px; flex-wrap: wrap; }
+.aprov-funcoes .check { font-size: 13px; margin-bottom: 4px; }
+.aprov-status { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.aprov-acoes { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
+.aprov-acoes .btn { justify-content: center; }
+.aprov-secao { margin-top: 22px; }
+
 /* ---- Pílulas de filtro (padrão da família iFE: bolinha + contagem) ---- */
 .pilulas { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .pilula {
@@ -1601,6 +1645,12 @@ details summary:hover { color: var(--acento-texto); }
 .vis-dias-n { font-size: 13px; color: var(--text-2); padding-left: 2px; }
 .vis-whats { justify-self: end; }
 
+/* Painel do líder: mesma lista, com a coluna de ações no lugar dos dias */
+.lider-cab { display: flex; align-items: center; gap: 16px; }
+.lider-cab-txt { flex: 1; min-width: 0; max-width: 560px; }
+.vis-cab.lider-linha, .vis-linha.lider-linha { grid-template-columns: 36px minmax(0, 2fr) minmax(0, 1.3fr) minmax(0, 2fr) 190px; }
+.lider-acoes { justify-self: end; display: flex; }
+
 @media (max-width: 960px) {
   .vis-cab { display: none; }
   .vis-linha {
@@ -1615,6 +1665,12 @@ details summary:hover { color: var(--acento-texto); }
   .vis-acao { grid-area: acao; }
   .vis-dias { display: none; }
   .vis-whats { grid-area: whats; }
+  .vis-linha.lider-linha {
+    grid-template-columns: 36px minmax(0, 1fr);
+    grid-template-areas: "av pessoa" "av etapa" "av acao" "av acoes";
+  }
+  .lider-acoes { grid-area: acoes; justify-self: start; margin-top: 2px; }
+  .lider-cab { align-items: flex-start; }
   .vis-busca { max-width: none; flex-basis: 100%; }
   .vis-resp { flex: 1; max-width: none; }
   .pilulas { flex-wrap: nowrap; overflow-x: auto; margin: 0 -14px 14px; padding: 0 14px 2px; scrollbar-width: none; }

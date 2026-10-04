@@ -19,6 +19,14 @@ export default defineConfig({
         main: 'index.html',
         visitante: 'visitante.html',
       },
+      // Bibliotecas em arquivos próprios: mudam raramente, então o navegador
+      // mantém em cache entre uma publicação e outra (só o app é baixado de novo).
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
     },
   },
 })

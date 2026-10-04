@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useAppState } from '../store'
-import { IcoBusca, IcoDownload } from '../icones'
+import {
+  IcoAjuda, IcoAlerta, IcoBusca, IcoCheck, IcoDownload, IcoEditar, IcoLampada, IcoMapa, IcoPainel, IcoUserPlus, IcoUsuarios,
+} from '../icones'
 
 // PDF do manual servido como arquivo estático (pasta public/), publicado na raiz.
 const URL_MANUAL_PDF = '/Manual-Consolidacao-iFE.pdf'
@@ -13,12 +15,24 @@ type Bloco = {
   passos?: string[]
   nota?: { tipo: 'info' | 'ok' | 'warn' | 'crit'; texto: string }
 }
-type Secao = { id: string; icone: string; titulo: string; resumo: string; blocos: Bloco[] }
+type Secao = { id: string; titulo: string; resumo: string; blocos: Bloco[] }
+
+// Ícone de cada seção (fora dos dados: a busca percorre o texto das seções)
+const ICONE_SECAO: Record<string, ReactNode> = {
+  comecar: <IcoCheck size={18} />,
+  areas: <IcoPainel size={18} />,
+  jornada: <IcoMapa size={18} />,
+  cadastrar: <IcoUserPlus size={18} />,
+  registrar: <IcoEditar size={18} />,
+  papeis: <IcoUsuarios size={18} />,
+  cuidado: <IcoAlerta size={18} />,
+  faq: <IcoAjuda size={18} />,
+}
 
 function secoes(termoGrupo: string): Secao[] {
   return [
     {
-      id: 'comecar', icone: '🚀', titulo: 'Começando', resumo: 'Entrar no sistema e deixar com cara de app.',
+      id: 'comecar', titulo: 'Começando', resumo: 'Entrar no sistema e deixar com cara de app.',
       blocos: [
         { p: 'O sistema abre no navegador — não precisa instalar nada. Cada pessoa entra com o próprio login (e-mail e senha), e vê apenas o que a sua função permite.' },
         {
@@ -42,7 +56,7 @@ function secoes(termoGrupo: string): Secao[] {
       ],
     },
     {
-      id: 'areas', icone: '🧭', titulo: 'As áreas do app', resumo: 'O que cada tela do menu faz.',
+      id: 'areas', titulo: 'As áreas do app', resumo: 'O que cada tela do menu faz.',
       blocos: [
         { lista: [
           'Painel — o que fazer hoje, o funil da consolidação e os alertas.',
@@ -61,7 +75,7 @@ function secoes(termoGrupo: string): Secao[] {
       ],
     },
     {
-      id: 'jornada', icone: '🗺️', titulo: 'A jornada do visitante', resumo: 'Os 7 passos, do "chegou" ao "virou membro".',
+      id: 'jornada', titulo: 'A jornada do visitante', resumo: 'Os 7 passos, do "chegou" ao "virou membro".',
       blocos: [
         { passos: [
           'Cadastro realizado — a pessoa chega pelo culto (o acolhedor cadastra) ou pelo QR code (ela mesma preenche).',
@@ -79,7 +93,7 @@ function secoes(termoGrupo: string): Secao[] {
       ],
     },
     {
-      id: 'cadastrar', icone: '➕', titulo: 'Cadastrar um visitante', resumo: 'No culto ou pelo QR code.',
+      id: 'cadastrar', titulo: 'Cadastrar um visitante', resumo: 'No culto ou pelo QR code.',
       blocos: [
         { h: 'No culto (você cadastra)', passos: [
           'Abra "Novo visitante" no menu.',
@@ -91,7 +105,7 @@ function secoes(termoGrupo: string): Secao[] {
       ],
     },
     {
-      id: 'registrar', icone: '📝', titulo: 'Registrar um contato', resumo: 'O coração do acompanhamento.',
+      id: 'registrar', titulo: 'Registrar um contato', resumo: 'O coração do acompanhamento.',
       blocos: [
         { passos: [
           'Abra a ficha da pessoa e, no passo atual, toque em "Enviar mensagem" (texto pronto) e depois em "Registrar o contato".',
@@ -103,7 +117,7 @@ function secoes(termoGrupo: string): Secao[] {
       ],
     },
     {
-      id: 'papeis', icone: '🧑‍🤝‍🧑', titulo: 'Papéis da equipe — o que cada um faz', resumo: 'A função de cada pessoa e como usar o sistema.',
+      id: 'papeis', titulo: 'Papéis da equipe — o que cada um faz', resumo: 'A função de cada pessoa e como usar o sistema.',
       blocos: [
         { p: 'Cada pessoa do ministério tem uma ou mais funções, definidas em Equipe e confirmadas na aprovação do acesso. A função decide o que a pessoa vê e faz no sistema.' },
 
@@ -127,7 +141,7 @@ function secoes(termoGrupo: string): Secao[] {
             'Abra a ficha da pessoa; no passo atual, toque em Enviar mensagem e depois em Registrar o contato.',
             'Diga como ela respondeu — o sistema avança a etapa sozinho.',
             'Quando ela aceitar visitar, encaminhe ao líder (o sistema guia o handoff).',
-            'Registre sempre. Num caso de sofrimento ou urgência, toque em 🚨 Cuidado/crise.',
+            'Registre sempre. Num caso de sofrimento ou urgência, toque em "Sinalizar cuidado" na ficha.',
           ],
         },
 
@@ -169,9 +183,9 @@ function secoes(termoGrupo: string): Secao[] {
       ],
     },
     {
-      id: 'cuidado', icone: '🚨', titulo: 'Cuidado & crise', resumo: 'Quando o cuidado vem antes do roteiro.',
+      id: 'cuidado', titulo: 'Cuidado & crise', resumo: 'Quando o cuidado vem antes do roteiro.',
       blocos: [
-        { p: 'Na ficha, toque no botão vermelho 🚨 (ou escolha "Cuidado/crise" ao registrar). Isso sinaliza a liderança sem interromper o registro.' },
+        { p: 'Na ficha, toque em "Sinalizar cuidado" (ou escolha "Situação de cuidado/crise" ao registrar). Isso sinaliza a liderança sem interromper o registro.' },
         { h: 'O que fazer', lista: [
           'Saia do roteiro de consolidação.',
           'Acione a liderança / pastor.',
@@ -183,7 +197,7 @@ function secoes(termoGrupo: string): Secao[] {
       ],
     },
     {
-      id: 'faq', icone: '❓', titulo: 'Perguntas frequentes', resumo: 'As dúvidas mais comuns da equipe.',
+      id: 'faq', titulo: 'Perguntas frequentes', resumo: 'As dúvidas mais comuns da equipe.',
       blocos: [
         { p: 'Preciso instalar algo? Não — abre no navegador; opcionalmente "Adicionar à Tela de Início".' },
         { p: 'Como eu entro? Com seu e-mail e senha, depois de aprovado. No primeiro acesso, cadastre-se e aguarde a aprovação da Gestão/pastores.' },
@@ -201,8 +215,8 @@ function secoes(termoGrupo: string): Secao[] {
 
 function Nota({ tipo, texto }: { tipo: 'info' | 'ok' | 'warn' | 'crit'; texto: string }) {
   const classe = tipo === 'ok' ? 'alerta-info' : tipo === 'warn' ? 'alerta-warn' : tipo === 'crit' ? 'alerta-perigo' : 'alerta-info'
-  const emoji = tipo === 'ok' ? '✅' : tipo === 'warn' ? '⚠️' : tipo === 'crit' ? '🚨' : '💡'
-  return <div className={`alerta ${classe}`} style={{ marginTop: 10 }}>{emoji} <div>{texto}</div></div>
+  const icone = tipo === 'ok' ? <IcoCheck size={16} /> : tipo === 'warn' || tipo === 'crit' ? <IcoAlerta size={16} /> : <IcoLampada size={16} />
+  return <div className={`alerta ${classe}`} style={{ marginTop: 10 }}>{icone}<div>{texto}</div></div>
 }
 
 export default function Ajuda() {
@@ -250,8 +264,8 @@ export default function Ajuda() {
               style={{ marginBottom: abertoAgora ? 12 : 0, cursor: 'pointer' }}
               onClick={() => setAberta(aberta === sec.id ? null : sec.id)}
             >
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 20 }}>{sec.icone}</span> {sec.titulo}
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span className="painel-ico painel-ico-acc">{ICONE_SECAO[sec.id]}</span> {sec.titulo}
               </h3>
               {!abertoAgora && <span style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{sec.resumo}</span>}
             </div>

@@ -5,7 +5,7 @@ import { DIA_SEMANA_LABEL, fmtDataComDia, gerarMaisOcorrencias, gerarOcorrencias
 import { SeletorData } from '../../campos'
 import { toast } from '../../toast'
 import { confirmar } from '../../confirmar'
-import { IcoMais, IcoX } from '../../icones'
+import { IcoCalendario, IcoMais, IcoX } from '../../icones'
 
 /* ---------------- Aba: Cultos (padrão do cadastro de culto do louvor) ----------
    Cada culto tem nome + dia da semana + horário e uma lista de datas concretas.
@@ -43,7 +43,7 @@ export default function AbaCultos() {
   return (
     <div className="grid-cultos">
       <div className="card">
-        <h3>📅 Cadastrar culto</h3>
+        <h3>Cadastrar culto</h3>
         <p className="descricao-secao">
           Registre um culto fixo do calendário. O sistema já gera as datas recentes e as próximas —
           você pode adicionar datas avulsas depois.
@@ -119,7 +119,7 @@ function CartaoCulto({ culto, onMudar, onRemover }: {
   return (
     <div className="culto-card">
       <div className="culto-card-cab">
-        <div className="culto-avatar">📅</div>
+        <div className="culto-avatar"><IcoCalendario size={18} /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="culto-nome">{culto.nome || 'Culto sem nome'}</div>
           <div className="culto-sub">
@@ -170,7 +170,7 @@ function CartaoCulto({ culto, onMudar, onRemover }: {
           <SeletorData value={novaData} onChange={setNovaData} />
         </div>
         <button className="btn btn-sec btn-mini" onClick={adicionarData}><IcoMais size={14} /> Adicionar</button>
-        <button className="btn btn-sec btn-mini" onClick={gerarMais}>🔄 Gerar mais 8</button>
+        <button className="btn btn-sec btn-mini" onClick={gerarMais}><IcoMais size={13} /> Gerar mais 8</button>
       </div>
     </div>
   )

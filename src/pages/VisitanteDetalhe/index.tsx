@@ -5,7 +5,7 @@ import { atualizarVisitante, linkWhatsApp, resolverCuidado, sinalizarCuidado } f
 import { fmtDataVisita } from '../../cultos'
 import { podeVerCuidado, podeVerVisitante, useUsuarioAtualId, usuarioAtual } from '../../acesso'
 import { registrarAuditoria } from '../../auditoria'
-import { IcoAlerta, IcoCalendario, IcoCasa, IcoCheck, IcoSeta, IcoUsuario, IcoWhats } from '../../icones'
+import { IcoAlerta, IcoCadeado, IcoCalendario, IcoCasa, IcoCheck, IcoSeta, IcoUsuario, IcoWhats } from '../../icones'
 import Avatar from '../../Avatar'
 import Roteiro from './Roteiro'
 import AbaAtividade from './AbaAtividade'
@@ -32,7 +32,7 @@ export default function VisitanteDetalhe({ id }: { id: string }) {
   if (!podeVerVisitante(s, eu, v)) {
     return (
       <div className="vazio" style={{ maxWidth: 460, margin: '40px auto' }}>
-        <div style={{ fontSize: 32 }}>🔒</div>
+        <div className="sucesso-selo sem-acesso"><IcoCadeado size={26} /></div>
         <p style={{ marginTop: 8 }}>Você não tem acesso à ficha desta pessoa.</p>
         <p style={{ fontSize: 13, color: 'var(--text-3)' }}>Só quem acompanha o visitante (ou está acima na hierarquia) pode ver as conversas.</p>
         <a href="#/visitantes" style={{ color: 'var(--acento-texto)' }}>← Voltar</a>
@@ -276,7 +276,7 @@ function HistoricoResumido({ v }: { v: Visitante }) {
             <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 2 }}>{fmt(e.data)}</div>
             {contato && (
               <div style={{ fontSize: 13.5 }}>
-                {contato.respondeu ? '💬 Respondeu' : '🔇 Sem resposta'}
+                {contato.respondeu ? 'Respondeu' : 'Sem resposta'}
                 {contato.retornoResumo && <div style={{ color: 'var(--text-2)', fontSize: 13, marginTop: 2 }}>{contato.retornoResumo}</div>}
               </div>
             )}

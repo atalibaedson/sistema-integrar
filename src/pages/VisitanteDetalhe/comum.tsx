@@ -3,6 +3,7 @@ import { useAppState } from '../../store'
 import { type Visitante } from '../../types'
 import { atualizarVisitante, marcarMembresia, prontidaoMembro } from '../../actions'
 import { SeletorData as CampoData } from '../../campos'
+import { IcoAlerta, IcoCheck } from '../../icones'
 
 export function fmt(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
@@ -139,18 +140,18 @@ export function BotaoVirarMembro({ v, primaria }: { v: Visitante; primaria: bool
               {!pr.temDataInicio ? (
                 <>
                   <p className="rot-sub" style={{ margin: '0 0 6px' }}>
-                    ⏳ Informe quando {primeiroNome} começou a frequentar a {grupo} — o mínimo é {pr.mesesMinimos} {plural(pr.mesesMinimos)}.
+                    Informe quando {primeiroNome} começou a frequentar a {grupo} — o mínimo é {pr.mesesMinimos} {plural(pr.mesesMinimos)}.
                   </p>
                   <CampoInicioConexao v={v} />
                 </>
               ) : pr.tempoOk ? (
                 <p className="rot-sub" style={{ margin: 0 }}>
-                  ✅ Frequenta a {grupo} há <b>{pr.meses} {plural(pr.meses!)}</b> (mínimo {pr.mesesMinimos}).
+                  <IcoCheck size={13} className="rot-ok" /> Frequenta a {grupo} há <b>{pr.meses} {plural(pr.meses!)}</b> (mínimo {pr.mesesMinimos}).
                 </p>
               ) : (
                 <>
                   <p className="rot-sub" style={{ margin: '0 0 4px' }}>
-                    ⚠️ Frequenta a {grupo} há <b>{pr.meses} {plural(pr.meses!)}</b> — o mínimo é {pr.mesesMinimos} {plural(pr.mesesMinimos)}.
+                    <IcoAlerta size={13} className="rot-aviso" /> Frequenta a {grupo} há <b>{pr.meses} {plural(pr.meses!)}</b> — o mínimo é {pr.mesesMinimos} {plural(pr.mesesMinimos)}.
                   </p>
                   <label className="check" style={{ marginBottom: 0 }}>
                     <input type="checkbox" checked={excecao} onChange={(e) => setExcecao(e.target.checked)} />
@@ -180,7 +181,7 @@ export function BotaoVirarMembro({ v, primaria }: { v: Visitante; primaria: bool
           disabled={!podeConcluir}
           onClick={() => marcarMembresia(v.id, dataMembresia, obs || undefined)}
         >
-          🎉 Concluir: virou membro!
+          <IcoCheck size={14} /> Concluir: virou membro!
         </button>
       </div>
     </div>

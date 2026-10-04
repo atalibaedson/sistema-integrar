@@ -28,11 +28,6 @@ export function definirSupervisor(s: AppState, alvo: Usuario, novoSupervisorId: 
   })
 }
 
-export function iniciais(nome: string): string {
-  const partes = nome.trim().split(/\s+/).filter(Boolean)
-  return ((partes[0]?.[0] ?? '?') + (partes[1]?.[0] ?? '')).toUpperCase()
-}
-
 // Situação do acesso (login) — etiquetas semânticas, legíveis no claro e no escuro
 function TagsAcesso({ u }: { u: Usuario }) {
   return (

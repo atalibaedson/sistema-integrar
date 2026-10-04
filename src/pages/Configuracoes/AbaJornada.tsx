@@ -4,7 +4,7 @@ import { PAPEL_LABEL, rotuloStatusPadrao, type Papel, type Status } from '../../
 import { BotaoSalvar, SeletorData } from '../../campos'
 import { toast } from '../../toast'
 import { confirmar } from '../../confirmar'
-import { IcoMais, IcoX } from '../../icones'
+import { IcoLampada, IcoMais, IcoMapa, IcoRelogio, IcoUsuarios, IcoX } from '../../icones'
 import { salvarConfig, useRascunho } from './comum'
 
 /* ---------------- Aba: Jornada (nomes das etapas + datas marcadas) ---------- */
@@ -68,7 +68,7 @@ export default function AbaJornada() {
         </p>
 
         <div className="ac-secao" style={{ paddingTop: 0, borderTop: 'none' }}>
-          <div className="ac-secao-titulo">🗺️ O caminho do visitante</div>
+          <div className="ac-secao-titulo"><IcoMapa size={18} /> O caminho do visitante</div>
           <div className="ac-grupo">
             {STATUS_DA_JORNADA.map((st) =>
               linhaNome(st, rotuloStatusPadrao(st), nomes.d.rotulosStatus[st] ?? '', (v) => renomearStatus(st, v)))}
@@ -76,7 +76,7 @@ export default function AbaJornada() {
         </div>
 
         <div className="ac-secao">
-          <div className="ac-secao-titulo">💤 Quando o caminho para</div>
+          <div className="ac-secao-titulo"><IcoRelogio size={18} /> Quando o caminho para</div>
           <div className="ac-grupo">
             {STATUS_DE_PAUSA.map((st) =>
               linhaNome(st, rotuloStatusPadrao(st), nomes.d.rotulosStatus[st] ?? '', (v) => renomearStatus(st, v)))}
@@ -84,7 +84,7 @@ export default function AbaJornada() {
         </div>
 
         <div className="ac-secao">
-          <div className="ac-secao-titulo">👥 Funções da equipe</div>
+          <div className="ac-secao-titulo"><IcoUsuarios size={18} /> Funções da equipe</div>
           <div className="ac-grupo">
             {(Object.keys(PAPEL_LABEL) as Papel[]).map((p) =>
               linhaNome(p, PAPEL_LABEL[p], nomes.d.rotulosPapel[p] ?? '', (v) => renomearPapel(p, v)))}
@@ -95,21 +95,21 @@ export default function AbaJornada() {
       </div>
 
       <ListaDatas
-        titulo="💧 Datas de batismo"
+        titulo="Datas de batismo"
         descricao="As datas em que a igreja batiza. Na ficha do visitante a equipe escolhe uma delas, em vez de digitar — menos erro na pressa."
         datas={cfg.datasBatismo}
         onMudar={(datasBatismo) => { salvarConfig({ datasBatismo }); toast('Datas de batismo salvas') }}
       />
 
       <ListaDatas
-        titulo="🎉 Datas de recepção de membros"
+        titulo="Datas de recepção de membros"
         descricao="Os dias em que a igreja recebe novos membros. É a data que conclui a jornada do visitante."
         datas={cfg.datasMembresia}
         onMudar={(datasMembresia) => { salvarConfig({ datasMembresia }); toast('Datas de recepção salvas') }}
       />
 
       <div className="card">
-        <h3>✅ Requisitos para receber como membro</h3>
+        <h3>Requisitos para receber como membro</h3>
         <p className="descricao-secao">
           Antes de concluir a jornada, o líder de {cfg.termoGrupo || 'Conexão'} confirma que a pessoa
           já frequenta o grupo há tempo suficiente e com boa presença. Deixe em <b>0</b> para não exigir aquele item.
@@ -160,7 +160,7 @@ function ListaDatas({ titulo, descricao, datas, onMudar }: {
 
       {ordenadas.length === 0 ? (
         <div className="alerta alerta-info" style={{ marginBottom: 12 }}>
-          💡 <div>
+          <IcoLampada size={16} /><div>
             Nenhuma data cadastrada ainda — enquanto isso, a equipe digita a data à mão na ficha.
             Cadastrando aqui, ela passa a escolher numa lista.
           </div>

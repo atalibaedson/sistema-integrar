@@ -8,7 +8,7 @@ import { atualizarVisitante, excluirVisitante, registrarBatismo } from '../../ac
 import { SeletorData as CampoData } from '../../campos'
 import { navegar } from '../../router'
 import { confirmar } from '../../confirmar'
-import { IcoLixeira } from '../../icones'
+import { IcoAlerta, IcoCheck, IcoGota, IcoLixeira } from '../../icones'
 import { fmt } from './comum'
 
 /* ================= Aba: Dados (editável) ================= */
@@ -34,13 +34,13 @@ export default function AbaDados({ v }: { v: Visitante }) {
   return (
     <div className="card">
       <div className="secao-header" style={{ marginBottom: 14 }}>
-        <span>👤 Dados</span>
+        <h3>Dados</h3>
         <span className="secao-cont">alterações salvas automaticamente</span>
       </div>
 
       {/* ---- Contato ---- */}
       <div className="dados-secao" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
-        <div className="dados-secao-titulo">📞 Contato</div>
+        <div className="dados-secao-titulo">Contato</div>
         <div className="linha-campos">
           <label className="campo"><span>Nome</span>
             <input type="text" value={v.nome} onChange={(e) => m({ nome: e.target.value })} />
@@ -70,7 +70,7 @@ export default function AbaDados({ v }: { v: Visitante }) {
 
       {/* ---- Localização ---- */}
       <div className="dados-secao">
-        <div className="dados-secao-titulo">📍 Localização</div>
+        <div className="dados-secao-titulo">Localização</div>
         <div className="linha-campos">
           <label className="campo">
             <span>CEP <em className="campo-dica">(preenche automaticamente)</em></span>
@@ -108,7 +108,7 @@ export default function AbaDados({ v }: { v: Visitante }) {
 
       {/* ---- Visita ---- */}
       <div className="dados-secao">
-        <div className="dados-secao-titulo">⛪ Visita</div>
+        <div className="dados-secao-titulo">Visita</div>
         <div className="linha-campos">
           <label className="campo"><span>1ª visita (culto)</span>
             <select value={v.cultoPrimeiraVisita ?? ''} onChange={(e) => m({ cultoPrimeiraVisita: e.target.value || undefined })}>
@@ -149,7 +149,7 @@ export default function AbaDados({ v }: { v: Visitante }) {
 
       {/* ---- Batismo ---- */}
       <div className="bloco-destaque">
-        <div className="bloco-destaque-titulo">💧 Situação de batismo</div>
+        <div className="bloco-destaque-titulo"><IcoGota size={14} /> Situação de batismo</div>
         <p className="descricao-secao" style={{ marginTop: 0 }}>
           Quem já chega batizado não precisa de batismo para virar membro — serve para não convidar quem já foi.
         </p>
@@ -174,7 +174,7 @@ export default function AbaDados({ v }: { v: Visitante }) {
       {/* ---- Membresia ---- */}
       {(v.status === 'integrado' || v.dataMembresia) && (
         <div className="bloco-destaque">
-          <div className="bloco-destaque-titulo">🎉 Membresia</div>
+          <div className="bloco-destaque-titulo"><IcoCheck size={14} /> Membresia</div>
           <p className="descricao-secao" style={{ marginTop: 0 }}>
             O dia em que a pessoa foi recebida como membro — é o que conclui a jornada.
           </p>
@@ -186,7 +186,7 @@ export default function AbaDados({ v }: { v: Visitante }) {
           </div>
           {v.status === 'integrado' && !v.dataMembresia && (
             <div className="alerta alerta-warn" style={{ marginBottom: 0 }}>
-              ⚠️ <div>Está como membro, mas <b>sem a data</b>. Preencha acima — sem ela a pessoa não aparece nos relatórios por período.</div>
+              <IcoAlerta size={16} /><div>Está como membro, mas <b>sem a data</b>. Preencha acima — sem ela a pessoa não aparece nos relatórios por período.</div>
             </div>
           )}
         </div>
@@ -194,7 +194,7 @@ export default function AbaDados({ v }: { v: Visitante }) {
 
       {/* ---- Preferências ---- */}
       <div className="dados-secao">
-        <div className="dados-secao-titulo">💬 Preferências e contato</div>
+        <div className="dados-secao-titulo">Preferências e contato</div>
         <div className="linha-campos">
           <label className="campo"><span>Quer participar de uma {s.config.termoGrupo || 'Conexão'}?</span>
             <select value={v.desejaConexao ?? ''} onChange={(e) => m({ desejaConexao: e.target.value || undefined })}>
@@ -217,7 +217,7 @@ export default function AbaDados({ v }: { v: Visitante }) {
             </div>
           </label>
         </div>
-        <label className="campo"><span>🙏 Pedido de oração</span>
+        <label className="campo"><span>Pedido de oração</span>
           <textarea value={v.pedidoOracao ?? ''} onChange={(e) => m({ pedidoOracao: e.target.value || undefined })} placeholder="O que a pessoa pediu para orarmos." />
         </label>
         <label className="campo"><span>Observações (equipe)</span>
@@ -230,7 +230,7 @@ export default function AbaDados({ v }: { v: Visitante }) {
       </div>
 
       <div className={`alerta ${v.consentimentoLgpd ? 'alerta-info' : 'alerta-warn'}`} style={{ marginTop: 14 }}>
-        {v.consentimentoLgpd ? '✅' : '⚠️'} <div>
+        {v.consentimentoLgpd ? <IcoCheck size={16} /> : <IcoAlerta size={16} />}<div>
           <b>Consentimento LGPD:</b> {v.consentimentoLgpd
             ? <>autorizado{v.consentimentoLgpdData ? ` em ${fmt(v.consentimentoLgpdData)}` : ''}.</>
             : 'não registrado — este cadastro é anterior a esse controle, ou o consentimento não foi confirmado.'}

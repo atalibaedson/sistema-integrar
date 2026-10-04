@@ -3,7 +3,7 @@ import { comExclusoes, GATILHOS_FIXOS, setEstado, uid, useAppState } from '../..
 import { rotuloEtapa, type EtapaFluxo, type Template } from '../../types'
 import { BotaoSalvar } from '../../campos'
 import { toast } from '../../toast'
-import { IcoMais } from '../../icones'
+import { IcoLixeira, IcoMais } from '../../icones'
 
 /* ---------------- Aba: Mensagens ---------------- */
 
@@ -27,7 +27,7 @@ export default function AbaMensagens() {
   return (
     <>
       <div className="card">
-        <h3>💡 Variáveis disponíveis</h3>
+        <h3>Variáveis disponíveis</h3>
         <p className="descricao-secao" style={{ marginBottom: 8 }}>
           Escreva o texto e use estas marcações — elas são trocadas pelos dados reais na hora de enviar:
         </p>
@@ -40,7 +40,7 @@ export default function AbaMensagens() {
       <div className="card">
         <h3>Mensagens do fluxo</h3>
         <p className="descricao-secao">
-          Usadas pelos botões "💬 Enviar" do sistema. Estas não podem ser excluídas (fazem parte do fluxo),
+          Usadas pelos botões "Enviar" do sistema. Estas não podem ser excluídas (fazem parte do fluxo),
           mas o texto é todo seu. Edite e clique em <b>Salvar</b> em cada uma.
         </p>
         {fixos.map((t) => <MensagemFixaEditor key={t.id} t={t} onSalvar={editar} />)}
@@ -79,7 +79,7 @@ export default function AbaMensagens() {
                 <button
                   className="btn btn-sec btn-mini"
                   onClick={() => { setEstado((st) => comExclusoes({ ...st, templates: st.templates.filter((x) => x.id !== t.id) }, 'template', [t.id])); toast('Mensagem excluída', 'info') }}
-                >🗑️ Excluir</button>
+                ><IcoLixeira size={13} /> Excluir</button>
               </div>
             ))}
           </div>

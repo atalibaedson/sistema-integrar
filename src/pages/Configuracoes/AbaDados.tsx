@@ -6,7 +6,7 @@ import {
 import { getConfigNuvem } from '../../nuvem'
 import { registrarAuditoria } from '../../auditoria'
 import { confirmar } from '../../confirmar'
-import { IcoDownload } from '../../icones'
+import { IcoAlerta, IcoDownload, IcoLixeira, IcoNuvem } from '../../icones'
 
 /* ---------------- Aba: Dados & Nuvem ---------------- */
 
@@ -80,7 +80,7 @@ export default function AbaDados() {
               setMsg('Dados zerados.')
             }
           }}
-        >🗑️ Zerar todos os dados</button>
+        ><IcoLixeira size={14} /> Zerar todos os dados</button>
       </div>
     </>
   )
@@ -126,14 +126,14 @@ function CardNuvem() {
   }
 
   const rotuloStatus: Record<string, string> = {
-    sincronizando: '🟡 Sincronizando…',
-    ok: '🟢 Conectada e sincronizada',
-    erro: '🔴 Erro na última sincronização — verifique a conexão',
+    sincronizando: 'Sincronizando…',
+    ok: 'Conectada e sincronizada',
+    erro: 'Erro na última sincronização — verifique a conexão',
   }
 
   return (
     <div className="card" style={{ borderTop: '3px solid var(--primary)' }}>
-      <h3>🌐 Sincronização online</h3>
+      <h3>Sincronização online</h3>
       <p className="descricao-secao">
         Sem a nuvem, os dados vivem só neste navegador. Conectando ao Supabase (gratuito para começar),
         tudo é salvo online automaticamente e você acessa de qualquer dispositivo. O passo a passo está
@@ -142,7 +142,9 @@ function CardNuvem() {
 
       {conectada ? (
         <>
-          <p style={{ fontSize: 14, marginBottom: 4 }}>{rotuloStatus[nuvem.status]}</p>
+          <p style={{ marginBottom: 8 }}>
+            <span className={`chip-status st-${nuvem.status}`}><span className="ponto" />{rotuloStatus[nuvem.status] ?? nuvem.status}</span>
+          </p>
           {nuvem.ultimoSync && (
             <p style={{ fontSize: 12.5, color: 'var(--text-3)', marginBottom: 10 }}>
               Última sincronização: {new Date(nuvem.ultimoSync).toLocaleString('pt-BR')}
@@ -157,7 +159,7 @@ function CardNuvem() {
         </>
       ) : (
         <>
-          {erro && <div className="alerta alerta-warn">⚠️ <div>{erro}</div></div>}
+          {erro && <div className="alerta alerta-warn"><IcoAlerta size={16} /><div>{erro}</div></div>}
           <div className="linha-campos">
             <label className="campo"><span>URL do projeto Supabase</span>
               <input type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://xxxx.supabase.co" />
@@ -170,7 +172,7 @@ function CardNuvem() {
             <input type="text" value={igrejaId} onChange={(e) => setIgrejaId(e.target.value)} placeholder="ex.: ife-matriz" />
           </label>
           <button className="btn" onClick={conectar} disabled={ocupado}>
-            {ocupado ? 'Conectando…' : '🌐 Conectar e sincronizar'}
+            {ocupado ? 'Conectando…' : <><IcoNuvem size={15} /> Conectar e sincronizar</>}
           </button>
         </>
       )}

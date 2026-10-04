@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRota } from './router'
 import { useAppState, useNuvem, tentarSincronizarAgora } from './store'
 import { setUsuarioAtualId, useUsuarioAtualId, podeVerCuidado, podeAcessarRota, soAcolhedor, soLider, useSessaoReal, useSessaoCarregada, usuarioDaSessao } from './acesso'
@@ -11,24 +11,28 @@ import { garantirFichaMembroRede } from './actions'
 import { aplicarRotulos, rotuloPapel, type Usuario } from './types'
 import { corDeContraste } from './tema'
 import { IcoAjuda, IcoAuditoria, IcoCasa, IcoConfig, IcoJornada, IcoLua, IcoMais, IcoMenu, IcoPainel, IcoRelatorios, IcoSair, IcoSol, IcoTrocar, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
+import { lazyComRecarga } from './carregar'
 import Dashboard from './pages/Dashboard'
-import Jornada from './pages/Jornada'
 import Visitantes from './pages/Visitantes'
 import VisitanteDetalhe from './pages/VisitanteDetalhe'
 import NovoVisitante from './pages/NovoVisitante'
-import PainelLider from './pages/PainelLider'
-import Equipe from './pages/Equipe'
-import Configuracoes from './pages/Configuracoes'
 import Autocadastro from './pages/Autocadastro'
-import Ajuda from './pages/Ajuda'
-import Auditoria from './pages/Auditoria'
-import CadastroIntegrante from './pages/CadastroIntegrante'
 import Entrar from './pages/Entrar'
 import NovaSenha from './pages/NovaSenha'
 import AguardandoAprovacao from './pages/AguardandoAprovacao'
-import Aprovacoes from './pages/Aprovacoes'
-import Relatorios from './pages/Relatorios'
-import VisitanteDados from './pages/VisitanteDados'
+
+// Telas de uso menos frequente carregam sob demanda: a abertura do app (e a
+// página pública do visitante) baixa só o essencial.
+const Jornada = lazyComRecarga(() => import('./pages/Jornada'))
+const PainelLider = lazyComRecarga(() => import('./pages/PainelLider'))
+const Equipe = lazyComRecarga(() => import('./pages/Equipe'))
+const Configuracoes = lazyComRecarga(() => import('./pages/Configuracoes'))
+const Ajuda = lazyComRecarga(() => import('./pages/Ajuda'))
+const Auditoria = lazyComRecarga(() => import('./pages/Auditoria'))
+const CadastroIntegrante = lazyComRecarga(() => import('./pages/CadastroIntegrante'))
+const Aprovacoes = lazyComRecarga(() => import('./pages/Aprovacoes'))
+const Relatorios = lazyComRecarga(() => import('./pages/Relatorios'))
+const VisitanteDados = lazyComRecarga(() => import('./pages/VisitanteDados'))
 
 type ItemMenu = { rota: string; icone: (p: { size?: number }) => JSX.Element; rotulo: string }
 
@@ -265,7 +269,7 @@ export default function App() {
   const hostAutocadastro = typeof window !== 'undefined' &&
     (window.location.hostname.startsWith('visitante') || window.location.hostname.startsWith('cadastro'))
   if (rota.startsWith('/autocadastro') || (hostAutocadastro && rota === '/')) return <Autocadastro />
-  if (rota.startsWith('/cadastro-integrante')) return <CadastroIntegrante />
+  if (rota.startsWith('/cadastro-integrante')) return <Suspense fallback={<Carregando />}><CadastroIntegrante /></Suspense>
   // Login real (Supabase) — e-mail/WhatsApp + senha
   if (rota.startsWith('/entrar')) return <Entrar />
   // Redefinição de senha (chegada pelo link "Esqueci a senha" do e-mail)
@@ -389,7 +393,7 @@ export default function App() {
           podeNovo={podeAcessarRota('/novo', eu)}
           seletorCelular={<SeletorIgreja igrejas={igrejas} ativa={ativa} classe="seletor-igreja-celular" />}
         />
-        <main className="conteudo">{pagina}</main>
+        <main className="conteudo"><Suspense fallback={<Carregando />}>{pagina}</Suspense></main>
       </div>
 
       {/* Navegação inferior — aparece só no celular */}
@@ -440,4 +444,9 @@ export default function App() {
       )}
     </div>
   )
+}
+
+// Enquanto uma tela carregada sob demanda chega (frações de segundo)
+function Carregando() {
+  return <div className="vazio carregando-tela" role="status">Carregando…</div>
 }

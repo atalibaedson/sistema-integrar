@@ -31,7 +31,7 @@ export default function AbaAcompanhamento({ v }: { v: Visitante }) {
   return (
     <div className="card">
       <div className="secao-header" style={{ marginBottom: 14 }}>
-        <span>⚙️ Acompanhamento</span>
+        <h3>Acompanhamento</h3>
       </div>
 
       {/* Quem cuida */}

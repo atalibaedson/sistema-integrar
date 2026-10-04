@@ -39,11 +39,11 @@ export default function AbaAtividade({ v }: { v: Visitante }) {
           {e.tipo === 'contato' ? (
             <div className="interacao-corpo">
               <p>
-                <b>{e.contato!.respondeu ? '💬 Respondeu' : '🔇 Sem resposta'}</b>
+                <b>{e.contato!.respondeu ? 'Respondeu' : 'Sem resposta'}</b>
                 {e.contato!.respondeu && e.contato!.grauAbertura !== 'sem_resposta' && (
                   <> · abertura <span style={{ fontWeight: 700, color: aberturaColor(e.contato!.grauAbertura) }}>{GRAU_LABEL[e.contato!.grauAbertura].toLowerCase()}</span></>
                 )}
-                {e.contato!.flagCuidado && <span className="badge-flag" style={{ marginLeft: 6 }}>🚨 cuidado</span>}
+                {e.contato!.flagCuidado && <span className="painel-chip painel-chip-crit" style={{ marginLeft: 6 }}>cuidado</span>}
               </p>
               {e.contato!.retornoResumo && <p>{e.contato!.retornoResumo}</p>}
               {e.contato!.proximosPassos && <p><b>Próximo passo:</b> {e.contato!.proximosPassos}</p>}

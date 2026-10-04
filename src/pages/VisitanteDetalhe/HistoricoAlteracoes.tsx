@@ -24,7 +24,7 @@ export default function HistoricoAlteracoes({ v }: { v: Visitante }) {
   return (
     <details className="card">
       <summary className="hist-alt-sumario">
-        🕓 Histórico de alterações <span className="hist-alt-cont">({registros.length})</span>
+        Histórico de alterações <span className="hist-alt-cont">({registros.length})</span>
       </summary>
       <p className="descricao-secao" style={{ margin: '8px 0 12px' }}>
         Quem fez cada alteração administrativa nesta ficha. Visível só para gestão e pastores.

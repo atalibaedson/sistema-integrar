@@ -9,6 +9,9 @@ import {
 import { Escolha, SeletorData, SIM_NAO } from '../campos'
 import { soAcolhedor, useUsuarioAtualId, usuarioAtual } from '../acesso'
 import { navegar } from '../router'
+import {
+  IcoAlerta, IcoCadeado, IcoCheck, IcoCoracao, IcoIgreja, IcoLampada, IcoMapa, IcoMensagem, IcoQr, IcoUsuario,
+} from '../icones'
 
 // Cadastro feito pela equipe (abordagem no culto). Segue o MESMO padrão do
 // autocadastro — seções, pílulas de escolha e os mesmos campos — para que as
@@ -128,10 +131,10 @@ export default function NovoVisitante() {
       <div>
         <h1 className="titulo-pagina">Novo visitante</h1>
         <div className="card" style={{ maxWidth: 640, textAlign: 'center', padding: '32px 24px' }}>
-          <div style={{ fontSize: 44, marginBottom: 8 }}>✅</div>
+          <div className="sucesso-selo"><IcoCheck size={28} /></div>
           <h3 style={{ fontSize: 18 }}>{sucesso} foi cadastrado(a)!</h3>
           <p style={{ color: 'var(--text-2)', maxWidth: 380, margin: '6px auto 20px' }}>
-            Prontinho — a equipe de consolidação assume daqui e faz o primeiro contato. Obrigado por acolher! 🙏
+            Prontinho — a equipe de consolidação assume daqui e faz o primeiro contato. Obrigado por acolher!
           </p>
           <button className="btn" onClick={() => setSucesso(null)}>Cadastrar outro visitante</button>
         </div>
@@ -142,16 +145,17 @@ export default function NovoVisitante() {
   return (
     <div>
       <h1 className="titulo-pagina">Novo visitante</h1>
-      <p className="subtitulo">Cadastro manual (abordagem no culto). A triagem da Fase 0 é aplicada automaticamente.</p>
+      <p className="subtitulo">Cadastro feito pela equipe na abordagem do culto.</p>
 
       {avisos.map((a, i) => (
-        <div className="alerta alerta-warn" key={i}>⚠️ <div>{a}</div></div>
+        <div className="alerta alerta-warn" key={i}><IcoAlerta size={16} /><div>{a}</div></div>
       ))}
 
-      <form onSubmit={enviar} className="card" style={{ maxWidth: 640 }}>
+      <div className="novo-grade">
+      <form onSubmit={enviar} className="card novo-form">
         {/* ---------- Dados da pessoa ---------- */}
         <div className="ac-secao">
-          <div className="ac-secao-titulo">👤 Dados da pessoa</div>
+          <div className="ac-secao-titulo"><IcoUsuario size={18} /> Dados da pessoa</div>
           <label className="campo"><span>Nome *</span>
             <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" autoFocus />
           </label>
@@ -177,7 +181,7 @@ export default function NovoVisitante() {
 
           {duplicado && (
             <div className="alerta alerta-warn">
-              ⚠️ <div>
+              <IcoAlerta size={16} /><div>
                 <b>Já existe um cadastro com esse {duplicado.whatsapp.replace(/\D/g, '') === whatsapp.replace(/\D/g, '') ? 'WhatsApp' : 'e-mail'}:</b>{' '}
                 {duplicado.nome} (status: {rotuloStatus(duplicado.status)}).{' '}
                 <a href={`#/visitante/${duplicado.id}`} style={{ color: 'inherit', fontWeight: 700 }}>Abrir a ficha existente</a> em vez de cadastrar de novo.
@@ -188,7 +192,7 @@ export default function NovoVisitante() {
 
         {/* ---------- Onde mora ---------- */}
         <div className="ac-secao">
-          <div className="ac-secao-titulo">📍 Onde mora</div>
+          <div className="ac-secao-titulo"><IcoMapa size={18} /> Onde mora</div>
           <div className="ac-grupo">
             <label className="campo">
               <span>CEP <em className="campo-dica">(preenche o endereço automaticamente)</em></span>
@@ -234,7 +238,7 @@ export default function NovoVisitante() {
 
         {/* ---------- Sobre a visita ---------- */}
         <div className="ac-secao">
-          <div className="ac-secao-titulo">⛪ Sobre a visita</div>
+          <div className="ac-secao-titulo"><IcoIgreja size={18} /> Sobre a visita</div>
           <div className="ac-grupo">
             <label className="campo"><span>Em qual culto visitou pela 1ª vez?</span>
               <select value={cultoSel} onChange={(e) => { setCultoSel(e.target.value); setDataManual('') }}>
@@ -276,14 +280,14 @@ export default function NovoVisitante() {
           </div>
           {conexaoSugerida && (
             <div className="alerta alerta-info" style={{ marginTop: 4 }}>
-              💡 <div>{s.config.termoGrupo} sugerida (proximidade + situação civil): <b>{conexaoSugerida.nome}</b>{[conexaoSugerida.bairro, conexaoSugerida.cidade, conexaoSugerida.perfil].filter(Boolean).length > 0 && <> — {[[conexaoSugerida.bairro, conexaoSugerida.cidade].filter(Boolean).join(' · '), conexaoSugerida.perfil].filter(Boolean).join(', ')}</>}</div>
+              <IcoLampada size={16} /><div>{s.config.termoGrupo} sugerida (proximidade + situação civil): <b>{conexaoSugerida.nome}</b>{[conexaoSugerida.bairro, conexaoSugerida.cidade, conexaoSugerida.perfil].filter(Boolean).length > 0 && <> — {[[conexaoSugerida.bairro, conexaoSugerida.cidade].filter(Boolean).join(' · '), conexaoSugerida.perfil].filter(Boolean).join(', ')}</>}</div>
             </div>
           )}
         </div>
 
         {/* ---------- Caminhada de fé ---------- */}
         <div className="ac-secao">
-          <div className="ac-secao-titulo">🙏 Caminhada de fé</div>
+          <div className="ac-secao-titulo"><IcoCoracao size={18} /> Caminhada de fé</div>
           <div className="campo"><span>É membro de outra igreja?</span>
             <Escolha valor={membroOutra} opcoes={SIM_NAO} onEscolher={setMembroOutra} />
           </div>
@@ -302,7 +306,7 @@ export default function NovoVisitante() {
 
         {/* ---------- Contato e oração ---------- */}
         <div className="ac-secao">
-          <div className="ac-secao-titulo">💬 Contato e oração</div>
+          <div className="ac-secao-titulo"><IcoMensagem size={18} /> Contato e oração</div>
           <div className="campo"><span>Quer que alguém da equipe entre em contato?</span>
             <Escolha valor={desejaContato} opcoes={SIM_NAO} onEscolher={setDesejaContato} />
           </div>
@@ -322,7 +326,7 @@ export default function NovoVisitante() {
 
         {/* ---------- Sinalizações (só no cadastro da equipe) ---------- */}
         <div className="ac-secao">
-          <div className="ac-secao-titulo">⚠️ Sinalizações</div>
+          <div className="ac-secao-titulo"><IcoAlerta size={18} /> Sinalizações</div>
           <label className="check">
             <input type="checkbox" checked={menor} onChange={(e) => setMenor(e.target.checked)} />
             Menor de idade (contato será com o responsável)
@@ -339,7 +343,7 @@ export default function NovoVisitante() {
         {/* ---------- Consentimento ---------- */}
         <div className="ac-secao">
           <div className="ac-lgpd">
-            🔒 Os dados são usados apenas para que a equipe entre em contato e acompanhe a pessoa
+            <IcoCadeado size={15} /> Os dados são usados apenas para que a equipe entre em contato e acompanhe a pessoa
             nessa jornada de acolhimento. Não são compartilhados com terceiros.
           </div>
           <label className="check">
@@ -351,11 +355,19 @@ export default function NovoVisitante() {
         <button className="btn ac-btn-enviar" type="submit">Cadastrar visitante</button>
       </form>
 
-      <div className="card" style={{ maxWidth: 640 }}>
-        <p style={{ color: 'var(--text-2)', margin: 0, fontSize: 13.5 }}>
-          📱 Quer que os visitantes se cadastrem sozinhos via QR code no culto?
-          O código e o link para impressão ficam em <a href="#/config">Configurações → Autocadastro</a>.
+      <aside className="novo-lado">
+        <div className="card painel-destaque">
+          <span className="painel-ico painel-ico-acc"><IcoQr size={18} /></span>
+          <span className="painel-linha-txt">
+            <b>Autocadastro por QR code</b>
+            <span className="novo-lado-txt">Os visitantes podem se cadastrar sozinhos no culto. O código e o link para impressão ficam nas Configurações.</span>
+          </span>
+        </div>
+        <a className="btn btn-sec novo-lado-btn" href="#/config?aba=autocadastro"><IcoQr size={15} /> Abrir o QR code</a>
+        <p className="painel-nota novo-lado-nota">
+          Ao cadastrar, o sistema confere o WhatsApp, avisa se já existe cadastro e sugere a {s.config.termoGrupo || 'Conexão'} pelo bairro.
         </p>
+      </aside>
       </div>
     </div>
   )

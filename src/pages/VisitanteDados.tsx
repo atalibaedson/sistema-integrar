@@ -2,7 +2,7 @@ import { useAppState } from '../store'
 import { podeVerVisitante, useUsuarioAtualId, usuarioAtual } from '../acesso'
 import AbaDados from './VisitanteDetalhe/AbaDados'
 import AbaAcompanhamento from './VisitanteDetalhe/AbaAcompanhamento'
-import { IcoSeta } from '../icones'
+import { IcoCadeado, IcoSeta } from '../icones'
 
 // Página de dados completos + configuração do acompanhamento — acessada via
 // "Dados completos →" no rodapé da ficha principal.
@@ -16,7 +16,7 @@ export default function VisitanteDados({ id }: { id: string }) {
   if (!podeVerVisitante(s, eu, v)) {
     return (
       <div className="vazio" style={{ maxWidth: 460, margin: '40px auto' }}>
-        <div style={{ fontSize: 32 }}>🔒</div>
+        <div className="sucesso-selo sem-acesso"><IcoCadeado size={26} /></div>
         <p style={{ marginTop: 8 }}>Você não tem acesso à ficha desta pessoa.</p>
         <a href="#/visitantes" style={{ color: 'var(--acento-texto)' }}>← Voltar</a>
       </div>

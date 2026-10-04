@@ -75,6 +75,8 @@ aprovação de conta e aplica a identidade da igreja (cores + rótulos).
 - `TelaPublica.tsx` — moldura das telas públicas (entrar, criar acesso, nova senha,
   aguardando, autocadastro): painel institucional + conteúdo, padrão da família iFE.
 - `demo.ts` — modo demonstração (`npm run dev:demo`): igreja e sessão fictícias.
+- `carregar.ts` — `lazyComRecarga`: telas menos usadas carregam sob demanda (App.tsx);
+  se um deploy novo trocou os arquivos, recarrega a página uma vez em vez de quebrar.
 
 ### Telas (`src/pages/`)
 Painel (`Dashboard`), `Jornada`, `Visitantes` (lista) → `VisitanteDetalhe` (ficha,

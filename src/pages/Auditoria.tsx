@@ -33,8 +33,8 @@ export default function Auditoria() {
       <h1 className="titulo-pagina">Auditoria</h1>
       <p className="subtitulo">Quem fez o quê, e quando — registro automático das ações sensíveis do sistema.</p>
 
-      <div className="filter-bar" style={{ gap: 12, flexWrap: 'wrap' }}>
-        <div className="search-box" style={{ flex: 1, minWidth: 220, maxWidth: 360 }}>
+      <div className="vis-barra">
+        <div className="search-box vis-busca">
           <span className="search-icon"><IcoBusca /></span>
           <input type="text" placeholder="Buscar por pessoa, ação ou visitante…" value={busca} onChange={(e) => setBusca(e.target.value)} />
         </div>

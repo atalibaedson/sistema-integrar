@@ -8,7 +8,7 @@ import {
   aplicarTemplate, desfazerUltimaMudanca, encaminharParaBatismo, linkWhatsApp, mudarStatus,
   proximoTipoContato, registrarBatismoRealizado, registrarInteracao, type Classificacao,
 } from '../../actions'
-import { IcoCheck, IcoDesfazer, IcoEditar, IcoWhats } from '../../icones'
+import { IcoAlerta, IcoCheck, IcoDesfazer, IcoEditar, IcoGota, IcoMensagem, IcoRelogio, IcoWhats, IcoX } from '../../icones'
 import { toast } from '../../toast'
 import { confirmar } from '../../confirmar'
 import { BotaoVirarMembro, CampoInicioConexao, fmt, fmtDia, SeletorData } from './comum'
@@ -35,7 +35,7 @@ export default function Roteiro({ v }: { v: Visitante }) {
       titulo: v.situacaoBatismo === 'ja_batizado' ? 'Batismo · dispensado' : 'Batismo',
       quandoFeito: v.dataBatismo ?? dataDe('batismo'),
     },
-    { n: 7, label: 'Membro', titulo: 'Membro 🎉', quandoFeito: v.dataMembresia ?? dataDe('integrado') },
+    { n: 7, label: 'Membro', titulo: 'Membro', quandoFeito: v.dataMembresia ?? dataDe('integrado') },
   ]
 
   const feito = (n: number) => concluido || n < passoAtual
@@ -50,13 +50,13 @@ export default function Roteiro({ v }: { v: Visitante }) {
       {/* Cabeçalho */}
       <div className="jornada-cab">
         <h3>Jornada de integração</h3>
-        {concluido && <span className="badge" style={estiloStatus('integrado')}>Concluída 🎉</span>}
+        {concluido && <span className="chip-etapa" style={estiloStatus('integrado')}>Concluída</span>}
       </div>
 
       {/* Aviso de data de membresia faltando */}
       {concluido && !v.dataMembresia && (
         <div className="alerta alerta-warn" style={{ marginBottom: 14 }}>
-          ⚠️ <div>Falta a <b>data em que {v.nome.split(' ')[0]} virou membro</b> — preencha em Dados abaixo.</div>
+          <IcoAlerta size={16} /><div>Falta a <b>data em que {v.nome.split(' ')[0]} virou membro</b> — preencha em Dados abaixo.</div>
         </div>
       )}
 
@@ -160,7 +160,7 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
         )}
         {v.status === 'recusou' && (
           <div className="alerta alerta-warn" style={{ marginBottom: 10 }}>
-            ✋ <div>Pediu para não ser contatada. Se ela retornar, registre o contato.</div>
+            <IcoAlerta size={16} /><div>Pediu para não ser contatada. Se ela retornar, registre o contato.</div>
           </div>
         )}
 
@@ -269,7 +269,7 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
     const receberComoMembro = <BotaoVirarMembro v={v} primaria={jaBatizado} />
     const encaminharBatismo = (
       <button className={jaBatizado ? 'btn btn-sec' : 'btn'} onClick={() => encaminharParaBatismo(v.id)}>
-        💧 Encaminhar {primeiroNome} para o batismo
+        <IcoGota size={14} /> Encaminhar {primeiroNome} para o batismo
       </button>
     )
 
@@ -329,14 +329,14 @@ function PassoAtual({ v, passo }: { v: Visitante; passo: number }) {
             <div style={{ display: 'flex', gap: 8, alignItems: 'end', flexWrap: 'wrap' }}>
               <SeletorData datas={s.config.datasBatismo} valor={dataBatismo} onMudar={setDataBatismo} rotulo="Data do batismo" />
               <button className="btn" disabled={!dataBatismo} onClick={() => registrarBatismoRealizado(v.id, dataBatismo)}>
-                💧 Batizado(a)!
+                <IcoGota size={14} /> Batizado(a)!
               </button>
             </div>
             <div className="rot-ou">ou</div>
           </>
         ) : (
           <p className="rot-sub" style={{ marginBottom: 12 }}>
-            ✅ Batismo registrado{v.dataBatismo ? ` em ${fmtDia(v.dataBatismo)}` : ''}. Falta receber {primeiroNome} como membro.
+            <IcoCheck size={13} className="rot-ok" /> Batismo registrado{v.dataBatismo ? ` em ${fmtDia(v.dataBatismo)}` : ''}. Falta receber {primeiroNome} como membro.
           </p>
         )}
         <BotaoVirarMembro v={v} primaria={batizado} />
@@ -397,7 +397,7 @@ function BlocoAcompanhamento({ v, tipo }: { v: Visitante; tipo: TipoInteracao })
           {ultimos.map((i) => (
             <div key={i.id} className="rot-acomp-item">
               <span className="rot-acomp-data">{fmt(i.data)} · {i.autorPapel === 'lider' ? 'líder' : 'integrador(a)'}</span>
-              <span>{i.respondeu ? '💬' : '🔇'} {i.retornoResumo || (i.respondeu ? 'Respondeu' : 'Sem resposta')}</span>
+              <span>{!i.respondeu && i.retornoResumo && <b className="rot-silencio">Sem resposta · </b>}{i.retornoResumo || (i.respondeu ? 'Respondeu' : 'Sem resposta')}</span>
               {i.proximosPassos && <span className="rot-acomp-prox">→ {i.proximosPassos}</span>}
             </div>
           ))}
@@ -437,7 +437,7 @@ function BlocoAcompanhamento({ v, tipo }: { v: Visitante; tipo: TipoInteracao })
           </label>
           <label className="check">
             <input type="checkbox" checked={cuidado} onChange={(e) => setCuidado(e.target.checked)} />
-            🚨 Situação de cuidado/crise — sinalizar a liderança
+            Situação de cuidado/crise — sinalizar a liderança
           </label>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="btn" disabled={!resumo.trim()} onClick={salvar}><IcoCheck size={14} /> Salvar registro</button>
@@ -496,27 +496,27 @@ function RegistroGuiado({ v, onFechar }: { v: Visitante; onFechar: () => void })
         <p className="pergunta">Como {primeiroNome} respondeu?</p>
         <div className="opcoes-grandes">
           <button className="opcao-grande" onClick={() => setClassif('pronto')}>
-            <span className="op-emoji">✅</span>
+            <span className="op-ico op-ok"><IcoCheck size={18} /></span>
             <span><span className="op-titulo">Quer visitar o grupo!</span>
             <div className="op-desc">Vai direto para o líder, que fala com ela antes da visita</div></span>
           </button>
           <button className="opcao-grande" onClick={() => setClassif('respondeu')}>
-            <span className="op-emoji">💬</span>
+            <span className="op-ico op-acc"><IcoMensagem size={18} /></span>
             <span><span className="op-titulo">Respondeu, a conversa continua</span>
             <div className="op-desc">Segue no fluxo da semana normalmente</div></span>
           </button>
           <button className="opcao-grande" onClick={() => salvar('silencio')}>
-            <span className="op-emoji">🔇</span>
+            <span className="op-ico op-neutro"><IcoRelogio size={18} /></span>
             <span><span className="op-titulo">Não respondeu</span>
             <div className="op-desc">Registra a tentativa; tente de novo no próximo dia do fluxo</div></span>
           </button>
           <button className="opcao-grande" onClick={() => setClassif('recusa')}>
-            <span className="op-emoji">🚫</span>
+            <span className="op-ico op-warn"><IcoX size={18} /></span>
             <span><span className="op-titulo">Pediu para parar</span>
             <div className="op-desc">Encerra os contatos com gentileza — a porta segue aberta</div></span>
           </button>
           <button className="opcao-grande" onClick={() => setClassif('cuidado')}>
-            <span className="op-emoji">🚨</span>
+            <span className="op-ico op-crit"><IcoAlerta size={18} /></span>
             <span><span className="op-titulo">Situação de cuidado/crise</span>
             <div className="op-desc">Sinaliza a liderança sem interromper o registro</div></span>
           </button>

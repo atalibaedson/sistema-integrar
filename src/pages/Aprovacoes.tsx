@@ -3,8 +3,8 @@ import { useAppState, usuarioPorId } from '../store'
 import { useUsuarioAtualId, usuarioAtual } from '../acesso'
 import { aprovarIntegrante, rejeitarIntegrante } from '../actions'
 import { PAPEL_COR, PAPEL_LABEL, rotuloPapel, SITUACAO_CIVIL_LABEL, STATUS_ACESSO_LABEL, type Papel, type Usuario } from '../types'
-import { iniciais } from './Equipe'
-import { IcoCheck } from '../icones'
+import { IcoCheck, IcoEmail, IcoMapa, IcoWhats } from '../icones'
+import Avatar from '../Avatar'
 
 function idade(dataNascimento?: string): string {
   if (!dataNascimento) return ''
@@ -38,82 +38,75 @@ export default function Aprovacoes() {
 
   function Cartao({ u, acoes }: { u: Usuario; acoes: boolean }) {
     return (
-      <div className="cartao" style={{ marginBottom: 10, padding: 14 }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          {u.fotoUrl ? (
-            <img src={u.fotoUrl} alt="" style={{ width: 46, height: 46, borderRadius: '50%', objectFit: 'cover' }} />
+      <div className={`card aprov-cartao ${acoes ? 'aprov-pendente' : ''}`}>
+        <Avatar nome={u.nome} tom={PAPEL_COR[u.papeis[0]]} foto={u.fotoUrl} />
+        <div className="aprov-corpo">
+          <div className="pessoa-nome">{u.nome}<span className="aprov-idade">{idade(u.dataNascimento)}</span></div>
+          {acoes ? (
+            <div className="aprov-funcoes">
+              <span>Funções (confirme ou ajuste antes de liberar):</span>
+              <div>
+                {(Object.keys(PAPEL_LABEL) as Papel[]).map((p) => (
+                  <label key={p} className="check">
+                    <input type="checkbox" checked={papeisDe(u).includes(p)} onChange={() => alternarPapel(u, p)} />
+                    {rotuloPapel(p)}
+                  </label>
+                ))}
+              </div>
+            </div>
           ) : (
-            <div className="avatar" style={{ background: PAPEL_COR[u.papeis[0]] }}>{iniciais(u.nome)}</div>
+            <div className="cartao-tags">
+              {u.papeis.map((p) => (
+                <span key={p} className="tag" style={{ background: PAPEL_COR[p] + '18', borderColor: PAPEL_COR[p] + '40', color: PAPEL_COR[p] }}>{rotuloPapel(p)}</span>
+              ))}
+            </div>
           )}
-          <div style={{ flex: 1, minWidth: 220 }}>
-            <b>{u.nome}</b>{idade(u.dataNascimento)}
-            {acoes ? (
-              <div style={{ margin: '6px 0' }}>
-                <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 4 }}>
-                  Funções (confirme ou ajuste antes de liberar):
-                </div>
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  {(Object.keys(PAPEL_LABEL) as Papel[]).map((p) => (
-                    <label key={p} className="check" style={{ fontSize: 13 }}>
-                      <input type="checkbox" checked={papeisDe(u).includes(p)} onChange={() => alternarPapel(u, p)} />
-                      {rotuloPapel(p)}
-                    </label>
-                  ))}
+          <div className="pessoa-sub cartao-sub">
+            <span><IcoWhats size={12} /> {u.whatsapp}</span>
+            {u.email && <span><IcoEmail size={12} /> {u.email}</span>}
+            {u.bairro && <span><IcoMapa size={12} /> {u.bairro}</span>}
+            {u.situacaoCivil && <span>{SITUACAO_CIVIL_LABEL[u.situacaoCivil]}</span>}
+          </div>
+          {u.comoConheceu && <div className="pessoa-sub">Chegou por: {u.comoConheceu}</div>}
+          <div className="aprov-status">
+            {STATUS_ACESSO_LABEL[u.statusAcesso]}
+            {u.statusAcesso === 'aprovado' && u.aprovadoPorId && <> por <b>{usuarioPorId(s, u.aprovadoPorId)?.nome ?? '?'}</b></>}
+            {u.statusAcesso === 'rejeitado' && (
+              <> por <b>{usuarioPorId(s, u.rejeitadoPorId)?.nome ?? '?'}</b>{u.motivoRejeicao && <> — {u.motivoRejeicao}</>}</>
+            )}
+          </div>
+        </div>
+        {acoes && (
+          <div className="aprov-acoes">
+            <button
+              className="btn"
+              disabled={papeisDe(u).length === 0}
+              title={papeisDe(u).length === 0 ? 'Marque ao menos uma função' : undefined}
+              onClick={() => aprovarIntegrante(u.id, eu?.id, papeisDe(u))}
+            >
+              <IcoCheck size={14} /> Aprovar acesso
+            </button>
+            {rejeitando === u.id ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <input
+                  type="text" value={motivo} autoFocus placeholder="Motivo (fica registrado)"
+                  onChange={(e) => setMotivo(e.target.value)}
+                />
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    className="btn btn-perigo"
+                    onClick={() => { rejeitarIntegrante(u.id, eu?.id, motivo.trim()); setRejeitando(''); setMotivo('') }}
+                  >
+                    Confirmar rejeição
+                  </button>
+                  <button className="btn btn-sec" onClick={() => { setRejeitando(''); setMotivo('') }}>Cancelar</button>
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '4px 0' }}>
-                {u.papeis.map((p) => (
-                  <span key={p} className="badge" style={{ background: PAPEL_COR[p] + '22', color: PAPEL_COR[p] }}>{rotuloPapel(p)}</span>
-                ))}
-              </div>
+              <button className="btn btn-sec" onClick={() => { setRejeitando(u.id); setMotivo('') }}>Rejeitar…</button>
             )}
-            <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
-              📱 {u.whatsapp} · ✉️ {u.email}
-              {u.bairro && <> · 📍 {u.bairro}</>}
-              {u.situacaoCivil && <> · {SITUACAO_CIVIL_LABEL[u.situacaoCivil]}</>}
-            </div>
-            {u.comoConheceu && <div style={{ fontSize: 13, color: 'var(--text-2)' }}>Chegou por: {u.comoConheceu}</div>}
-            <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>
-              {STATUS_ACESSO_LABEL[u.statusAcesso]}
-              {u.statusAcesso === 'aprovado' && u.aprovadoPorId && <> por <b>{usuarioPorId(s, u.aprovadoPorId)?.nome ?? '?'}</b></>}
-              {u.statusAcesso === 'rejeitado' && (
-                <> por <b>{usuarioPorId(s, u.rejeitadoPorId)?.nome ?? '?'}</b>{u.motivoRejeicao && <> — {u.motivoRejeicao}</>}</>
-              )}
-            </div>
           </div>
-          {acoes && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <button
-                className="btn"
-                disabled={papeisDe(u).length === 0}
-                title={papeisDe(u).length === 0 ? 'Marque ao menos uma função' : undefined}
-                onClick={() => aprovarIntegrante(u.id, eu?.id, papeisDe(u))}
-              >
-                <IcoCheck size={14} /> Aprovar acesso
-              </button>
-              {rejeitando === u.id ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <input
-                    type="text" value={motivo} autoFocus placeholder="Motivo (fica registrado)"
-                    onChange={(e) => setMotivo(e.target.value)}
-                  />
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button
-                      className="btn btn-sec"
-                      onClick={() => { rejeitarIntegrante(u.id, eu?.id, motivo.trim()); setRejeitando(''); setMotivo('') }}
-                    >
-                      Confirmar rejeição
-                    </button>
-                    <button className="btn btn-sec" onClick={() => { setRejeitando(''); setMotivo('') }}>Cancelar</button>
-                  </div>
-                </div>
-              ) : (
-                <button className="btn btn-sec" onClick={() => { setRejeitando(u.id); setMotivo('') }}>Rejeitar…</button>
-              )}
-            </div>
-          )}
-        </div>
+        )}
       </div>
     )
   }
@@ -126,14 +119,14 @@ export default function Aprovacoes() {
         Ministerial ou Gestão Integração podem aprovar.
       </p>
 
-      <h3 style={{ margin: '18px 0 8px' }}>⏳ Aguardando aprovação ({pendentes.length})</h3>
-      {pendentes.length === 0 && <p style={{ color: 'var(--text-2)' }}>Ninguém aguardando aprovação no momento. 🎉</p>}
+      <div className="painel-secao-cab"><h2>Aguardando aprovação <span className="painel-contagem">{pendentes.length}</span></h2></div>
+      {pendentes.length === 0 && <div className="card"><div className="painel-vazio">Ninguém aguardando aprovação no momento.</div></div>}
       {pendentes.map((u) => <Cartao key={u.id} u={u} acoes />)}
 
       {aindaSemEmail.length > 0 && (
         <>
-          <h3 style={{ margin: '18px 0 8px' }}>📬 Ainda confirmando o e-mail ({aindaSemEmail.length})</h3>
-          <p style={{ fontSize: 13, color: 'var(--text-2)' }}>
+          <div className="painel-secao-cab aprov-secao"><h2>Ainda confirmando o e-mail <span className="painel-contagem">{aindaSemEmail.length}</span></h2></div>
+          <p className="descricao-secao" style={{ marginTop: -4 }}>
             Estas pessoas se cadastraram mas ainda não clicaram no link de confirmação — a aprovação
             libera quando confirmarem.
           </p>
@@ -143,7 +136,7 @@ export default function Aprovacoes() {
 
       {decididos.length > 0 && (
         <>
-          <h3 style={{ margin: '18px 0 8px' }}>🗂 Decisões recentes</h3>
+          <div className="painel-secao-cab aprov-secao"><h2>Decisões recentes</h2></div>
           {decididos.map((u) => <Cartao key={u.id} u={u} acoes={false} />)}
         </>
       )}

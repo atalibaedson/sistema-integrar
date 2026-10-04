@@ -3,7 +3,7 @@ import { comExclusoes, lideres, setEstado, uid, useAppState } from '../../store'
 import { type Conexao } from '../../types'
 import { toast } from '../../toast'
 import { confirmar } from '../../confirmar'
-import { IcoAlerta, IcoBusca, IcoCalendario, IcoCasa, IcoCheck, IcoEditar, IcoLixeira, IcoMais, IcoMapa, IcoUsuario } from '../../icones'
+import { IcoAlerta, IcoBusca, IcoLampada, IcoCalendario, IcoCasa, IcoCheck, IcoEditar, IcoLixeira, IcoMais, IcoMapa, IcoUsuario } from '../../icones'
 import { salvarConfig, semAcento, useRascunho } from './comum'
 
 /* ---------------- Aba: Grupos ---------------- */
@@ -650,7 +650,7 @@ function FormConexao({ onPronto }: { onPronto: () => void }) {
       )}
       {!duplicado && parecidos.length > 0 && (
         <div className="alerta alerta-info" style={{ marginTop: 0 }}>
-          💡 <div>Grupos parecidos já cadastrados: {parecidos.map((c) => c.nome).join(', ')}. Confira se não é o mesmo.</div>
+          <IcoLampada size={16} /><div>Grupos parecidos já cadastrados: {parecidos.map((c) => c.nome).join(', ')}. Confira se não é o mesmo.</div>
         </div>
       )}
       <label className="campo"><span>Endereço <em className="campo-dica">(onde o grupo se reúne)</em></span>
