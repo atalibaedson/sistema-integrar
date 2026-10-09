@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import fonteAlertas from '../alertas.ts?raw'
 import fonteRegras from '../regras-acesso.ts?raw'
 import fonteTipos from '../types.ts?raw'
+import fonteMembros from '../regras-membros.ts?raw'
 import copiaAlertas from '../../supabase/functions/_shared/alertas.ts?raw'
 import copiaRegras from '../../supabase/functions/_shared/regras-acesso.ts?raw'
 import copiaTipos from '../../supabase/functions/_shared/types.ts?raw'
+import copiaMembros from '../../supabase/functions/_shared/regras-membros.ts?raw'
 
 // As cópias em supabase/functions/_shared são geradas por
 // scripts/sincronizar-servidor.mjs. Se alguém muda a regra dos avisos no app e
@@ -18,6 +20,7 @@ describe('cópias do servidor', () => {
     ['alertas', fonteAlertas, copiaAlertas],
     ['regras-acesso', fonteRegras, copiaRegras],
     ['types', fonteTipos, copiaTipos],
+    ['regras-membros', fonteMembros, copiaMembros],
   ]
   for (const [nome, fonte, copia] of pares) {
     it(`${nome}.ts está sincronizado — se falhar, rode: npm run sincronizar:servidor`, () => {

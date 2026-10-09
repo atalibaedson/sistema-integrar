@@ -5,7 +5,11 @@ import { aplicarTransicao, mesesDesde } from './machine'
 import { comExclusoes, consolidadoresAtivos, estadoEhVirgem, getEstado, interacoesDe, primeiraGestaoIntegracao, setEstado, sincronizarAgora, uid } from './store'
 import { registrarAuditoria } from './auditoria'
 import { getUsuarioAtualId, usuarioAtual } from './acesso'
-import { aguardarVinculoIgreja, supabase } from './supabaseClient'
+import { aguardarVinculoIgreja, aprovarNoServidor, getSessaoReal, solicitarAcesso, supabase, virarPrimeiroAdminNoServidor, type ResultadoServidor } from './supabaseClient'
+import { getConfigNuvem } from './nuvem'
+import { urlDoApp } from './urlApp'
+import { montarMetadadosCadastro } from './metadadosCadastro'
+import { guardarFotoPendente, lerFotoPendente, limparFotoPendente } from './fotoPendente'
 
 export interface NovoVisitanteInput {
   nome: string
@@ -519,6 +523,14 @@ export function proximoTipoContato(s: AppState, v: Visitante): Interacao['tipo']
 }
 
 // ---- Cadastro de integrante do ministério (login real) ----
+//
+// A conta e a ficha são criadas em dois tempos, porque com a confirmação de e-mail
+// ligada NÃO há sessão logo após o `signUp`:
+//   1) aqui: cria a conta mandando o pedido nos metadados (padrão combinado com o
+//      Check-iFE e o Louvor) e o e-mail de confirmação, que volta para este site;
+//   2) no primeiro acesso já confirmado: o servidor (função `acesso-membro`) cria a
+//      ficha PENDENTE a partir desses metadados — ver AguardandoAprovacao.tsx.
+// A liderança aprova depois; só então a conta ganha vínculo com a igreja.
 
 export interface NovoIntegranteInput {
   nome: string
@@ -527,7 +539,7 @@ export interface NovoIntegranteInput {
   senha: string
   dataNascimento?: string
   situacaoCivil?: SituacaoCivil
-  conexaoId?: string // de qual Conexão/grupo a pessoa faz parte
+  conexao: string // id da conexão de que participa, ou 'nenhuma'
   fotoArquivo?: File
   papeis: Papel[]
   loginPreferido: 'email' | 'whatsapp'
@@ -537,37 +549,44 @@ export interface NovoIntegranteInput {
 export interface ResultadoCadastroIntegrante {
   ok: boolean
   erro?: string
-  usuarioId?: string
-  sincronizado?: boolean // o cadastro já chegou à nuvem (a liderança vai vê-lo)
+  precisaConfirmar?: boolean // o e-mail de confirmação foi enviado; a ficha nasce depois do clique
+  pedidoEnviado?: boolean // sem confirmação ligada: o pedido já chegou à liderança
+  email?: string
 }
 
-// Autocadastro completo: cria/atualiza o Usuario, sobe a foto, cria a conta no
-// Supabase Auth e deixa o acesso pendente de aprovação pela liderança.
-export async function cadastrarIntegrante(input: NovoIntegranteInput): Promise<ResultadoCadastroIntegrante> {
-  if (!supabase) return { ok: false, erro: 'Sincronização online não configurada — o cadastro com senha precisa dela.' }
-  const s = getEstado()
-  const whats = normalizarWhats(input.whatsapp)
-  const email = input.email.trim().toLowerCase()
+async function enviarFoto(arquivo: Blob, nomeOriginal = 'foto.jpg'): Promise<string | undefined> {
+  if (!supabase) return undefined
+  try {
+    const ext = (nomeOriginal.split('.').pop() || 'jpg').toLowerCase()
+    const caminho = `${uid()}-${Date.now()}.${ext}`
+    const up = await supabase.storage.from('avatares').upload(caminho, arquivo, { upsert: true })
+    if (up.error) return undefined
+    return supabase.storage.from('avatares').getPublicUrl(caminho).data.publicUrl
+  } catch {
+    return undefined // foto é opcional: falha no upload não impede o cadastro
+  }
+}
 
-  // Dedup: quem já é da equipe (cadastrado pela liderança) é atualizado no
-  // lugar; quem já tem conta de login é orientado a entrar. Pelo WhatsApp só
-  // quando o primeiro nome também bate: um casal que divide o número (e lidera
-  // junto) são DUAS pessoas — antes, a segunda a se cadastrar sobrescrevia a
-  // ficha da primeira, que "sumia" da equipe.
-  const primeiroNome = normalizarTexto(input.nome.trim().split(/\s+/)[0] ?? '')
-  const mesmoPrimeiroNome = (u: Usuario) => normalizarTexto(u.nome.trim().split(/\s+/)[0] ?? '') === primeiroNome
-  const existente =
-    s.usuarios.find((u) => (u.email ?? '').trim().toLowerCase() === email) ??
-    s.usuarios.find((u) => whats.length >= 10 && normalizarWhats(u.whatsapp) === whats && mesmoPrimeiroNome(u))
-  if (existente?.authUserId) {
-    return { ok: false, erro: 'Já existe uma conta com esse WhatsApp ou e-mail. Use a tela "Entrar" — ou "Esqueci a senha".' }
+export async function criarContaIntegrante(input: NovoIntegranteInput): Promise<ResultadoCadastroIntegrante> {
+  if (!supabase) return { ok: false, erro: 'Sincronização online não configurada — o cadastro com senha precisa dela.' }
+  const email = input.email.trim().toLowerCase()
+  const igrejaId = getConfigNuvem()?.igrejaId ?? ''
+
+  // Foto: sobe agora se já houver sessão; senão fica guardada neste aparelho para o 1º acesso
+  let fotoUrl: string | undefined
+  if (input.fotoArquivo) {
+    fotoUrl = await enviarFoto(input.fotoArquivo, input.fotoArquivo.name)
+    if (!fotoUrl) await guardarFotoPendente(email, input.fotoArquivo)
   }
 
-  // 1) Conta no Supabase Auth — confirmação de e-mail desabilitada no projeto;
-  //    a conta fica pendente de aprovação da liderança.
   const { data, error } = await supabase.auth.signUp({
     email,
     password: input.senha,
+    options: {
+      // o link do e-mail volta para o Integrar desta igreja (precisa estar em "Redirect URLs")
+      emailRedirectTo: urlDoApp(),
+      data: montarMetadadosCadastro({ ...input, igrejaId, fotoUrl }),
+    },
   })
   if (error) {
     const msg = /already registered/i.test(error.message)
@@ -575,70 +594,36 @@ export async function cadastrarIntegrante(input: NovoIntegranteInput): Promise<R
       : `Não foi possível criar a conta: ${error.message}`
     return { ok: false, erro: msg }
   }
-  // Vínculo com a igreja (RLS por igreja) ANTES de gravar a ficha: com o RLS
-  // ativo, sincronizar sem ele seria recusado e o cadastro podia não chegar à
-  // liderança. A mesma chamada do onAuthStateChange — aqui só a aguardamos.
-  if (data.session && data.user?.id) await aguardarVinculoIgreja(data.user.id)
+  // Com a confirmação de e-mail ligada, o Supabase NÃO acusa e-mail repetido (para não
+  // revelar quem tem conta): devolve um usuário "vazio", sem identidades.
+  if (data.user && (data.user.identities?.length ?? 1) === 0) {
+    return { ok: false, erro: 'Esse e-mail já tem uma conta (aqui, no Louvor ou no Check-iFE). Entre com a mesma senha — ou use "Esqueci a senha".' }
+  }
 
-  // 2) Foto de perfil (opcional) — bucket público "avatares"
+  // Confirmação de e-mail desligada: já há sessão, então o pedido segue na hora.
+  if (data.session) {
+    await aguardarVinculoIgreja(data.user!.id) // consulta o servidor (ainda sem ficha)
+    const r = await solicitarAcesso({ automatico: true })
+    if (!r.ok) return { ok: false, erro: r.erro ?? 'Não foi possível enviar o seu pedido de acesso. Tente de novo.' }
+    limparFotoPendente(email)
+    return { ok: true, pedidoEnviado: true, email }
+  }
+  return { ok: true, precisaConfirmar: true, email }
+}
+
+/**
+ * No primeiro acesso confirmado: cria a ficha PENDENTE no servidor a partir dos
+ * metadados do cadastro (e da foto guardada neste aparelho, se houver).
+ */
+export async function pedirAcessoAutomatico(email?: string): Promise<ResultadoServidor> {
   let fotoUrl: string | undefined
-  if (input.fotoArquivo) {
-    try {
-      const ext = (input.fotoArquivo.name.split('.').pop() || 'jpg').toLowerCase()
-      const caminho = `${existente?.id ?? uid()}-${Date.now()}.${ext}`
-      const up = await supabase.storage.from('avatares').upload(caminho, input.fotoArquivo, { upsert: true })
-      if (!up.error) fotoUrl = supabase.storage.from('avatares').getPublicUrl(caminho).data.publicUrl
-    } catch {
-      // foto é opcional: falha no upload não impede o cadastro
-    }
+  if (email) {
+    const foto = await lerFotoPendente(email)
+    if (foto) fotoUrl = await enviarFoto(foto)
   }
-
-  const agora = new Date().toISOString()
-  const dados: Partial<Usuario> = {
-    nome: input.nome.trim(),
-    whatsapp: input.whatsapp.trim(),
-    email,
-    dataNascimento: input.dataNascimento || undefined,
-    situacaoCivil: input.situacaoCivil,
-    conexaoId: input.conexaoId || undefined,
-    fotoUrl,
-    authUserId: data.user?.id,
-    statusAcesso: 'pendente_aprovacao' as StatusAcesso,
-    loginPreferido: input.loginPreferido,
-    cadastroCompletoEm: agora,
-  }
-
-  let usuarioId: string
-  if (existente) {
-    usuarioId = existente.id
-    setEstado((st) => ({
-      ...st,
-      usuarios: st.usuarios.map((u) =>
-        u.id === existente.id
-          ? { ...u, ...dados, papeis: [...new Set([...u.papeis, ...input.papeis])] }
-          : u,
-      ),
-    }))
-  } else {
-    usuarioId = uid()
-    const gestor = input.papeis.includes('consolidador') ? primeiraGestaoIntegracao(s) : undefined
-    const novo: Usuario = {
-      id: usuarioId,
-      papeis: input.papeis,
-      ativo: true,
-      supervisorId: gestor?.id,
-      ...(dados as Omit<Usuario, 'id' | 'papeis' | 'ativo'>),
-    } as Usuario
-    setEstado((st) => ({ ...st, usuarios: [...st.usuarios, novo] }))
-  }
-  registrarAuditoria('📝 Integrante fez o autocadastro', {
-    alvoTipo: 'usuario', alvoId: usuarioId, alvoNome: input.nome.trim(),
-    detalhe: `Funções: ${input.papeis.join(', ')} · aguardando aprovação da liderança`,
-  })
-  // A pessoa costuma fechar a página logo depois — garante que o cadastro
-  // saiu deste aparelho antes de mostrar "recebido".
-  const sincronizado = await sincronizarAgora()
-  return { ok: true, usuarioId, sincronizado }
+  const r = await solicitarAcesso({ automatico: true, ficha: fotoUrl ? { fotoUrl } : undefined })
+  if (r.ok && email) limparFotoPendente(email)
+  return r
 }
 
 // ---- Bootstrap do primeiro administrador ----
@@ -685,22 +670,27 @@ export function existeAdminAprovado(s: AppState): boolean {
   )
 }
 
-export function ativarPrimeiroAdmin(usuarioId: string): boolean {
-  const s = getEstado()
-  if (existeAdminAprovado(s)) return false // já há admin — não é mais bootstrap
-  const alvo = s.usuarios.find((u) => u.id === usuarioId)
-  if (!alvo) return false
+export async function ativarPrimeiroAdmin(): Promise<{ ok: boolean; erro?: string }> {
+  // O servidor confere que a igreja ainda não tem administrador aprovado e libera o
+  // vínculo (sem ele esta conta não lê o bloco da igreja, onde está a própria ficha).
+  const r = await virarPrimeiroAdminNoServidor()
+  if (!r.ok) return { ok: false, erro: r.erro }
+  await sincronizarAgora() // agora há vínculo: traz o bloco, com a ficha criada pelo servidor
+  const sessao = getSessaoReal()
+  const alvo = getEstado().usuarios.find((u) => !!sessao && u.authUserId === sessao.userId)
+  if (!alvo) return { ok: false, erro: 'O acesso foi liberado, mas não encontramos a sua ficha. Recarregue a página.' }
   const agora = new Date().toISOString()
   setEstado((st) => ({
     ...st,
     usuarios: st.usuarios.map((u) =>
-      u.id === usuarioId
+      u.id === alvo.id
         ? { ...u, ativo: true, statusAcesso: 'aprovado' as StatusAcesso, papeis: [...new Set<Papel>([...u.papeis, 'coordenacao'])], aprovadoPorId: u.id, aprovadoEm: agora, motivoRejeicao: undefined }
         : u,
     ),
   }))
-  registrarAuditoria('🔓 Ativou a 1ª conta de administrador (bootstrap)', { alvoTipo: 'usuario', alvoId: usuarioId, alvoNome: alvo.nome })
-  return true
+  registrarAuditoria('🔓 Ativou a 1ª conta de administrador (bootstrap)', { alvoTipo: 'usuario', alvoId: alvo.id, alvoNome: alvo.nome })
+  await sincronizarAgora()
+  return { ok: true }
 }
 
 // Aprovação: somente Pastores/Gestão Ministerial e Gestão Integração (a tela
@@ -708,10 +698,22 @@ export function ativarPrimeiroAdmin(usuarioId: string): boolean {
 // `papeisFinais` (opcional): funções confirmadas/ajustadas pela liderança no
 // momento da aprovação. Se vier preenchido, substitui o que a pessoa pediu no
 // cadastro — assim ninguém se autoconcede um papel (ex.: Pastor) sem revisão.
-export function aprovarIntegrante(usuarioId: string, aprovadorId?: string, papeisFinais?: Papel[]) {
+//
+// É o SERVIDOR que libera o acesso da pessoa à igreja (vínculo): ele confere que
+// quem aprova é Pastor/Gestão aprovado. Sem esse vínculo, "aprovado" aqui não abriria
+// nada — por isso, se o servidor recusar (ou não responder), a aprovação NÃO é gravada.
+export async function aprovarIntegrante(
+  usuarioId: string, aprovadorId?: string, papeisFinais?: Papel[],
+): Promise<{ ok: boolean; erro?: string }> {
   const agora = new Date().toISOString()
   const alvo = getEstado().usuarios.find((u) => u.id === usuarioId)
   const nome = alvo?.nome ?? '?'
+  // Ficha criada pela liderança, sem conta de login ainda: não há o que vincular
+  // (o vínculo nasce no primeiro acesso dela, já aprovada).
+  if (alvo?.authUserId) {
+    const r = await aprovarNoServidor(alvo.authUserId)
+    if (!r.ok) return { ok: false, erro: r.erro }
+  }
   const papeis = papeisFinais && papeisFinais.length > 0 ? papeisFinais : undefined
   setEstado((s) => ({
     ...s,
@@ -726,6 +728,7 @@ export function aprovarIntegrante(usuarioId: string, aprovadorId?: string, papei
     alvoTipo: 'usuario', alvoId: usuarioId, alvoNome: nome,
     detalhe: ajustou ? `Funções ajustadas para: ${papeis.map((p) => rotuloPapel(p)).join(', ')}` : undefined,
   })
+  return { ok: true }
 }
 
 export function rejeitarIntegrante(usuarioId: string, rejeitadorId: string | undefined, motivo: string) {

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { toast } from '../toast'
 import { useAppState, usuarioPorId } from '../store'
 import { useUsuarioAtualId, usuarioAtual } from '../acesso'
 import { aprovarIntegrante, rejeitarIntegrante } from '../actions'
@@ -19,9 +20,17 @@ export default function Aprovacoes() {
   const eu = usuarioAtual(s, useUsuarioAtualId())
   const [rejeitando, setRejeitando] = useState('') // id do usuário com o campo de motivo aberto
   const [motivo, setMotivo] = useState('')
+  const [aprovando, setAprovando] = useState('') // id de quem está sendo liberado (o servidor confere e libera o acesso)
   // Funções ajustadas pela liderança, por usuário (partem do que a pessoa pediu)
   const [papeisEdit, setPapeisEdit] = useState<Record<string, Papel[]>>({})
   const papeisDe = (u: Usuario): Papel[] => papeisEdit[u.id] ?? u.papeis
+  async function aprovar(u: Usuario) {
+    setAprovando(u.id)
+    const r = await aprovarIntegrante(u.id, eu?.id, papeisDe(u))
+    setAprovando('')
+    if (!r.ok) toast(r.erro ?? 'Não foi possível liberar o acesso. Tente de novo.', 'erro')
+    else toast(`Acesso de ${u.nome} liberado`)
+  }
   function alternarPapel(u: Usuario, p: Papel) {
     const atual = papeisDe(u)
     const novo = atual.includes(p) ? atual.filter((x) => x !== p) : [...atual, p]
@@ -80,11 +89,11 @@ export default function Aprovacoes() {
           <div className="aprov-acoes">
             <button
               className="btn"
-              disabled={papeisDe(u).length === 0}
+              disabled={papeisDe(u).length === 0 || aprovando === u.id}
               title={papeisDe(u).length === 0 ? 'Marque ao menos uma função' : undefined}
-              onClick={() => aprovarIntegrante(u.id, eu?.id, papeisDe(u))}
+              onClick={() => void aprovar(u)}
             >
-              <IcoCheck size={14} /> Aprovar acesso
+              <IcoCheck size={14} /> {aprovando === u.id ? 'Liberando…' : 'Aprovar acesso'}
             </button>
             {rejeitando === u.id ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

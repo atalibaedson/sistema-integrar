@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { urlDoApp } from '../urlApp'
 import { normalizarWhats } from '../actions'
 import { useAppState } from '../store'
-import { supabase } from '../supabaseClient'
+import { lerAvisoDoLink, supabase } from '../supabaseClient'
 import type { Usuario } from '../types'
 import TelaPublica from '../TelaPublica'
 import { IcoOlho, IcoOlhoFechado } from '../icones'
@@ -23,7 +24,8 @@ export default function Entrar() {
   const [entrando, setEntrando] = useState(false)
   const [mostrarSenha, setMostrarSenha] = useState(false)
   const [erro, setErro] = useState('')
-  const [aviso, setAviso] = useState('')
+  const [aviso, setAviso] = useState(() => lerAvisoDoLink()) // link do e-mail vencido, por exemplo
+  const [naoConfirmado, setNaoConfirmado] = useState('') // e-mail que ainda não confirmou o cadastro
 
   // Resolve o identificador digitado para o e-mail da conta
   function resolverEmail(): string | null {
@@ -58,6 +60,7 @@ export default function Entrar() {
     e.preventDefault()
     setErro('')
     setAviso('')
+    setNaoConfirmado('')
     if (!supabase) {
       setErro('Sincronização online não configurada — o login precisa dela.')
       return
@@ -73,7 +76,8 @@ export default function Entrar() {
     setEntrando(false)
     if (error) {
       if (/email not confirmed/i.test(error.message)) {
-        setErro('Seu e-mail ainda não foi confirmado. Procure o link na sua caixa de entrada (ou no spam).')
+        setNaoConfirmado(email)
+        setErro('Seu e-mail ainda não foi confirmado. Procure o link que enviamos na caixa de entrada (ou no spam) — ou peça um novo abaixo.')
       } else if (/invalid login credentials/i.test(error.message)) {
         setErro('E-mail/WhatsApp ou senha incorretos.')
       } else {
@@ -85,6 +89,16 @@ export default function Entrar() {
     // tela em branco por corrida entre o roteador (hash) e o estado de login.
     window.location.hash = '/'
     window.location.reload()
+  }
+
+  async function reenviarConfirmacao() {
+    if (!supabase || !naoConfirmado) return
+    const { error } = await supabase.auth.resend({ type: 'signup', email: naoConfirmado, options: { emailRedirectTo: urlDoApp() } })
+    setErro('')
+    setAviso(error
+      ? `Não foi possível reenviar agora: ${error.message}`
+      : `Enviamos um novo link de confirmação para ${mascarar(naoConfirmado)}. Procure na caixa de entrada (ou no spam).`)
+    setNaoConfirmado('')
   }
 
   async function esqueciSenha() {
@@ -99,7 +113,7 @@ export default function Entrar() {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       // Volta para a raiz do site: o app detecta o token de recuperação e
       // abre a tela de nova senha (ver supabaseClient.ts).
-      redirectTo: window.location.origin + window.location.pathname,
+      redirectTo: urlDoApp(),
     })
     // E-mail mascarado: quando a pessoa digita o WhatsApp, não expomos o
     // e-mail completo da conta encontrada.
@@ -117,6 +131,11 @@ export default function Entrar() {
         <p className="login-intro">Entre com o e-mail ou o WhatsApp da sua conta para acompanhar os visitantes.</p>
 
         {erro && <div className="alerta alerta-warn">⚠️ <div>{erro}</div></div>}
+        {naoConfirmado && (
+          <p style={{ margin: '-4px 0 12px' }}>
+            <button type="button" className="btn btn-sec btn-mini" onClick={() => void reenviarConfirmacao()}>Reenviar e-mail de confirmação</button>
+          </p>
+        )}
         {aviso && <div className="alerta">ℹ️ <div>{aviso}</div></div>}
 
         <form onSubmit={entrar} className="login-form">

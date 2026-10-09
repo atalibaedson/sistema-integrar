@@ -499,11 +499,14 @@ function CartaoConexao({ c }: { c: Conexao }) {
   }
 
   async function remover() {
-    if (!(await confirmar({ titulo: 'Remover grupo', mensagem: `Remover o grupo "${c.nome}"? Visitantes ligados a ele ficam sem grupo.`, confirmar: 'Remover', perigo: true }))) return
+    if (!(await confirmar({ titulo: 'Remover grupo', mensagem: `Remover o grupo "${c.nome}"? Visitantes ligados a ele ficam sem grupo.\n\n⚠️ O Check-iFE guarda o código deste grupo no cadastro de cada pessoa: quem participa dele terá de escolher outro grupo lá. Para só mudar o nome, basta editar — o código não muda.`, confirmar: 'Remover', perigo: true }))) return
     setEstado((st) => comExclusoes({
       ...st,
       conexoes: st.conexoes.filter((x) => x.id !== c.id),
-      usuarios: st.usuarios.map((u) => u.conexaoId === c.id ? { ...u, conexaoId: undefined } : u),
+      usuarios: st.usuarios.map((u) =>
+        u.conexaoId === c.id || u.conexaoParticipaId === c.id
+          ? { ...u, conexaoId: u.conexaoId === c.id ? undefined : u.conexaoId, conexaoParticipaId: u.conexaoParticipaId === c.id ? undefined : u.conexaoParticipaId }
+          : u),
     }, 'conexao', [c.id]))
     toast('Grupo removido', 'info')
   }

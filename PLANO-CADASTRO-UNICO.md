@@ -1,7 +1,10 @@
 # Plano — cadastro único (Integrar · Louvor · Check-iFE) e confirmação de e-mail
 
-> **Status: só análise e plano.** Nada aqui foi implementado nem executado em produção.
-> Os trechos de SQL são **rascunhos** (não foram rodados em lugar nenhum).
+> **Status (atualizado em 2026-10-09):** a seção 1 (cadastro com confirmação de e-mail), o furo do vínculo
+> e o item 3.5 (exclusão de conta) foram **implementados** — ver `IMPLANTACAO-CADASTRO-UNICO.md`.
+> A função de conexões da seção 2 **não** foi criada: o Check-iFE usa a `conexoes_publicas` existente.
+> Continua só plano: a seção 3.6 (dados básicos vindos do Check-iFE, "fase seguinte").
+> Os trechos de SQL desta página são **rascunhos** (não foram rodados em lugar nenhum).
 > Regras deste trabalho: não mexer nos objetos do Louvor (`louvor_*`, bucket `guias`) nem
 > nos do Check-iFE; não rodar SQL em produção sem ok; o Integrar só altera o que é dele.
 

@@ -65,6 +65,11 @@ aprovação de conta e aplica a identidade da igreja (cores + rótulos).
 - `acesso.ts` — controle de acesso por papel/hierarquia (quem vê/acessa o quê). As regras
   PURAS (supervisiona, podeVerVisitante, podeVerCuidado…) ficam em `regras-acesso.ts`
   (o servidor usa a mesma) e são reexportadas por `acesso.ts`.
+- `regras-membros.ts` — regras PURAS de quem entra na igreja (achar a ficha da conta, quem pode aprovar,
+  ler o pedido de acesso, criar a ficha **pendente**). Testado; cópia em `supabase/functions/_shared/`.
+- `metadadosCadastro.ts` (metadados do `signUp`, padrão combinado com Louvor e Check-iFE), `retornoLink.ts`
+  (retorno dos links de e-mail: `?code=`, `#access_token=`, `?token_hash=`), `urlApp.ts` (endereço do app para
+  os links dos e-mails), `fotoPendente.ts` (foto guardada até o e-mail ser confirmado).
 - `auditoria.ts` — trilha de auditoria (LGPD): quem fez o quê, quando.
 
 ### Apoio
@@ -121,8 +126,26 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe/` (pasta: `index` lista + resum
 - Cuidado/crise só vai para quem `podeVerCuidado` (pastores + responsável).
 - Runbook do push (VAPID, SQL 08, cron): `IMPLANTACAO-ALERTAS-PUSH.md`.
 
+### Acesso à igreja (não quebrar)
+
+- O vínculo `membros_igreja` libera a leitura do bloco `estados` (cuidado pastoral, crises). **Só nasce
+  quando a liderança aprova**, e quem confere é o servidor: Edge Function `acesso-membro` (`status`, `solicitar`,
+  `aprovar`, `primeiro_admin`). **Nunca** crie vínculo a partir do navegador nem em função que aceite o
+  usuário vindo do corpo da chamada; derive-o do token.
+- Conta pendente não lê o bloco: a tela de espera (`AguardandoAprovacao`) usa o status do servidor
+  (`useAcessoConta` em `supabaseClient.ts`), não a ficha local.
+- O cadastro funciona com a confirmação de e-mail ligada ou desligada: a ficha vai nos metadados do
+  `signUp` e o servidor a cria **pendente** no primeiro acesso confirmado.
+- O login é **um só para os três sistemas** (Integrar, Louvor, Check-iFE): excluir um integrante apaga a conta
+  nos três (a tela avisa). Não crie/altere objetos do Check-iFE (`pessoas`…, `checkife_*`) nem do Louvor (`louvor_*`, `guias`).
+- O `id` de uma Conexão **nunca muda** (o Check-iFE guarda o id); renomear pode. `Usuario.conexaoId` = grupo que lidera;
+  `Usuario.conexaoParticipaId` = grupo de que participa.
+- Runbook: `IMPLANTACAO-CADASTRO-UNICO.md`.
+
 ### Servidor (Supabase — implantação manual)
 - `supabase/functions/cadastrar-visitante/` — grava o autocadastro no servidor.
+- `supabase/functions/acesso-membro/` — status/pedido/aprovação de acesso (vínculo com a igreja);
+  `registrar-membro/` (só liga quem já foi aprovado) e `deletar-usuario-auth/` (só Pastor/Gestão aprovado).
 - `supabase/functions/alertas-push/` — inscrições e envio dos pushes (rotina agendada a
   cada 30 min); usa `_shared/` (cópia das regras dos avisos). `supabase/sql/08_alertas_push.sql`.
 - `supabase/sql/01..04_*.sql` — RPCs (append atômico, config pública), backup e
@@ -157,7 +180,7 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe/` (pasta: `index` lista + resum
 
 Na raiz há especificações e manual longos — só consulte quando a tarefa pedir:
 `Consolidacao-iFE-Especificacao.md`, `PADRAO-SISTEMA-INTEGRACAO.md`, `manual/manual.html`,
-`IMPLANTACAO-ALERTAS-PUSH.md`,
+`IMPLANTACAO-ALERTAS-PUSH.md`, `IMPLANTACAO-CADASTRO-UNICO.md`, `PLANO-CADASTRO-UNICO.md`,
 `README.md`, `SUPABASE.md`, `SUPABASE-AUTH.md`.
 
 ## Manual do usuário

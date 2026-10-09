@@ -297,7 +297,10 @@ export interface Usuario {
   email?: string
   papeis: Papel[] // uma pessoa pode exercer várias funções ao mesmo tempo
   ativo: boolean
-  conexaoId?: string // apenas para líderes
+  conexaoId?: string // grupo que a pessoa LIDERA (só líderes)
+  // Grupo de que a pessoa PARTICIPA, escolhido no cadastro (padrão combinado com o
+  // Check-iFE: id da conexão). É outra coisa: participar não faz ninguém líder.
+  conexaoParticipaId?: string
   supervisorId?: string // quem está acima na hierarquia (vê o fluxo desta pessoa)
 
   // Cadastro completo (autocadastro de integrante)

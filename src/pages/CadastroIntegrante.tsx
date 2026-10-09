@@ -1,16 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
-import { cadastrarIntegrante } from '../actions'
+import { criarContaIntegrante } from '../actions'
 import { carregarConexoesPublicas, carregarConfigPublica, estadoEhVirgem, useAppState } from '../store'
 import type { ConexaoPublica } from '../nuvem'
-import { PAPEL_COR, PAPEL_LABEL, rotuloPapel, SITUACAO_CIVIL_LABEL, type Papel, type SituacaoCivil } from '../types'
-import { PAPEL_DESC } from '../papeis'
+import { SITUACAO_CIVIL_LABEL, type Papel, type SituacaoCivil } from '../types'
 import { SeletorData } from '../campos'
+import SeletorFuncoes from '../SeletorFuncoes'
+import { supabase } from '../supabaseClient'
+import { urlDoApp } from '../urlApp'
+import { IcoEmail } from '../icones'
 import TelaPublica from '../TelaPublica'
 
 const ETAPAS = ['Seus dados', 'Funções e foto', 'Seu acesso'] as const
 
 // Cadastro público de integrante — assistente em 3 passos.
-// Fluxo: preencher → aguardar aprovação da liderança (sem confirmação de e-mail).
+// Fluxo: preencher → confirmar o e-mail (quando a confirmação está ligada no projeto)
+// → aguardar a aprovação da liderança. Ver criarContaIntegrante em actions.ts.
 export default function CadastroIntegrante() {
   const s = useAppState()
   const termoGrupo = s.config.termoGrupo?.trim() || 'Conexão'
@@ -35,7 +39,7 @@ export default function CadastroIntegrante() {
   const [email, setEmail] = useState('')
   const [dataNascimento, setDataNascimento] = useState('')
   const [situacao, setSituacao] = useState<SituacaoCivil | ''>('')
-  const [conexaoId, setConexaoId] = useState('')
+  const [conexao, setConexao] = useState('') // id, 'nenhuma' ou '' (ainda não escolheu)
   const [papeis, setPapeis] = useState<Papel[]>([])
   const [loginPreferido, setLoginPreferido] = useState<'email' | 'whatsapp'>('email')
   const [senha, setSenha] = useState('')
@@ -44,14 +48,18 @@ export default function CadastroIntegrante() {
   const [fotoPreview, setFotoPreview] = useState('')
   const [consentimento, setConsentimento] = useState(false)
   const [enviando, setEnviando] = useState(false)
-  const [enviado, setEnviado] = useState(false)
-  const [naoSincronizou, setNaoSincronizou] = useState(false)
+  const [enviado, setEnviado] = useState<'confirmar' | 'pedido' | null>(null)
   const [erro, setErro] = useState('')
+  const [reenvio, setReenvio] = useState<{ msg: string; ate: number }>({ msg: '', ate: 0 })
+  const [agora, setAgora] = useState(Date.now())
   const fotoInput = useRef<HTMLInputElement>(null)
 
-  function alternarPapel(p: Papel) {
-    setPapeis((cur) => (cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]))
-  }
+  // relógio só para a espera do "reenviar e-mail"
+  useEffect(() => {
+    if (reenvio.ate <= Date.now()) return
+    const id = window.setInterval(() => setAgora(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [reenvio.ate])
 
   function escolherFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
@@ -66,6 +74,7 @@ export default function CadastroIntegrante() {
       if (!nome.trim() || !whatsapp.trim() || !email.trim())
         return 'Preencha nome, WhatsApp e e-mail — o e-mail é a sua conta de acesso.'
       if (!/.+@.+\..+/.test(email.trim())) return 'Esse e-mail não parece válido. Confira, por favor.'
+      if (!conexao) return `Escolha a ${termoGrupo} de que você participa — ou "Ainda não participo".`
     }
     if (n === 2) {
       if (papeis.length === 0) return 'Marque pelo menos uma função que você exerce no ministério.'
@@ -94,11 +103,11 @@ export default function CadastroIntegrante() {
     }
     setErro('')
     setEnviando(true)
-    const r = await cadastrarIntegrante({
+    const r = await criarContaIntegrante({
       nome, whatsapp, email, senha,
       dataNascimento: dataNascimento || undefined,
       situacaoCivil: situacao || undefined,
-      conexaoId: conexaoId || undefined,
+      conexao: conexao || 'nenhuma',
       fotoArquivo: foto,
       papeis,
       loginPreferido,
@@ -106,29 +115,58 @@ export default function CadastroIntegrante() {
     })
     setEnviando(false)
     if (!r.ok) { setErro(r.erro ?? 'Não foi possível concluir o cadastro. Tente novamente.'); return }
-    setNaoSincronizou(r.sincronizado === false)
-    setEnviado(true)
+    setEnviado(r.precisaConfirmar ? 'confirmar' : 'pedido')
+    setReenvio({ msg: '', ate: Date.now() + 60_000 })
   }
 
-  if (enviado) {
+  async function reenviarEmail() {
+    if (!supabase || reenvio.ate > Date.now()) return
+    const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim().toLowerCase(), options: { emailRedirectTo: urlDoApp() } })
+    setReenvio({
+      msg: error ? `Não foi possível reenviar agora: ${error.message}` : 'Enviamos o link de novo. Veja também a caixa de spam.',
+      ate: Date.now() + 60_000,
+    })
+  }
+
+  if (enviado === 'confirmar') {
+    const espera = Math.max(0, Math.ceil((reenvio.ate - agora) / 1000))
+    return (
+      <TelaPublica>
+        <div className="ac-cartao ac-cartao-ok">
+          <div className="ac-check"><IcoEmail size={34} /></div>
+          <h1 className="ac-titulo-ok">Confirme seu e-mail</h1>
+          <p className="ac-texto-ok">
+            Enviamos um link para <b>{email.trim().toLowerCase()}</b>. Confirme para entrar — depois disso, a liderança
+            precisa aprovar o seu acesso.
+          </p>
+          <div className="alerta">
+            <div>Não chegou? Veja a caixa de <b>spam</b> ou lixo eletrônico. O link só vale por um tempo.</div>
+          </div>
+          {reenvio.msg && <p className="ac-texto-ok" style={{ fontSize: 13 }}>{reenvio.msg}</p>}
+          <div className="wz-acoes" style={{ justifyContent: 'center', gap: 10 }}>
+            <button type="button" className="btn btn-sec" disabled={espera > 0} onClick={() => void reenviarEmail()}>
+              {espera > 0 ? `Reenviar e-mail (${espera}s)` : 'Reenviar e-mail'}
+            </button>
+            <a className="btn" href="#/entrar" style={{ textDecoration: 'none' }}>Já confirmei — entrar</a>
+          </div>
+        </div>
+      </TelaPublica>
+    )
+  }
+
+  if (enviado === 'pedido') {
     return (
       <TelaPublica>
         <div className="ac-cartao ac-cartao-ok">
           <div className="ac-check">🤝</div>
           <h1 className="ac-titulo-ok">Cadastro recebido!</h1>
           <p className="ac-texto-ok">
-            Seu cadastro foi enviado para a liderança. Assim que for aprovado, você já poderá
-            entrar no sistema com o e-mail <b>{email}</b> e a senha escolhida.
+            Seu pedido foi enviado para a liderança. Assim que for aprovado, você já poderá
+            entrar no sistema com o e-mail <b>{email.trim().toLowerCase()}</b> e a senha escolhida.
           </p>
-          {naoSincronizou && (
-            <div className="alerta alerta-warn" style={{ textAlign: 'left' }}>
-              ⚠️ <div>
-                <b>Ainda não conseguimos enviar seu cadastro para a nuvem</b> (sem conexão?).
-                Ele está guardado neste aparelho: <b>mantenha esta página aberta</b> por alguns
-                instantes com internet, ou abra o sistema de novo aqui mesmo — o envio conclui sozinho.
-              </div>
-            </div>
-          )}
+          <div className="wz-acoes" style={{ justifyContent: 'center' }}>
+            <a className="btn" href="#/entrar" style={{ textDecoration: 'none' }}>Entrar</a>
+          </div>
         </div>
       </TelaPublica>
     )
@@ -139,7 +177,7 @@ export default function CadastroIntegrante() {
       <div className="ac-cartao ac-cartao-lg">
         <div className="ac-cab">
           <h1 className="ac-boas-vindas">Criar meu acesso</h1>
-          <p className="ac-sub">Leva 3 passos. Depois a liderança aprova e você já pode entrar.</p>
+          <p className="ac-sub">Leva 3 passos. Depois você confirma o e-mail, a liderança aprova e você já pode entrar.</p>
         </div>
 
         {/* Progresso */}
@@ -183,10 +221,11 @@ export default function CadastroIntegrante() {
                     {Object.entries(SITUACAO_CIVIL_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                   </select>
                 </label>
-                <label className="campo"><span>De qual {termoGrupo} você faz parte?</span>
-                  <select value={conexaoId} onChange={(e) => setConexaoId(e.target.value)}>
-                    <option value="">— selecionar —</option>
+                <label className="campo"><span>Você participa de uma {termoGrupo}? *</span>
+                  <select value={conexao} onChange={(e) => setConexao(e.target.value)}>
+                    <option value="">— escolher —</option>
                     {conexoes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                    <option value="nenhuma">Ainda não participo de uma {termoGrupo}</option>
                   </select>
                 </label>
               </div>
@@ -197,28 +236,7 @@ export default function CadastroIntegrante() {
           {etapa === 2 && (
             <div className="wz-secao">
               <div className="wz-titulo-secao">Quais funções você exerce? <em>marque todas que se aplicam</em></div>
-              <div className="wz-papeis">
-                {(Object.keys(PAPEL_LABEL) as Papel[]).map((p) => {
-                  const sel = papeis.includes(p)
-                  return (
-                    <button
-                      type="button" key={p}
-                      className={`wz-papel ${sel ? 'sel' : ''}`}
-                      onClick={() => alternarPapel(p)}
-                      style={sel ? { borderColor: PAPEL_COR[p], background: PAPEL_COR[p] + '12' } : undefined}
-                    >
-                      <span className="wz-papel-dot" style={{ background: PAPEL_COR[p] }} />
-                      <span className="wz-papel-txt">
-                        <b>{rotuloPapel(p)}</b>
-                        <small>{PAPEL_DESC[p]}</small>
-                      </span>
-                      <span className="wz-papel-check" style={sel ? { background: PAPEL_COR[p], borderColor: PAPEL_COR[p] } : undefined}>
-                        {sel ? '✓' : ''}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
+              <SeletorFuncoes papeis={papeis} onMudar={setPapeis} />
 
               <div className="wz-titulo-secao" style={{ marginTop: 22 }}>Foto de perfil <em>opcional</em></div>
               <div className="wz-foto">

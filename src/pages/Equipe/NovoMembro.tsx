@@ -5,7 +5,7 @@ import { registrarAuditoria } from '../../auditoria'
 import { toast } from '../../toast'
 import { IcoMais, IcoX } from '../../icones'
 import Gaveta from './Gaveta'
-import { SeletorFuncoes } from './comum'
+import SeletorFuncoes from '../../SeletorFuncoes'
 
 // Cadastro rápido de um membro (sem login). Para a pessoa ter a própria senha,
 // ela usa o link #/cadastro-integrante e a liderança aprova.

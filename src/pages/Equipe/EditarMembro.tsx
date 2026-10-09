@@ -8,10 +8,12 @@ import { navegar } from '../../router'
 import { toast } from '../../toast'
 import { confirmar } from '../../confirmar'
 import { supabase } from '../../supabaseClient'
+import { getConfigNuvem } from '../../nuvem'
 import { IcoCheck, IcoCopiar, IcoEmail, IcoLixeira, IcoWhats, IcoX } from '../../icones'
 import Avatar from '../../Avatar'
 import Gaveta from './Gaveta'
-import { ChipAcesso, ChipsPapeis, definirSupervisor, SeletorFuncoes } from './comum'
+import SeletorFuncoes from '../../SeletorFuncoes'
+import { ChipAcesso, ChipsPapeis, definirSupervisor } from './comum'
 
 function dataBR(iso?: string): string {
   return iso ? new Date(iso).toLocaleDateString('pt-BR') : ''
@@ -122,7 +124,11 @@ export default function EditarMembro({ u, onFechar }: { u: Usuario; onFechar: ()
     const aviso = dependentes.length > 0
       ? `\n\n⚠️ ${u.nome} cuida de ${dependentes.length} visitante(s) — eles ficarão SEM responsável/líder e precisarão ser redistribuídos. Se a pessoa só saiu por um tempo, prefira "Desativar".`
       : ''
-    if (!(await confirmar({ titulo: 'Remover integrante', mensagem: `Remover ${u.nome} da equipe? Esta ação não pode ser desfeita.${aviso}`, confirmar: 'Excluir', perigo: true }))) return
+    // O login é um só para os três sistemas da igreja: excluir apaga a conta de todos eles.
+    const avisoConta = u.authUserId
+      ? `\n\n🔑 O login de ${u.nome} é o mesmo do Check-iFE e do Louvor: a conta será APAGADA e a pessoa perde o acesso aos três sistemas. O cadastro dela no Check-iFE não é apagado — só fica sem login.`
+      : ''
+    if (!(await confirmar({ titulo: 'Remover integrante', mensagem: `Remover ${u.nome} da equipe? Esta ação não pode ser desfeita.${aviso}${avisoConta}`, confirmar: 'Excluir', perigo: true }))) return
     const authUserId = u.authUserId
     const agora = new Date().toISOString()
     setEstado((st) => comExclusoes({
@@ -154,7 +160,8 @@ export default function EditarMembro({ u, onFechar }: { u: Usuario; onFechar: ()
     })
     if (authUserId && supabase) {
       try {
-        await supabase.functions.invoke('deletar-usuario-auth', { body: { authUserId } })
+        // o servidor confere que quem exclui é Pastor/Gestão aprovado desta igreja
+        await supabase.functions.invoke('deletar-usuario-auth', { body: { authUserId, igrejaId: getConfigNuvem()?.igrejaId } })
       } catch {
         // falha silenciosa: o usuário já foi removido do app
       }
@@ -260,7 +267,7 @@ export default function EditarMembro({ u, onFechar }: { u: Usuario; onFechar: ()
             <button type="button" className="btn btn-sec btn-mini" onClick={alternarAtivo}>{u.ativo ? 'Desativar' : 'Reativar'}</button>
           </div>
           <div className="eq-g-linha-acao">
-            <p><b>Excluir</b> remove a pessoa de vez e libera o e-mail. Não tem volta.</p>
+            <p><b>Excluir</b> remove a pessoa de vez e apaga o login dela — que vale também para o Check-iFE e o Louvor. Não tem volta.</p>
             <button type="button" className="btn btn-mini btn-perigo-forte" onClick={() => void remover()}><IcoLixeira size={13} /> Excluir</button>
           </div>
         </section>

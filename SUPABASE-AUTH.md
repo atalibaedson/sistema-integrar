@@ -13,10 +13,10 @@ convite) usam **um modelo só** para o projeto.
 > | "Allow anonymous sign-ins" | **LIGADO** (o app cria uma sessão anônima por aparelho para o RLS; **não desligue**). |
 > | RLS de `estados` | **Por igreja** (política `acesso_membro_igreja`, vínculo em `membros_igreja`), ativo desde 2026-10-03. |
 >
-> **A confirmação de e-mail será religada**, mas **só depois** de o Integrar publicar a mudança que a
-> suporta: hoje o cadastro depende de a conta já ter sessão logo após o `signUp`, o que não acontece com
-> a confirmação ligada. **Não religue antes.** O plano completo, o checklist e a ordem estão em
-> [PLANO-CADASTRO-UNICO.md](PLANO-CADASTRO-UNICO.md).
+> **A confirmação de e-mail será religada.** O Integrar já está preparado para isso (versão 2.6.0): a ficha
+> vai nos metadados da conta e é gravada no primeiro acesso já confirmado, e o app funciona com a
+> confirmação ligada **ou** desligada. **Religue só depois** de publicar o app e as funções, na ordem de
+> [IMPLANTACAO-CADASTRO-UNICO.md](IMPLANTACAO-CADASTRO-UNICO.md) (passo 6). Contexto: [PLANO-CADASTRO-UNICO.md](PLANO-CADASTRO-UNICO.md).
 
 ---
 
@@ -31,12 +31,13 @@ No painel do projeto (https://supabase.com/dashboard):
 3. **Authentication → URL Configuration**:
    - **Site URL**: um só para o projeto inteiro (é o destino de e-mails que não informam retorno).
    - **Redirect URLs**: **todos** os endereços dos sistemas que usam e-mail de retorno, **sem `#/rota`**
-     (só a raiz). Para o Integrar:
+     (só a raiz), nas duas formas (`https://…` e `https://…/**`). Para o Integrar:
+     - `https://integracaoife.ifamiliaextraordinaria.com.br` (Resende)
      - `https://integracaoifesjc.ifamiliaextraordinaria.com.br` (São José dos Campos)
-     - o endereço do Integrar de Resende
      - `http://localhost:5173` (desenvolvimento)
    - Cada sistema deve **informar o próprio endereço** ao pedir o e-mail (`emailRedirectTo` no cadastro,
-     `redirectTo` no "Esqueci a senha"). O Integrar já faz isso no "Esqueci a senha".
+     `redirectTo` no "Esqueci a senha"). O Integrar faz isso nos dois, e trata o retorno do link nos três
+     formatos (`?code=`, `#access_token=` e `?token_hash=&type=`).
 
 > Por que sem `#/rota`? O link de confirmação devolve o "crachá" da sessão no `#` da URL, e o endereço
 > das páginas do sistema também usa `#`. O app já sabe receber na raiz e levar a pessoa para o lugar certo.
@@ -74,8 +75,9 @@ create policy "avatares_update_autenticado" on storage.objects
 > (até anônima), anulando o isolamento por igreja.
 
 O acesso a `estados` hoje é decidido por `acesso_membro_igreja`: a pessoa precisa ser conta real (não
-anônima) **e** ter vínculo com a igreja em `membros_igreja`. Esse vínculo é criado pela função
-`registrar-membro` no primeiro login. Os SQL, na ordem e com o roteiro de reversão:
+anônima) **e** ter vínculo com a igreja em `membros_igreja`. **O vínculo só nasce quando a liderança
+aprova a pessoa**: quem confere é a função `acesso-membro` (e a `registrar-membro` corrigida), no servidor.
+Conta pendente não lê o bloco. Os SQL, na ordem e com o roteiro de reversão:
 `supabase/sql/04_rls_endurecer.sql` → `05_rls_por_igreja.sql` → `06_ativar_sao_jose.sql`.
 
 ## Passo 4 — E-mails (modelo único, texto neutro)
@@ -94,29 +96,28 @@ Exemplo — **Confirm signup**:
 ## Como funciona o fluxo hoje (resumo para a liderança)
 
 1. O novo integrante acessa **`SEU-SITE/#/cadastro-integrante`** e preenche o cadastro
-   completo (dados, funções, foto, senha).
-2. A conta é criada **já confirmada** (a confirmação por e-mail está desligada) e o pedido entra na fila de
-   **Aprovações** (menu Gestão), visível apenas para **Pastores e Gestão Ministerial** e **Gestão Integração**,
-   com aviso de pendências.
+   completo (dados, Conexão, funções, foto, senha).
+2. Com a confirmação desligada, a conta nasce confirmada e o pedido entra na hora na fila de **Aprovações**.
+   Com ela **ligada**, a pessoa recebe um e-mail, clica no link, volta ao sistema e só então o pedido aparece
+   na fila de **Aprovações** (menu Gestão), visível apenas para **Pastores e Gestão Ministerial** e
+   **Gestão Integração**, com aviso de pendências. Até a aprovação a pessoa **não lê dado nenhum** da igreja.
 3. Aprovado ✅, a pessoa entra por **`SEU-SITE/#/entrar`** com **e-mail ou WhatsApp** + senha.
    Rejeitado 🚫, ela vê o motivo na tela. "Esqueci a senha" envia o link por e-mail.
 4. Tudo (cadastro, aprovação, rejeição) fica registrado na **Auditoria**.
-
-**Depois que a confirmação for religada** (ver o plano): o passo 2 passa a ser *"a pessoa recebe um e-mail,
-clica no link, e só então o pedido aparece em Aprovações"*. O restante não muda.
 
 ## Funções do servidor que o login usa (Edge Functions)
 
 | Função | Para quê | JWT |
 |---|---|---|
-| `registrar-membro` | liga a conta recém-logada à igreja do site (RLS por igreja) | exigido |
+| `acesso-membro` | status da conta, pedido de acesso, aprovação (cria o vínculo) e 1º administrador | exigido |
+| `registrar-membro` | só liga ao vínculo quem **já foi aprovado** (para versões antigas do app) | exigido |
 | `cadastrar-visitante` | grava o autocadastro público do visitante | desligado |
 | `alertas-push` | notificações no celular (ver IMPLANTACAO-ALERTAS-PUSH.md) | desligado (valida por dentro) |
-| `deletar-usuario-auth` | apaga a conta de login ao excluir integrante | exigido — **ver aviso abaixo** |
+| `deletar-usuario-auth` | apaga a conta de login ao excluir integrante (só Pastor/Gestão aprovado da igreja) | exigido — **ver aviso abaixo** |
 
 > ⚠️ Com a lista de contas **compartilhada**, apagar a conta no Auth tira o acesso da pessoa **também do
-> Louvor e do Check-iFE**. O plano prevê o Integrar deixar de usar `deletar-usuario-auth` (remover só a
-> ficha e o vínculo da igreja). Até lá, **tenha cuidado ao excluir integrantes** na tela Equipe.
+> Louvor e do Check-iFE** (o cadastro dela no Check-iFE não é apagado, só fica sem login). A tela Equipe
+> avisa isso antes de excluir. Quem só saiu por um tempo deve ser **desativado**, não excluído.
 
 ## O que essa fase protege — e o que ainda não
 
@@ -125,7 +126,7 @@ criptografada); acesso novo só com aprovação da liderança; **isolamento entr
 vínculo; trilha de auditoria completa; o formulário público do visitante não baixa dados da igreja.
 
 **Ainda não protege:** os dados continuam num "pacote" único por igreja — **quem tem vínculo com a igreja
-lê o pacote inteiro**, e o vínculo é criado no primeiro login, **antes** da aprovação da liderança; a
-separação por papel (ex.: só pastor vê cuidado/crise) é regra do aplicativo, não do banco. O plano propõe
-reforçar isso (ficha pendente criada pelo servidor, vínculo só na aprovação). O isolamento total por
-papel exigiria a migração para tabelas por entidade (roadmap em [SUPABASE.md](SUPABASE.md)).
+lê o pacote inteiro** (agora só quem foi aprovado, mas qualquer papel aprovado, ex.: um acolhedor, lê o
+pacote pela API); a separação por papel (ex.: só pastor vê cuidado/crise) é regra do aplicativo, não do
+banco. Desativar alguém na Equipe também não revoga o vínculo. O isolamento total por papel exigiria a
+migração para tabelas por entidade (roadmap em [SUPABASE.md](SUPABASE.md)).

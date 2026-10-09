@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..')
-export const ARQUIVOS = ['types', 'regras-acesso', 'alertas']
+export const ARQUIVOS = ['types', 'regras-acesso', 'alertas', 'regras-membros']
 export const CABECALHO = (nome) =>
   `// ⚠️ CÓPIA GERADA de src/${nome}.ts — NÃO edite aqui. Mude a fonte e rode: npm run sincronizar:servidor\n`
 
