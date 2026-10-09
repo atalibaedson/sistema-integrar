@@ -3,17 +3,9 @@ import { cadastrarIntegrante } from '../actions'
 import { carregarConexoesPublicas, carregarConfigPublica, estadoEhVirgem, useAppState } from '../store'
 import type { ConexaoPublica } from '../nuvem'
 import { PAPEL_COR, PAPEL_LABEL, rotuloPapel, SITUACAO_CIVIL_LABEL, type Papel, type SituacaoCivil } from '../types'
+import { PAPEL_DESC } from '../papeis'
 import { SeletorData } from '../campos'
 import TelaPublica from '../TelaPublica'
-
-// Descrição curta de cada função, para a pessoa escolher com segurança.
-const PAPEL_DESC: Record<Papel, string> = {
-  coordenacao: 'Distribui os visitantes e acompanha o funil da consolidação.',
-  consolidador: 'Faz os contatos pós-culto e registra o acompanhamento.',
-  lider: 'Recebe o visitante na Conexão e acompanha até a integração.',
-  pastor: 'Cobertura pastoral e casos de cuidado/crise.',
-  acolhedor: 'Cadastra os visitantes no dia do culto — acesso só ao formulário de cadastro.',
-}
 
 const ETAPAS = ['Seus dados', 'Funções e foto', 'Seu acesso'] as const
 

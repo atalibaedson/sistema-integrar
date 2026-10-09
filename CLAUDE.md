@@ -84,13 +84,15 @@ aprovação de conta e aplica a identidade da igreja (cores + rótulos).
   `dispensarAviso` (adiar / já resolvi, guardado em `AppState.dispensas`) e `reativarAviso`.
 - `push.ts` + `public/sw.js` — notificações push (inscrever/cancelar/testar via função
   `alertas-push`; o service worker só exibe a notificação, **sem cache**).
+- `papeis.ts` — `PAPEL_DESC`: descrição curta de cada função (cadastro de integrante e Equipe).
 - `demo.ts` — modo demonstração (`npm run dev:demo`): igreja e sessão fictícias.
 - `carregar.ts` — `lazyComRecarga`: telas menos usadas carregam sob demanda (App.tsx);
   se um deploy novo trocou os arquivos, recarrega a página uma vez em vez de quebrar.
 
 ### Telas (`src/pages/`)
 Painel (`Dashboard`), `Avisos` (central de avisos + ativar push), `Jornada`, `Visitantes` (lista) → `VisitanteDetalhe` (ficha,
-grande), `NovoVisitante`, `PainelLider`, `Equipe`, `Aprovacoes`, `Auditoria`,
+grande), `NovoVisitante`, `PainelLider`, `Equipe/` (pasta: `index` lista + resumo, `Hierarquia` em árvore, `EditarMembro` e
+`NovoMembro` na `Gaveta` lateral, `comum` com chips/seletor de funções), `Aprovacoes`, `Auditoria`,
 `Relatorios`, `Configuracoes` (grande, por abas), `Ajuda`. Públicas: `Autocadastro`,
 `CadastroIntegrante`, `Entrar`, `NovaSenha` (link "esqueci a senha"), `AguardandoAprovacao`.
 
@@ -148,7 +150,8 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe`, `Aprovacoes`, `Auditoria`,
   "Padrão iFE" (`tema.ts`). Versão no rodapé = `package.json` (`__APP_VERSION__`).
   Peças reutilizáveis: `.pilulas`/`.pilula` (filtros com bolinha e contagem),
   `.chip-etapa` (etapa do visitante), `.painel-chip-*` (etiquetas semânticas),
-  `.voltar` (link de voltar). Ícones SVG, não emoji, em títulos e rótulos.
+  `.voltar` (link de voltar), `.eq-gaveta` (painel lateral de edição), `.eq-resumo` (quadros de resumo),
+  `.eq-papel` (função com cor própria via `--c`). Ícones SVG, não emoji, em títulos e rótulos.
 
 ## Documentos de referência (NÃO leia sem necessidade)
 

@@ -20,12 +20,15 @@ function diasAtras(d: number, hora = 10): string {
 }
 
 const usuarios: Usuario[] = [
-  { id: 'u-marcos', nome: 'Marcos Andrade', whatsapp: '(00) 90000-0001', email: SESSAO_DEMO.email, papeis: ['coordenacao', 'pastor'], ativo: true, statusAcesso: 'aprovado', authUserId: SESSAO_DEMO.userId },
-  { id: 'u-ana', nome: 'Ana Paula Rocha', whatsapp: '(00) 90000-0002', papeis: ['consolidador'], ativo: true, statusAcesso: 'aprovado' },
-  { id: 'u-joao', nome: 'João Vitor Mendes', whatsapp: '(00) 90000-0003', papeis: ['consolidador'], ativo: true, statusAcesso: 'aprovado' },
-  { id: 'u-carla', nome: 'Carla e Rodrigo Teles', whatsapp: '(00) 90000-0004', papeis: ['lider'], ativo: true, statusAcesso: 'aprovado', conexaoId: 'cx-centro' },
-  { id: 'u-felipe', nome: 'Felipe Costa', whatsapp: '(00) 90000-0005', papeis: ['lider'], ativo: true, statusAcesso: 'aprovado', conexaoId: 'cx-norte' },
+  { id: 'u-marcos', nome: 'Marcos Andrade', whatsapp: '(00) 90000-0001', email: SESSAO_DEMO.email, papeis: ['coordenacao', 'pastor'], ativo: true, statusAcesso: 'aprovado', authUserId: SESSAO_DEMO.userId, aprovadoEm: diasAtras(60) },
+  { id: 'u-ana', nome: 'Ana Paula Rocha', whatsapp: '(00) 90000-0002', email: 'ana@exemplo.com', papeis: ['consolidador'], ativo: true, statusAcesso: 'aprovado', supervisorId: 'u-marcos', aprovadoPorId: 'u-marcos', aprovadoEm: diasAtras(40) },
+  { id: 'u-joao', nome: 'João Vitor Mendes', whatsapp: '(00) 90000-0003', email: 'joao@exemplo.com', papeis: ['consolidador'], ativo: true, statusAcesso: 'aprovado', supervisorId: 'u-marcos', aprovadoPorId: 'u-marcos', aprovadoEm: diasAtras(35) },
+  { id: 'u-carla', nome: 'Carla e Rodrigo Teles', whatsapp: '(00) 90000-0004', email: 'carla@exemplo.com', papeis: ['lider'], ativo: true, statusAcesso: 'aprovado', conexaoId: 'cx-centro', supervisorId: 'u-marcos', aprovadoPorId: 'u-marcos', aprovadoEm: diasAtras(50) },
+  { id: 'u-felipe', nome: 'Felipe Costa', whatsapp: '(00) 90000-0005', email: 'felipe@exemplo.com', papeis: ['lider'], ativo: true, statusAcesso: 'aprovado', conexaoId: 'cx-norte', supervisorId: 'u-ana', aprovadoPorId: 'u-marcos', aprovadoEm: diasAtras(30) },
   { id: 'u-sofia', nome: 'Sofia Martins', whatsapp: '(00) 90000-0006', email: 'sofia@exemplo.com', papeis: ['consolidador'], ativo: true, statusAcesso: 'pendente_aprovacao' },
+  { id: 'u-lucia', nome: 'Lúcia Barbosa', whatsapp: '(00) 90000-0007', email: 'lucia@exemplo.com', papeis: ['acolhedor'], ativo: true, statusAcesso: 'aprovado', supervisorId: 'u-ana', aprovadoPorId: 'u-marcos', aprovadoEm: diasAtras(20) },
+  { id: 'u-davi', nome: 'Davi Nogueira', whatsapp: '(00) 90000-0008', papeis: ['acolhedor', 'consolidador'], ativo: true, statusAcesso: 'sem_login' },
+  { id: 'u-pedro', nome: 'Pedro Lima', whatsapp: '(00) 90000-0009', email: 'pedro@exemplo.com', papeis: ['consolidador'], ativo: false, statusAcesso: 'aprovado', supervisorId: 'u-marcos' },
 ]
 
 const conexoes: Conexao[] = [

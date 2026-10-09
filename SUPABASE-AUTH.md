@@ -1,12 +1,22 @@
-# Guia: ativar o login com senha (Supabase Auth)
+# Guia: login com senha (Supabase Auth)
 
-O sistema agora tem **cadastro de integrante com senha, confirmação de e-mail e aprovação
-pela liderança**. Para isso funcionar, é preciso configurar o projeto Supabase — são
-3 passos no painel, uns 5 minutos. **Faça na ordem abaixo.**
+O sistema tem **cadastro de integrante com senha e aprovação pela liderança**. O projeto
+Supabase (`yzexsklhixqcbmnbrtdl`) é **compartilhado** com o Louvor e o Check-iFE: a lista de
+contas (`auth.users`) é uma só, e os e-mails automáticos (confirmar e-mail, redefinir senha,
+convite) usam **um modelo só** para o projeto.
 
-> ⚠️ **Importante:** publique a versão nova do sistema (`npm run build` + deploy) **antes**
-> do Passo 3 (aperto da segurança do banco). Se apertar a segurança com a versão antiga
-> no ar, os aparelhos da equipe param de sincronizar até atualizarem a página.
+> ## Situação atual (atualizada em 2026-10-08)
+>
+> | Item | Estado |
+> |---|---|
+> | **"Confirm email"** | **DESLIGADO.** A conta nasce já confirmada e a pessoa entra assim que a liderança aprova. |
+> | "Allow anonymous sign-ins" | **LIGADO** (o app cria uma sessão anônima por aparelho para o RLS; **não desligue**). |
+> | RLS de `estados` | **Por igreja** (política `acesso_membro_igreja`, vínculo em `membros_igreja`), ativo desde 2026-10-03. |
+>
+> **A confirmação de e-mail será religada**, mas **só depois** de o Integrar publicar a mudança que a
+> suporta: hoje o cadastro depende de a conta já ter sessão logo após o `signUp`, o que não acontece com
+> a confirmação ligada. **Não religue antes.** O plano completo, o checklist e a ordem estão em
+> [PLANO-CADASTRO-UNICO.md](PLANO-CADASTRO-UNICO.md).
 
 ---
 
@@ -14,21 +24,22 @@ pela liderança**. Para isso funcionar, é preciso configurar o projeto Supabase
 
 No painel do projeto (https://supabase.com/dashboard):
 
-1. **Authentication → Sign In / Providers → Email**: confirme que **"Confirm email"
-   está LIGADO** (é o padrão). É isso que faz o Supabase enviar o e-mail de confirmação.
-2. **Authentication → Sign In / Providers** (ou Settings, conforme a versão do painel):
-   ligue **"Allow anonymous sign-ins"**. *Sem isso, os aparelhos da equipe que ainda usam
-   o modo aberto ("Vendo como") perdem a sincronização quando o Passo 3 for aplicado.*
+1. **Authentication → Sign In / Providers → Email → "Confirm email"**: hoje **desligado** (ver quadro acima).
+   Ao religar (apenas depois da publicação descrita no plano), antes confira o checklist da seção 1.5 do
+   plano: **SMTP próprio** (o e-mail embutido do Supabase é só para testes), endereços de retorno e modelo de e-mail.
+2. **Authentication → Sign In / Providers**: **"Allow anonymous sign-ins" ligado.**
 3. **Authentication → URL Configuration**:
-   - **Site URL**: a URL do site publicado, ex.: `https://SEU-SITE.vercel.app`
-     (sem `#/rota` no final — só a raiz).
-   - **Redirect URLs**: adicione as duas, também sem `#/rota`:
-     - `http://localhost:5173`
-     - `https://SEU-SITE.vercel.app`
+   - **Site URL**: um só para o projeto inteiro (é o destino de e-mails que não informam retorno).
+   - **Redirect URLs**: **todos** os endereços dos sistemas que usam e-mail de retorno, **sem `#/rota`**
+     (só a raiz). Para o Integrar:
+     - `https://integracaoifesjc.ifamiliaextraordinaria.com.br` (São José dos Campos)
+     - o endereço do Integrar de Resende
+     - `http://localhost:5173` (desenvolvimento)
+   - Cada sistema deve **informar o próprio endereço** ao pedir o e-mail (`emailRedirectTo` no cadastro,
+     `redirectTo` no "Esqueci a senha"). O Integrar já faz isso no "Esqueci a senha".
 
-> Por que sem `#/rota`? O link de confirmação devolve o "crachá" da sessão no `#` da URL,
-> e o endereço das páginas do sistema também usa `#`. O app já sabe receber na raiz e
-> levar a pessoa para o lugar certo.
+> Por que sem `#/rota`? O link de confirmação devolve o "crachá" da sessão no `#` da URL, e o endereço
+> das páginas do sistema também usa `#`. O app já sabe receber na raiz e levar a pessoa para o lugar certo.
 
 ## Passo 2 — Pasta de fotos de perfil (Storage)
 
@@ -53,55 +64,68 @@ create policy "avatares_update_autenticado" on storage.objects
   using (bucket_id = 'avatares');
 ```
 
-## Passo 3 — Apertar a segurança do banco (RLS)
+> Atenção: o papel `authenticated` **inclui as sessões anônimas** do app. Qualquer aparelho que abre
+> o sistema pode enviar foto para este bucket. Por isso o plano sugere limitar tamanho e tipo de arquivo.
 
-Hoje **qualquer pessoa** com a URL + chave pública (que fica visível no código do site)
-consegue ler e alterar todos os dados. Este passo fecha essa porta: só quem tem uma
-sessão do Supabase (mesmo anônima, que o app cria sozinho) consegue acessar.
+## Passo 3 — Segurança do banco (RLS) — **já aplicada, por igreja**
 
-**Só rode depois de publicar a versão nova do sistema.** SQL Editor:
+> ⚠️ **Não rode mais a política antiga `acesso_autenticado`** (que constava aqui). Políticas do
+> Postgres se **somam**: rodá-la de novo reabriria os dados de **todas** as igrejas a qualquer sessão
+> (até anônima), anulando o isolamento por igreja.
 
-```sql
-drop policy if exists "acesso_com_chave_anon" on estados;
-drop policy if exists "acesso_autenticado" on estados;
-create policy "acesso_autenticado" on estados
-  for all
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
-```
+O acesso a `estados` hoje é decidido por `acesso_membro_igreja`: a pessoa precisa ser conta real (não
+anônima) **e** ter vínculo com a igreja em `membros_igreja`. Esse vínculo é criado pela função
+`registrar-membro` no primeiro login. Os SQL, na ordem e com o roteiro de reversão:
+`supabase/sql/04_rls_endurecer.sql` → `05_rls_por_igreja.sql` → `06_ativar_sao_jose.sql`.
 
-Depois de rodar, abra o sistema em um aparelho e confira que o indicador continua
-🟢 **Sincronizado**. Se aparecer erro de sincronização, recarregue a página (o app
-cria a sessão anônima ao abrir).
+## Passo 4 — E-mails (modelo único, texto neutro)
 
-## Passo 4 (opcional) — E-mail de confirmação em português
+**Authentication → Emails**: os modelos (confirmar cadastro, redefinir senha, convite) valem para o
+**projeto inteiro**. Por isso o texto deve ser **neutro** ("Igreja Família Extraordinária"), sem citar
+um sistema específico. Dá para usar o nome da pessoa (`{{ .Data.nome }}`) e o link (`{{ .ConfirmationURL }}`).
 
-**Authentication → Emails → Confirm signup**: personalize o assunto e o texto, ex.:
+Exemplo — **Confirm signup**:
 
-- Assunto: `Confirme seu e-mail — Consolidação iFE`
-- Corpo: `<h2>Bem-vindo(a) ao ministério!</h2><p>Clique para confirmar seu e-mail e ativar sua conta:</p><p><a href="{{ .ConfirmationURL }}">Confirmar meu e-mail</a></p>`
+- Assunto: `Confirme seu e-mail — Igreja Família Extraordinária`
+- Corpo: `<h2>Bem-vindo(a)!</h2><p>Clique para confirmar seu e-mail e ativar sua conta:</p><p><a href="{{ .ConfirmationURL }}">Confirmar meu e-mail</a></p>`
 
 ---
 
-## Como funciona o fluxo (resumo para a liderança)
+## Como funciona o fluxo hoje (resumo para a liderança)
 
 1. O novo integrante acessa **`SEU-SITE/#/cadastro-integrante`** e preenche o cadastro
    completo (dados, funções, foto, senha).
-2. Recebe um **e-mail de confirmação** e clica no link.
-3. A conta entra na fila de **Aprovações** (menu Gestão) — visível apenas para
-   **Pastores e Gestão Ministerial** e **Gestão Integração**, com aviso de pendências.
-4. Aprovado ✅, a pessoa entra por **`SEU-SITE/#/entrar`** com **e-mail ou WhatsApp** + senha.
-   Rejeitado 🚫, ela vê o motivo na tela.
-5. Tudo (cadastro, confirmação, aprovação, rejeição) fica registrado na **Auditoria**.
+2. A conta é criada **já confirmada** (a confirmação por e-mail está desligada) e o pedido entra na fila de
+   **Aprovações** (menu Gestão), visível apenas para **Pastores e Gestão Ministerial** e **Gestão Integração**,
+   com aviso de pendências.
+3. Aprovado ✅, a pessoa entra por **`SEU-SITE/#/entrar`** com **e-mail ou WhatsApp** + senha.
+   Rejeitado 🚫, ela vê o motivo na tela. "Esqueci a senha" envia o link por e-mail.
+4. Tudo (cadastro, aprovação, rejeição) fica registrado na **Auditoria**.
+
+**Depois que a confirmação for religada** (ver o plano): o passo 2 passa a ser *"a pessoa recebe um e-mail,
+clica no link, e só então o pedido aparece em Aprovações"*. O restante não muda.
+
+## Funções do servidor que o login usa (Edge Functions)
+
+| Função | Para quê | JWT |
+|---|---|---|
+| `registrar-membro` | liga a conta recém-logada à igreja do site (RLS por igreja) | exigido |
+| `cadastrar-visitante` | grava o autocadastro público do visitante | desligado |
+| `alertas-push` | notificações no celular (ver IMPLANTACAO-ALERTAS-PUSH.md) | desligado (valida por dentro) |
+| `deletar-usuario-auth` | apaga a conta de login ao excluir integrante | exigido — **ver aviso abaixo** |
+
+> ⚠️ Com a lista de contas **compartilhada**, apagar a conta no Auth tira o acesso da pessoa **também do
+> Louvor e do Check-iFE**. O plano prevê o Integrar deixar de usar `deletar-usuario-auth` (remover só a
+> ficha e o vínculo da igreja). Até lá, **tenha cuidado ao excluir integrantes** na tela Equipe.
 
 ## O que essa fase protege — e o que ainda não
 
-**Protege:** dados deixam de ficar abertos para qualquer um na internet com a chave do
-site; contas com senha de verdade (a senha nunca fica salva no sistema — só no Supabase,
-criptografada); acesso novo só com aprovação da liderança; trilha de auditoria completa.
+**Protege:** contas com senha de verdade (a senha nunca fica salva no sistema — só no Supabase,
+criptografada); acesso novo só com aprovação da liderança; **isolamento entre igrejas** pelo RLS por
+vínculo; trilha de auditoria completa; o formulário público do visitante não baixa dados da igreja.
 
-**Ainda não protege (próxima fase):** os dados continuam num "pacote" único por igreja —
-qualquer sessão válida lê o pacote inteiro; a separação por papel (ex.: só pastor vê
-cuidado/crise) é regra do aplicativo, não do banco. O modo aberto ("Vendo como") continua
-existindo de propósito, até toda a equipe migrar para o login. O isolamento total exige a
-migração para tabelas por entidade (roadmap em [SUPABASE.md](SUPABASE.md)).
+**Ainda não protege:** os dados continuam num "pacote" único por igreja — **quem tem vínculo com a igreja
+lê o pacote inteiro**, e o vínculo é criado no primeiro login, **antes** da aprovação da liderança; a
+separação por papel (ex.: só pastor vê cuidado/crise) é regra do aplicativo, não do banco. O plano propõe
+reforçar isso (ficha pendente criada pelo servidor, vínculo só na aprovação). O isolamento total por
+papel exigiria a migração para tabelas por entidade (roadmap em [SUPABASE.md](SUPABASE.md)).
