@@ -132,6 +132,8 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe/` (pasta: `index` lista + resum
   quando a liderança aprova**, e quem confere é o servidor: Edge Function `acesso-membro` (`status`, `solicitar`,
   `aprovar`, `revogar`, `primeiro_admin`). **Nunca** crie vínculo a partir do navegador nem em função que aceite o
   usuário vindo do corpo da chamada; derive-o do token.
+- A tela também obedece ao servidor (`servidorNegaAcesso` em `regras-membros.ts`, usado no `App.tsx`): ficha guardada no aparelho
+  (cache, teste antigo, aparelho emprestado) não abre o sistema se o servidor diz que a conta não tem acesso.
 - Conta pendente não lê o bloco: a tela de espera (`AguardandoAprovacao`) usa o status do servidor
   (`useAcessoConta` em `supabaseClient.ts`), não a ficha local.
 - O cadastro funciona com a confirmação de e-mail ligada ou desligada: a ficha vai nos metadados do

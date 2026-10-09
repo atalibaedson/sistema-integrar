@@ -2,7 +2,8 @@ import { Suspense, useEffect, useState } from 'react'
 import { useRota } from './router'
 import { useAppState, useNuvem, tentarSincronizarAgora } from './store'
 import { setUsuarioAtualId, useUsuarioAtualId, podeVerCuidado, podeAcessarRota, soAcolhedor, soLider, useSessaoReal, useSessaoCarregada, usuarioDaSessao } from './acesso'
-import { garantirSessao, sairDaConta } from './supabaseClient'
+import { garantirSessao, sairDaConta, supabase, useAcessoConta } from './supabaseClient'
+import { servidorNegaAcesso } from './regras-membros'
 import { confirmar } from './confirmar'
 import { getModoTema, alternarModoTema } from './tema-modo'
 import { useIgrejasDoUsuario, useVinculos, type IgrejaAcesso, trocarIgreja, lembrarNomeIgreja, igrejaAtivaId } from './igrejas'
@@ -257,7 +258,11 @@ export default function App() {
 
   // Login real: quando a conta aprovada aparece na sessão, assume a identidade.
   const usuarioSessao = usuarioDaSessao(estado, sessao)
-  const contaLiberada = !!usuarioSessao && usuarioSessao.statusAcesso === 'aprovado' && usuarioSessao.ativo
+  // A palavra final é do servidor: ficha guardada neste aparelho (cache, teste antigo, conta que
+  // logou em aparelho emprestado) não abre o sistema se o servidor diz que a conta não tem acesso.
+  const acessoServidor = useAcessoConta()
+  const servidorNega = !!supabase && servidorNegaAcesso(acessoServidor)
+  const contaLiberada = !!usuarioSessao && usuarioSessao.statusAcesso === 'aprovado' && usuarioSessao.ativo && !servidorNega
   useEffect(() => {
     if (!sessao || !usuarioSessao) return
     if (contaLiberada && atualId !== usuarioSessao.id) setUsuarioAtualId(usuarioSessao.id)
@@ -301,6 +306,8 @@ export default function App() {
   if (!sessaoCarregada) return <TelaCarregando nome={estado.config.nomeIgreja} />
   // Login obrigatório: sem sessão real (anônima não conta), vai para a tela de entrar.
   if (!sessao) return <Entrar />
+  // Com nuvem, espera o servidor dizer se a conta tem acesso (nunca mostra o cache antes disso)
+  if (supabase && !acessoServidor.carregado) return <TelaCarregando nome={estado.config.nomeIgreja} />
   // Logado, mas a conta ainda não pode usar (pendente, rejeitada ou DESATIVADA)
   // → tela de espera (com bootstrap do 1º admin)
   if (!usuarioSessao || !contaLiberada) {

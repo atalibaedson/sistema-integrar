@@ -118,6 +118,17 @@ export function desativarFichaDaConta(estado: AppState, authUserId: string): App
   }
 }
 
+/**
+ * O servidor já respondeu e disse que esta conta NÃO tem acesso (nem aprovada, nem vínculo)?
+ * Então a ficha guardada neste aparelho não vale: a tela de espera/cadastro toma o lugar do
+ * sistema. Sem resposta do servidor (offline) não nega — o RLS continua barrando os dados.
+ * Quem tem vínculo (ex.: pastor de rede em outra igreja) nunca é negado aqui.
+ */
+export function servidorNegaAcesso(a: { carregado: boolean; status?: StatusConta; vinculado: boolean }): boolean {
+  if (!a.carregado || !a.status) return false
+  return a.status !== 'aprovado' && !a.vinculado
+}
+
 /** Quem está desativado na Equipe não deve manter o vínculo (o servidor o retira sozinho na próxima consulta). */
 export function deveTerVinculo(ficha?: Usuario): boolean {
   return statusDaConta(ficha) !== 'inativo'

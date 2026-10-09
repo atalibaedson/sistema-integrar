@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   acharFicha, aplicarSolicitacao, chamadorPodeAprovar, contaTemFicha, desativarFichaDaConta, deveTerVinculo, ehAdminAprovado, existeAdminAprovado, ligarFichaAConta,
-  formatarTelefone, lerSolicitacao, podeRevogarVinculo, podeSerPrimeiroAdmin, statusDaConta, type ContaAuth, type Solicitacao,
+  formatarTelefone, lerSolicitacao, podeRevogarVinculo, podeSerPrimeiroAdmin, servidorNegaAcesso, statusDaConta, type ContaAuth, type Solicitacao,
 } from '../regras-membros'
 import type { AppState, ConfigIgreja, Usuario } from '../types'
 
@@ -218,5 +218,21 @@ describe('retirar o vínculo de quem foi desativado', () => {
     expect(deveTerVinculo(alvo)).toBe(true)
     expect(deveTerVinculo(usuario('p', { statusAcesso: 'pendente_aprovacao' }))).toBe(true)
     expect(deveTerVinculo(undefined)).toBe(true)
+  })
+})
+
+describe('servidorNegaAcesso (a ficha do aparelho não vale contra o servidor)', () => {
+  it('nega conta sem acesso, pendente, inativa ou rejeitada que o servidor já respondeu', () => {
+    for (const status of ['sem_ficha', 'pendente_aprovacao', 'inativo', 'rejeitado'] as const) {
+      expect(servidorNegaAcesso({ carregado: true, status, vinculado: false })).toBe(true)
+    }
+  })
+  it('libera aprovada, e quem tem vínculo (pastor de rede)', () => {
+    expect(servidorNegaAcesso({ carregado: true, status: 'aprovado', vinculado: true })).toBe(false)
+    expect(servidorNegaAcesso({ carregado: true, status: 'sem_ficha', vinculado: true })).toBe(false)
+  })
+  it('sem resposta do servidor (offline) não nega', () => {
+    expect(servidorNegaAcesso({ carregado: false, vinculado: false })).toBe(false)
+    expect(servidorNegaAcesso({ carregado: true, vinculado: false })).toBe(false)
   })
 })
