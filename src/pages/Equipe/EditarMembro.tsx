@@ -7,7 +7,7 @@ import { registrarAuditoria } from '../../auditoria'
 import { navegar } from '../../router'
 import { toast } from '../../toast'
 import { confirmar } from '../../confirmar'
-import { supabase } from '../../supabaseClient'
+import { aprovarNoServidor, revogarNoServidor, supabase } from '../../supabaseClient'
 import { getConfigNuvem } from '../../nuvem'
 import { IcoCheck, IcoCopiar, IcoEmail, IcoLixeira, IcoWhats, IcoX } from '../../icones'
 import Avatar from '../../Avatar'
@@ -108,15 +108,27 @@ export default function EditarMembro({ u, onFechar }: { u: Usuario; onFechar: ()
     onFechar()
   }
 
-  function alternarAtivo() {
+  // Desativar também retira o acesso aos dados da igreja (o servidor apaga o vínculo): se ele
+  // recusar, nada muda e a pessoa continua ativa. Reativar devolve o acesso (e, se o servidor
+  // não responder agora, o vínculo volta sozinho no próximo acesso da pessoa).
+  async function alternarAtivo() {
+    const desativando = u.ativo
+    if (u.authUserId) {
+      if (desativando) {
+        const r = await revogarNoServidor(u.authUserId)
+        if (!r.ok) { toast(r.erro ?? 'Não foi possível retirar o acesso agora. Tente de novo.', 'erro'); return }
+      } else if (u.statusAcesso === 'aprovado') {
+        await aprovarNoServidor(u.authUserId)
+      }
+    }
     setEstado((st) => ({
       ...st,
       usuarios: st.usuarios.map((x) => x.id === u.id ? { ...x, ativo: !u.ativo } : x),
     }))
-    registrarAuditoria(u.ativo ? '⏸ Desativou integrante' : '▶ Reativou integrante', {
+    registrarAuditoria(desativando ? '⏸ Desativou integrante' : '▶ Reativou integrante', {
       alvoTipo: 'usuario', alvoId: u.id, alvoNome: u.nome,
     })
-    toast(u.ativo ? 'Membro desativado' : 'Membro reativado', 'info')
+    toast(desativando ? 'Membro desativado — o acesso foi retirado' : 'Membro reativado', 'info')
     onFechar()
   }
 
@@ -263,7 +275,7 @@ export default function EditarMembro({ u, onFechar }: { u: Usuario; onFechar: ()
         <section className="eq-g-secao eq-g-perigo">
           <h3>Situação na equipe</h3>
           <div className="eq-g-linha-acao">
-            <p>{u.ativo ? <><b>Desativar</b> bloqueia o acesso e tira a pessoa das listas, sem apagar o histórico.</> : <>Esta pessoa está <b>inativa</b>: não acessa o sistema nem aparece nas listas.</>}</p>
+            <p>{u.ativo ? <><b>Desativar</b> retira o acesso aos dados da igreja e tira a pessoa das listas, sem apagar o histórico.</> : <>Esta pessoa está <b>inativa</b>: não acessa o sistema nem aparece nas listas.</>}</p>
             <button type="button" className="btn btn-sec btn-mini" onClick={alternarAtivo}>{u.ativo ? 'Desativar' : 'Reativar'}</button>
           </div>
           <div className="eq-g-linha-acao">

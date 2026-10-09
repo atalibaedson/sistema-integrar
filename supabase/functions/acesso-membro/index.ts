@@ -13,6 +13,8 @@
 //                      que a pessoa confirmou em "Completar cadastro"). Nunca aprova.
 //   • aprovar        — a liderança (pastor/gestão aprovados, conferidos AQUI) libera o
 //                      vínculo de outra conta que tem ficha nesta igreja.
+//   • revogar        — a liderança retira o vínculo de quem foi DESATIVADO na Equipe (o servidor
+//                      marca a ficha como inativa e apaga o vínculo; reativar = `aprovar` de novo).
 //   • primeiro_admin — enquanto a igreja não tem nenhum administrador aprovado, a
 //                      própria pessoa com ficha pode ativar o seu acesso.
 //
@@ -22,7 +24,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import {
   acharFicha, aplicarSolicitacao, chamadorPodeAprovar, contaTemFicha, existeAdminAprovado, lerSolicitacao,
-  ligarFichaAConta, podeSerPrimeiroAdmin, statusDaConta, type ContaAuth,
+  desativarFichaDaConta, deveTerVinculo, ligarFichaAConta, podeRevogarVinculo, podeSerPrimeiroAdmin, statusDaConta, type ContaAuth,
 } from '../_shared/regras-membros.ts'
 import type { AppState } from '../_shared/types.ts'
 
@@ -84,6 +86,11 @@ async function vincular(authUserId: string, igrejaId: string): Promise<string | 
   return error ? error.message : null
 }
 
+async function desvincular(authUserId: string, igrejaId: string): Promise<string | null> {
+  const { error } = await admin.from('membros_igreja').delete().eq('auth_user_id', authUserId).eq('igreja_id', igrejaId)
+  return error ? error.message : null
+}
+
 async function estaVinculado(authUserId: string, igrejaId: string): Promise<boolean> {
   const { data } = await admin.from('membros_igreja').select('igreja_id').eq('auth_user_id', authUserId).eq('igreja_id', igrejaId).maybeSingle()
   return !!data
@@ -126,6 +133,13 @@ async function acaoStatus(c: Chamador, igrejaId: string) {
     if (ficha && !ficha.authUserId) {
       await alterarEstado(igrejaId, (e) => (acharFicha(e.usuarios, c.conta)?.id === ficha.id ? ligarFichaAConta(e, ficha.id, c.conta.id) : null))
     }
+  }
+  // Desativada na Equipe: não mantém o vínculo (cobre quem foi desativado antes desta regra,
+  // ou por um aparelho que não conseguiu avisar o servidor). Ficha só pendente NÃO entra aqui:
+  // quem está virando o 1º administrador ainda não foi aprovado no bloco.
+  if (ficha && !deveTerVinculo(ficha)) {
+    const erro = await desvincular(c.conta.id, igrejaId)
+    if (erro) return resposta({ error: `Não foi possível atualizar o acesso: ${erro}` }, 500)
   }
   return resposta({
     ok: true,
@@ -188,6 +202,25 @@ async function acaoAprovar(c: Chamador, igrejaId: string, corpo: Record<string, 
   return resposta({ ok: true })
 }
 
+// ---- revogar ----
+
+async function acaoRevogar(c: Chamador, igrejaId: string, corpo: Record<string, unknown>) {
+  const alvo = texto(corpo.authUserId)
+  if (!alvo) return resposta({ error: 'Conta não informada.' }, 400)
+  const linha = await lerEstado(igrejaId)
+  if (!linha) return resposta({ error: 'Igreja não encontrada.' }, 404)
+  const pode = podeRevogarVinculo(linha.dados.usuarios, c.conta, alvo)
+  if (!pode.ok) return resposta({ error: pode.erro }, 403)
+  // 1º marca a ficha como inativa no servidor: sem isso, se o aparelho da pessoa consultasse o
+  // status antes de a desativação chegar na nuvem, o vínculo seria recriado.
+  const r = await alterarEstado(igrejaId, (e) => desativarFichaDaConta(e, alvo))
+  if (r === 'ocupado') return resposta({ error: 'O sistema está ocupado. Tente de novo em instantes.' }, 409)
+  if (r !== 'gravou' && r !== 'nada') return resposta({ error: `Não foi possível retirar o acesso: ${r}` }, 500)
+  const erro = await desvincular(alvo, igrejaId)
+  if (erro) return resposta({ error: `Não foi possível retirar o acesso: ${erro}` }, 500)
+  return resposta({ ok: true })
+}
+
 async function acaoPrimeiroAdmin(c: Chamador, igrejaId: string) {
   const linha = await lerEstado(igrejaId)
   if (!linha) return resposta({ error: 'Igreja não encontrada.' }, 404)
@@ -223,6 +256,7 @@ Deno.serve(async (req) => {
       case 'status': return await acaoStatus(chamador, igrejaId)
       case 'solicitar': return await acaoSolicitar(chamador, igrejaId, corpo)
       case 'aprovar': return await acaoAprovar(chamador, igrejaId, corpo)
+      case 'revogar': return await acaoRevogar(chamador, igrejaId, corpo)
       case 'primeiro_admin': return await acaoPrimeiroAdmin(chamador, igrejaId)
       default: return resposta({ error: 'Ação desconhecida.' }, 400)
     }

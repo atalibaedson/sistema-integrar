@@ -109,7 +109,7 @@ Exemplo — **Confirm signup**:
 
 | Função | Para quê | JWT |
 |---|---|---|
-| `acesso-membro` | status da conta, pedido de acesso, aprovação (cria o vínculo) e 1º administrador | exigido |
+| `acesso-membro` | status da conta, pedido de acesso, aprovação (cria o vínculo), retirada do vínculo ao desativar e 1º administrador | exigido |
 | `registrar-membro` | só liga ao vínculo quem **já foi aprovado** (para versões antigas do app) | exigido |
 | `cadastrar-visitante` | grava o autocadastro público do visitante | desligado |
 | `alertas-push` | notificações no celular (ver IMPLANTACAO-ALERTAS-PUSH.md) | desligado (valida por dentro) |
@@ -128,5 +128,5 @@ vínculo; trilha de auditoria completa; o formulário público do visitante não
 **Ainda não protege:** os dados continuam num "pacote" único por igreja — **quem tem vínculo com a igreja
 lê o pacote inteiro** (agora só quem foi aprovado, mas qualquer papel aprovado, ex.: um acolhedor, lê o
 pacote pela API); a separação por papel (ex.: só pastor vê cuidado/crise) é regra do aplicativo, não do
-banco. Desativar alguém na Equipe também não revoga o vínculo. O isolamento total por papel exigiria a
+banco. Desativar alguém na Equipe retira o vínculo (função `acesso-membro`, ação `revogar`). O isolamento total por papel exigiria a
 migração para tabelas por entidade (roadmap em [SUPABASE.md](SUPABASE.md)).

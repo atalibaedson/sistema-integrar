@@ -130,7 +130,7 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe/` (pasta: `index` lista + resum
 
 - O vínculo `membros_igreja` libera a leitura do bloco `estados` (cuidado pastoral, crises). **Só nasce
   quando a liderança aprova**, e quem confere é o servidor: Edge Function `acesso-membro` (`status`, `solicitar`,
-  `aprovar`, `primeiro_admin`). **Nunca** crie vínculo a partir do navegador nem em função que aceite o
+  `aprovar`, `revogar`, `primeiro_admin`). **Nunca** crie vínculo a partir do navegador nem em função que aceite o
   usuário vindo do corpo da chamada; derive-o do token.
 - Conta pendente não lê o bloco: a tela de espera (`AguardandoAprovacao`) usa o status do servidor
   (`useAcessoConta` em `supabaseClient.ts`), não a ficha local.
@@ -144,7 +144,7 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe/` (pasta: `index` lista + resum
 
 ### Servidor (Supabase — implantação manual)
 - `supabase/functions/cadastrar-visitante/` — grava o autocadastro no servidor.
-- `supabase/functions/acesso-membro/` — status/pedido/aprovação de acesso (vínculo com a igreja);
+- `supabase/functions/acesso-membro/` — status/pedido/aprovação/retirada de acesso (vínculo com a igreja; desativar na Equipe chama `revogar`);
   `registrar-membro/` (só liga quem já foi aprovado) e `deletar-usuario-auth/` (só Pastor/Gestão aprovado).
 - `supabase/functions/alertas-push/` — inscrições e envio dos pushes (rotina agendada a
   cada 30 min); usa `_shared/` (cópia das regras dos avisos). `supabase/sql/08_alertas_push.sql`.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  acharFicha, aplicarSolicitacao, chamadorPodeAprovar, contaTemFicha, ehAdminAprovado, existeAdminAprovado, ligarFichaAConta,
-  formatarTelefone, lerSolicitacao, podeSerPrimeiroAdmin, statusDaConta, type ContaAuth, type Solicitacao,
+  acharFicha, aplicarSolicitacao, chamadorPodeAprovar, contaTemFicha, desativarFichaDaConta, deveTerVinculo, ehAdminAprovado, existeAdminAprovado, ligarFichaAConta,
+  formatarTelefone, lerSolicitacao, podeRevogarVinculo, podeSerPrimeiroAdmin, statusDaConta, type ContaAuth, type Solicitacao,
 } from '../regras-membros'
 import type { AppState, ConfigIgreja, Usuario } from '../types'
 
@@ -193,5 +193,30 @@ describe('formatarTelefone', () => {
     expect(formatarTelefone('5512999990000')).toBe('(12) 99999-0000')
     expect(formatarTelefone('(12) 99999-0000')).toBe('(12) 99999-0000')
     expect(formatarTelefone('+1 202 555 0100')).toBe('+1 202 555 0100')
+  })
+})
+
+describe('retirar o vínculo de quem foi desativado', () => {
+  const alvo = usuario('alvo', { statusAcesso: 'aprovado', authUserId: 'T1' })
+  it('só Pastor/Gestão aprovado pode retirar', () => {
+    expect(podeRevogarVinculo([admin, alvo], conta('A1'), 'T1')).toEqual({ ok: true })
+    const lider = usuario('l', { papeis: ['lider'], statusAcesso: 'aprovado', authUserId: 'L1' })
+    expect(podeRevogarVinculo([admin, alvo, lider], conta('L1'), 'T1').ok).toBe(false)
+    expect(podeRevogarVinculo([admin, alvo], conta('DESCONHECIDA'), 'T1').ok).toBe(false)
+  })
+  it('ninguém retira o próprio acesso, e o alvo precisa ter cadastro na igreja', () => {
+    expect(podeRevogarVinculo([admin, alvo], conta('A1'), 'A1').ok).toBe(false)
+    expect(podeRevogarVinculo([admin, alvo], conta('A1'), 'SEM-CADASTRO').ok).toBe(false)
+  })
+  it('desativarFichaDaConta inativa só a ficha daquela conta', () => {
+    const novo = desativarFichaDaConta(estado([admin, alvo]), 'T1').usuarios
+    expect(novo.find((u) => u.id === 'alvo')?.ativo).toBe(false)
+    expect(novo.find((u) => u.id === 'adm')?.ativo).toBe(true)
+  })
+  it('só ficha inativa perde o vínculo; pendente (1º administrador) e sem ficha (pastor de rede) mantêm', () => {
+    expect(deveTerVinculo({ ...alvo, ativo: false })).toBe(false)
+    expect(deveTerVinculo(alvo)).toBe(true)
+    expect(deveTerVinculo(usuario('p', { statusAcesso: 'pendente_aprovacao' }))).toBe(true)
+    expect(deveTerVinculo(undefined)).toBe(true)
   })
 })

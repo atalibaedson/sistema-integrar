@@ -97,6 +97,32 @@ export function contaTemFicha(usuarios: Usuario[], authUserId: string): boolean 
   return usuarios.some((u) => u.authUserId === authUserId)
 }
 
+/**
+ * A liderança pode tirar o vínculo desta conta com a igreja? Nunca o da própria pessoa
+ * que pede (ninguém se tranca para fora por engano) e só de quem tem ficha aqui.
+ */
+export function podeRevogarVinculo(
+  usuarios: Usuario[], chamador: ContaAuth, alvoAuthUserId: string,
+): { ok: true } | { ok: false; erro: string } {
+  if (!chamadorPodeAprovar(usuarios, chamador)) return { ok: false, erro: 'Só Pastores e a Gestão Integração aprovados podem retirar acessos.' }
+  if (alvoAuthUserId === chamador.id) return { ok: false, erro: 'Você não pode retirar o seu próprio acesso.' }
+  if (!contaTemFicha(usuarios, alvoAuthUserId)) return { ok: false, erro: 'Essa conta não tem cadastro nesta igreja.' }
+  return { ok: true }
+}
+
+/** Marca como inativa a ficha ligada à conta (a retirada vale mesmo que a gravação do app ainda não tenha chegado). */
+export function desativarFichaDaConta(estado: AppState, authUserId: string): AppState {
+  return {
+    ...estado,
+    usuarios: (estado.usuarios ?? []).map((u) => (u.authUserId === authUserId ? { ...u, ativo: false } : u)),
+  }
+}
+
+/** Quem está desativado na Equipe não deve manter o vínculo (o servidor o retira sozinho na próxima consulta). */
+export function deveTerVinculo(ficha?: Usuario): boolean {
+  return statusDaConta(ficha) !== 'inativo'
+}
+
 // ---- O pedido de acesso (vem dos metadados da conta + do que a pessoa confirma) ----
 
 export interface Solicitacao {

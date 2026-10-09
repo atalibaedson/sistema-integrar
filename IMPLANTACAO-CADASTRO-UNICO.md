@@ -127,6 +127,7 @@ Auditoria e no login por WhatsApp. Ver `PLANO-CADASTRO-UNICO.md`, seção 3.6.
 
 ## Ainda em aberto (sugestões, fora desta entrega)
 
-- **Desativar/remover da Equipe não revoga o vínculo.** Quem foi desativado continua conseguindo ler o bloco
-  pela API até a conta ser apagada. Dá para revogar o vínculo na própria função `acesso-membro`.
+- **Desativar na Equipe retira o vínculo** (v2.6.1): o app chama `acesso-membro` → `revogar`, que marca a ficha como
+  inativa e apaga o vínculo; se o servidor recusar, nada muda. Reativar devolve o acesso. Quem foi desativado antes disso
+  (ou cuja ficha ainda não tem conta ligada) perde o vínculo na próxima consulta de status. Remover da Equipe apaga a conta.
 - Limitar tamanho/tipo de arquivo no bucket `avatares` (hoje aceita upload de qualquer sessão).

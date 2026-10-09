@@ -144,6 +144,15 @@ export function aprovarNoServidor(authUserId: string): Promise<ResultadoServidor
   return chamarAcesso('aprovar', { authUserId })
 }
 
+/**
+ * A liderança retira o vínculo de quem foi desativado na Equipe (o servidor confere quem chama).
+ * Sem nuvem (modo local/demonstração) não há vínculo a retirar.
+ */
+export async function revogarNoServidor(authUserId: string): Promise<ResultadoServidor> {
+  if (!supabase) return { ok: true }
+  return chamarAcesso('revogar', { authUserId })
+}
+
 /** Enquanto a igreja não tem administrador aprovado, a própria pessoa ativa o seu acesso. */
 export async function virarPrimeiroAdminNoServidor(): Promise<ResultadoServidor> {
   const r = await chamarAcesso('primeiro_admin')
