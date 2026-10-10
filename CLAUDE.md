@@ -183,6 +183,7 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe/` (pasta: `index` lista + resum
 Na raiz há especificações e manual longos — só consulte quando a tarefa pedir:
 `Consolidacao-iFE-Especificacao.md`, `PADRAO-SISTEMA-INTEGRACAO.md`, `manual/manual.html`,
 `IMPLANTACAO-ALERTAS-PUSH.md`, `IMPLANTACAO-CADASTRO-UNICO.md`, `PLANO-CADASTRO-UNICO.md`,
+`PLANO-ETAPA-2-CADASTRO-UNICO.md` (análise: ler do cadastro único do Check-iFE; só plano),
 `README.md`, `SUPABASE.md`, `SUPABASE-AUTH.md`.
 
 ## Manual do usuário
