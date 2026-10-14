@@ -1034,6 +1034,15 @@ details summary:hover { color: var(--acento-texto); }
   font-size: clamp(25px, 3vw, 30px); line-height: 1.15; letter-spacing: -.01em; margin: 0 0 6px;
 }
 .ac-sub, .ac-texto-ok { font-size: 14.5px; color: var(--text-2); line-height: 1.6; margin: 0; }
+/* Igreja que recebe o cadastro (as páginas das igrejas são iguais) */
+.ac-igreja {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 5px 12px;
+  border-radius: 999px; font-size: 13px; color: var(--acento-texto);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.ac-igreja b { font-weight: 700; }
+.ac-igreja-outras { margin: 8px 0 0; font-size: 12.5px; color: var(--text-3); }
+.ac-igreja-outras a { color: var(--acento-texto); }
 .ac-form { display: flex; flex-direction: column; gap: 2px; }
 .ac-grupo { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
 .ac-lgpd {

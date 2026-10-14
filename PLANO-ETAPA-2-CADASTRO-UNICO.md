@@ -302,7 +302,7 @@ fallback sem papel), sem tocar produção; roteiro de aceite com contas de teste
 |---|---|---|---|
 | **0. Arrumar a casa** ✅ feito na v2.6.3 | (a) A ficha de pastor de rede passa a ser criada pelo **servidor** (`acesso-membro`), uma só por conta e igreja; (b) rotina que **une fichas duplicadas** da mesma conta na mesma igreja (mantém a mais usada, transfere visitantes `responsavelId`/`liderConexaoId`, `supervisorId`, líderes de conexão e `autorId`, remove a outra, registra na auditoria); (c) excluir uma ficha **nunca** apaga a conta se a mesma conta tiver outra ficha ou outra igreja. | Integrar (eu) + você publica | 2.7.0 |
 | **1. Igrejas da rede (D1)** ✅ v2.7.0 | Na ficha do pastor (Equipe): "Acesso a outras igrejas", marcando uma ou mais. Só quem é pastor aprovado na igreja de destino concede; o servidor cria o vínculo e a ficha de pastor ali. Substitui o SQL manual de hoje. | Integrar | 2.7.0 |
-| **2. Funções para o Check-iFE (D1, D2)** | Funções **só leitura** do Integrar: igrejas a que uma conta tem acesso, e a igreja de casa de uma pessoa. O Check-iFE as consulta (nunca escreve no Integrar). | Integrar (SQL novo, você roda) | 2.7.0 |
+| **2. Funções para o Check-iFE (D1, D2)** ✅ SQL 10 | Funções **só leitura** do Integrar: igrejas a que uma conta tem acesso, e a igreja de casa de uma pessoa. O Check-iFE as consulta (nunca escreve no Integrar). | Integrar (SQL novo, você roda) | 2.7.0 |
 | **3. Pedidos ao Check-iFE** | Enviar P1–P11 (seção 8 + P11: limitar a leitura de `pastor`/`integracao` às igrejas da função do passo 2; aceitar `outro`). Esperar as respostas antes da fase A. | você leva; Check-iFE faz | — |
 | **A. Ler** | Equipe e Aprovações leem `pessoas`/`pessoas_sensivel` (quem tem papel); a ficha fica como reserva; aviso quando o papel no Check-iFE falta; data de atualização. | Integrar | 2.8.0 |
 | **B. Completar** | Tela "Completar o cadastro único" (termo do Check-iFE + conexão da igreja da pessoa + estado civil, com `uniao_estavel`) no 1º acesso; "Meu cadastro" no menu. Grava só a linha da própria pessoa (D5). | Integrar | 2.9.0 |
@@ -310,3 +310,18 @@ fallback sem papel), sem tocar produção; roteiro de aceite com contas de teste
 | **C. Limpar** | Remover da ficha `situacaoCivil`, `conexaoParticipaId`, `bairro` e `dataNascimento` (D6) — só das fichas ligadas a conta e com o cadastro único preenchido; fichas sem login ficam (D7). Backup antes. | Integrar + você confere | 3.0.0 |
 
 Em todos: testes das regras puras, build, publicação só com o seu "publica", e roteiro de conferência.
+
+## 14. Contrato para o Check-iFE (passo 2 — `supabase/sql/10_funcoes_para_checkife.sql`)
+
+Funções **só leitura** do Integrar (testadas num Postgres local com dados fictícios). Sessão anônima recebe vazio.
+
+| Função | Quem pode chamar | Devolve | Uso sugerido no Check-iFE |
+|---|---|---|---|
+| `integrar_igrejas()` | anônimo e logado | `[{ id, nome, cidade }]` | mostrar o nome da igreja (use `cidade` para diferenciar: o `nome` das duas pode ser igual) |
+| `integrar_minhas_igrejas()` | logado | `text[]` — igrejas a que **quem chama** tem acesso no Integrar | D1: limitar a leitura de `pastor`/`integracao` |
+| `integrar_igrejas_da_pessoa(p_user_id uuid)` | logado | `text[]` — igrejas em que a pessoa tem ficha aprovada ou pedido em análise (ativa) ou vínculo | D2: igreja da pessoa; `conexoes_publicas(<igreja>)` para a lista de conexões |
+
+Exemplo de regra de leitura (o Check-iFE decide e escreve a dele):
+`integrar_igrejas_da_pessoa(pessoas.user_id) && integrar_minhas_igrejas()` (há igreja em comum).
+Pessoa **sem** igreja no Integrar (só cadastrada no Check-iFE) devolve `{}`: o Check-iFE precisa definir o que
+fazer com ela (ex.: liberar para `integracao` ou usar `conexao_igreja`).

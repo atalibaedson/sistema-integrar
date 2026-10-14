@@ -9,6 +9,9 @@ import { supabase } from '../supabaseClient'
 import { urlDoApp } from '../urlApp'
 import { IcoEmail } from '../icones'
 import TelaPublica from '../TelaPublica'
+import { APPS_DAS_IGREJAS } from '../urlApp'
+import { getConfigNuvem } from '../nuvem'
+import { IcoCasa } from '../icones'
 
 const ETAPAS = ['Seus dados', 'Funções e foto', 'Seu acesso'] as const
 
@@ -172,12 +175,29 @@ export default function CadastroIntegrante() {
     )
   }
 
+  // Qual igreja vai receber o pedido (definida pelo endereço). As duas páginas são iguais:
+  // sem isto, alguém de São José cadastrado pelo link de Resende só descobria na aprovação.
+  const idIgreja = getConfigNuvem()?.igrejaId ?? ''
+  const igrejaDoCadastro = APPS_DAS_IGREJAS[idIgreja] ?? null
+  const outrasIgrejas = igrejaDoCadastro ? Object.entries(APPS_DAS_IGREJAS).filter(([id]) => id !== idIgreja) : []
+
   return (
     <TelaPublica larga>
       <div className="ac-cartao ac-cartao-lg">
         <div className="ac-cab">
+          {igrejaDoCadastro && (
+            <p className="ac-igreja"><IcoCasa size={14} /> Cadastro para: <b>{igrejaDoCadastro.nome}</b></p>
+          )}
           <h1 className="ac-boas-vindas">Criar meu acesso</h1>
           <p className="ac-sub">Leva 3 passos. Depois você confirma o e-mail, a liderança aprova e você já pode entrar.</p>
+          {outrasIgrejas.length > 0 && (
+            <p className="ac-igreja-outras">
+              Não é a sua igreja?{' '}
+              {outrasIgrejas.map(([id, a], i) => (
+                <span key={id}>{i > 0 && ' · '}<a href={`${a.url}/#/cadastro-integrante`}>Cadastro da {a.nome}</a></span>
+              ))}
+            </p>
+          )}
         </div>
 
         {/* Progresso */}
