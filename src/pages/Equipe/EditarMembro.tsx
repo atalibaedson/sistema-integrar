@@ -13,6 +13,8 @@ import { IcoCheck, IcoCopiar, IcoEmail, IcoLixeira, IcoWhats, IcoX } from '../..
 import Avatar from '../../Avatar'
 import Gaveta from './Gaveta'
 import SeletorFuncoes from '../../SeletorFuncoes'
+import AcessoRede from './AcessoRede'
+import { temPapel, useUsuarioAtualId } from '../../acesso'
 import { ChipAcesso, ChipsPapeis, definirSupervisor } from './comum'
 
 function dataBR(iso?: string): string {
@@ -42,6 +44,10 @@ export default function EditarMembro({ u, onFechar }: { u: Usuario; onFechar: ()
   // Visitantes que dependem desta pessoa (responsável ou líder designado)
   const dependentes = s.visitantes.filter((v) => v.responsavelId === u.id || v.liderConexaoId === u.id)
   const aprovador = usuarioPorId(s, u.aprovadoPorId)
+  // Acesso a outras igrejas: pastor aprovado definindo o de OUTRO pastor aprovado (com login)
+  const eu = usuarioPorId(s, useUsuarioAtualId() ?? undefined)
+  const mostraRede = !!supabase && !!u.authUserId && eu?.id !== u.id && temPapel(eu, 'pastor') &&
+    u.papeis.includes('pastor') && u.statusAcesso === 'aprovado' && u.ativo
 
   async function tentarFechar() {
     if (sujo && !(await confirmar({
@@ -281,6 +287,8 @@ export default function EditarMembro({ u, onFechar }: { u: Usuario; onFechar: ()
             <a className="btn btn-sec btn-mini eq-g-whats" href={linkWhatsApp(u.whatsapp)} target="_blank" rel="noreferrer"><IcoWhats size={13} /> Chamar no WhatsApp</a>
           </div>
         </section>
+
+        {mostraRede && <AcessoRede u={u} />}
 
         <section className="eq-g-secao eq-g-perigo">
           <h3>Situação na equipe</h3>

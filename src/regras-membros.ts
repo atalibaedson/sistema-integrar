@@ -515,3 +515,42 @@ export function criarFichaDeRede(estado: AppState, conta: ContaAuth, origem: Usu
     auditoria: [registro, ...(estado.auditoria ?? [])].slice(0, LIMITE_AUDITORIA),
   }
 }
+
+// ---- Acesso de pastor a outras igrejas (definido na Equipe) ----
+//
+// Substitui o SQL manual: um pastor aprovado dá (ou tira) o acesso de outro pastor a
+// uma igreja de que ELE TAMBÉM é pastor aprovado. O servidor confere tudo pelas fichas
+// dos dois blocos — nada vem do navegador além de "quem" e "qual igreja".
+
+/**
+ * Pode definir o acesso do alvo à igreja de destino? Quem chama: pastor aprovado e ativo
+ * AQUI e no DESTINO. Alvo: outra pessoa, com ficha de pastor aprovada e ativa aqui.
+ */
+export function podeDefinirRede(
+  usuariosAqui: Usuario[], usuariosDestino: Usuario[], chamador: ContaAuth, alvoAuthUserId: string,
+): { ok: true; origem: Usuario } | { ok: false; erro: string } {
+  if (!fichaDePastorAprovado(usuariosAqui, chamador.id)) return { ok: false, erro: 'Só pastores aprovados desta igreja definem o acesso a outras igrejas.' }
+  if (!fichaDePastorAprovado(usuariosDestino, chamador.id)) return { ok: false, erro: 'Você só pode dar acesso a uma igreja em que também é pastor aprovado.' }
+  if (alvoAuthUserId === chamador.id) return { ok: false, erro: 'Você não pode alterar o seu próprio acesso.' }
+  const origem = fichaDePastorAprovado(usuariosAqui, alvoAuthUserId)
+  if (!origem) return { ok: false, erro: 'O acesso a outras igrejas é só para pastores aprovados e ativos.' }
+  return { ok: true, origem }
+}
+
+/** Reativa a ficha de REDE (id `r-<conta>`) que tinha sido desativada ao tirar o acesso. Outras fichas não são tocadas. */
+export function reativarFichaDeRede(estado: AppState, authUserId: string): AppState | null {
+  const id = `r-${authUserId}`
+  const ficha = (estado.usuarios ?? []).find((u) => u.id === id && u.authUserId === authUserId)
+  if (!ficha) return null
+  return {
+    ...estado,
+    usuarios: estado.usuarios.map((u) => (u.id === id
+      ? { ...u, ativo: true, statusAcesso: 'aprovado' as const, papeis: [...new Set<Papel>([...u.papeis, 'pastor'])], motivoRejeicao: undefined }
+      : u)),
+  }
+}
+
+/** Acrescenta um registro à auditoria do bloco (o servidor também deixa rastro). */
+export function comRegistroDeAuditoria(estado: AppState, registro: RegistroAuditoria): AppState {
+  return { ...estado, auditoria: [registro, ...(estado.auditoria ?? [])].slice(0, LIMITE_AUDITORIA) }
+}

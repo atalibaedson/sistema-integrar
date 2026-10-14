@@ -17,6 +17,10 @@
 //                      vínculo de outra conta que tem ficha nesta igreja.
 //   • revogar        — a liderança retira o vínculo de quem foi DESATIVADO na Equipe (o servidor
 //                      marca a ficha como inativa e apaga o vínculo; reativar = `aprovar` de novo).
+//   • rede_consultar — (pastor) a que outras igrejas um pastor tem acesso, entre as igrejas em
+//                      que QUEM PERGUNTA também é pastor aprovado.
+//   • rede_definir   — (pastor) dá ou tira o acesso de um pastor a uma dessas igrejas: cria o
+//                      vínculo e a ficha de pastor de rede lá (ou desativa a ficha e tira o vínculo).
 //   • primeiro_admin — enquanto a igreja não tem nenhum administrador aprovado, a
 //                      própria pessoa com ficha pode ativar o seu acesso.
 //
@@ -26,6 +30,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import {
   acharFicha, aplicarSolicitacao, chamadorPodeAprovar, contaTemFicha, criarFichaDeRede, existeAdminAprovado,
+  comRegistroDeAuditoria, contaJaTemFichaAqui, podeDefinirRede, reativarFichaDeRede,
   fichaDePastorAprovado, fichasDuplicadas, lerSolicitacao, unirFichasDuplicadas, desativarFichaDaConta, deveTerVinculo, ligarFichaAConta, podeRevogarVinculo, podeSerPrimeiroAdmin, statusDaConta, type ContaAuth,
 } from '../_shared/regras-membros.ts'
 import type { AppState } from '../_shared/types.ts'
@@ -263,6 +268,81 @@ async function acaoRevogar(c: Chamador, igrejaId: string, corpo: Record<string, 
   return resposta({ ok: true })
 }
 
+// ---- acesso de pastor a outras igrejas ----
+
+// Igrejas (≠ desta) em que a conta é pastor aprovado e ativo — o universo que ela pode conceder.
+async function igrejasOndeEhPastor(authUserId: string, exceto: string): Promise<string[]> {
+  const { data } = await admin.from('membros_igreja').select('igreja_id').eq('auth_user_id', authUserId)
+  const ids: string[] = []
+  for (const id of (data ?? []).map((x) => x.igreja_id as string)) {
+    if (id === exceto || ids.includes(id)) continue
+    const l = await lerEstado(id)
+    if (l && fichaDePastorAprovado(l.dados.usuarios, authUserId)) ids.push(id)
+  }
+  return ids
+}
+
+async function acaoRedeConsultar(c: Chamador, igrejaId: string, corpo: Record<string, unknown>) {
+  const alvo = texto(corpo.authUserId)
+  if (!alvo) return resposta({ error: 'Conta não informada.' }, 400)
+  const linha = await lerEstado(igrejaId)
+  if (!linha) return resposta({ error: 'Igreja não encontrada.' }, 404)
+  if (!fichaDePastorAprovado(linha.dados.usuarios, c.conta.id)) return resposta({ error: 'Só pastores aprovados desta igreja consultam isso.' }, 403)
+  const igrejas = await igrejasOndeEhPastor(c.conta.id, igrejaId)
+  const lista = []
+  for (const id of igrejas) lista.push({ id, temAcesso: await estaVinculado(alvo, id) })
+  return resposta({ ok: true, igrejas: lista })
+}
+
+async function acaoRedeDefinir(c: Chamador, igrejaId: string, corpo: Record<string, unknown>) {
+  const alvo = texto(corpo.authUserId)
+  const destino = texto(corpo.igrejaDestino)
+  const conceder = corpo.conceder === true
+  if (!alvo || !destino) return resposta({ error: 'Dados incompletos.' }, 400)
+  if (destino === igrejaId) return resposta({ error: 'Escolha outra igreja.' }, 400)
+  const [aqui, la] = [await lerEstado(igrejaId), await lerEstado(destino)]
+  if (!aqui || !la) return resposta({ error: 'Igreja não encontrada.' }, 404)
+  const pode = podeDefinirRede(aqui.dados.usuarios, la.dados.usuarios, c.conta, alvo)
+  if (!pode.ok) return resposta({ error: pode.erro }, 403)
+  const origem = pode.origem
+  const quem = fichaDePastorAprovado(aqui.dados.usuarios, c.conta.id)?.nome ?? 'Pastor'
+  const agora = new Date().toISOString()
+
+  if (conceder) {
+    const { data: alvoAuth } = await admin.auth.admin.getUserById(alvo)
+    const u = alvoAuth?.user
+    if (!u || (u as { is_anonymous?: boolean }).is_anonymous) return resposta({ error: 'Conta não encontrada.' }, 404)
+    const contaAlvo = { id: alvo, email: u.email ?? undefined, emailConfirmado: !!u.email_confirmed_at }
+    const r = await alterarEstado(destino, (e) => {
+      if (!contaJaTemFichaAqui(e.usuarios, contaAlvo)) return criarFichaDeRede(e, contaAlvo, origem, uid)
+      if (fichaDePastorAprovado(e.usuarios, alvo)) return null // já é pastor aprovado lá: só falta o vínculo
+      return reativarFichaDeRede(e, alvo) // null = outra ficha (pendente/desativada): recusado abaixo
+    })
+    if (r !== 'gravou' && r !== 'nada') return resposta({ error: `Não foi possível dar o acesso: ${r}` }, 500)
+    const depois = await lerEstado(destino)
+    if (!depois || !fichaDePastorAprovado(depois.dados.usuarios, alvo)) {
+      return resposta({ error: 'Essa pessoa já tem um cadastro nessa igreja que não está aprovado. Resolva pela Equipe ou Aprovações de lá.' }, 409)
+    }
+    const erro = await vincular(alvo, destino)
+    if (erro) return resposta({ error: `Não foi possível dar o acesso: ${erro}` }, 500)
+  } else {
+    const r = await alterarEstado(destino, (e) => (e.usuarios.some((u) => u.authUserId === alvo) ? desativarFichaDaConta(e, alvo) : null))
+    if (r !== 'gravou' && r !== 'nada') return resposta({ error: `Não foi possível tirar o acesso: ${r}` }, 500)
+    const erro = await desvincular(alvo, destino)
+    if (erro) return resposta({ error: `Não foi possível tirar o acesso: ${erro}` }, 500)
+  }
+
+  // rastro nas duas igrejas
+  const acao = conceder ? '🌐 Deu acesso a outra igreja' : '🌐 Tirou acesso a outra igreja'
+  for (const [igreja, detalhe] of [[igrejaId, `Igreja: ${destino}`], [destino, `Definido a partir de: ${igrejaId}`]]) {
+    await alterarEstado(igreja, (e) => comRegistroDeAuditoria(e, {
+      id: uid(), data: agora, usuarioNome: quem, acao, detalhe,
+      alvoTipo: 'usuario', alvoId: origem.id, alvoNome: origem.nome,
+    }))
+  }
+  return resposta({ ok: true })
+}
+
 async function acaoPrimeiroAdmin(c: Chamador, igrejaId: string) {
   const linha = await lerEstado(igrejaId)
   if (!linha) return resposta({ error: 'Igreja não encontrada.' }, 404)
@@ -299,6 +379,8 @@ Deno.serve(async (req) => {
       case 'solicitar': return await acaoSolicitar(chamador, igrejaId, corpo)
       case 'aprovar': return await acaoAprovar(chamador, igrejaId, corpo)
       case 'revogar': return await acaoRevogar(chamador, igrejaId, corpo)
+      case 'rede_consultar': return await acaoRedeConsultar(chamador, igrejaId, corpo)
+      case 'rede_definir': return await acaoRedeDefinir(chamador, igrejaId, corpo)
       case 'primeiro_admin': return await acaoPrimeiroAdmin(chamador, igrejaId)
       default: return resposta({ error: 'Ação desconhecida.' }, 400)
     }

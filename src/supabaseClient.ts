@@ -153,6 +153,18 @@ export async function revogarNoServidor(authUserId: string): Promise<ResultadoSe
   return chamarAcesso('revogar', { authUserId })
 }
 
+/** Igrejas (em que quem pergunta é pastor) e se o pastor indicado tem acesso a cada uma. */
+export async function consultarAcessoRede(authUserId: string): Promise<{ ok: boolean; erro?: string; igrejas: { id: string; temAcesso: boolean }[] }> {
+  const r = await chamarAcesso('rede_consultar', { authUserId })
+  const lista = Array.isArray(r.dados?.igrejas) ? (r.dados!.igrejas as { id: string; temAcesso: boolean }[]) : []
+  return { ok: r.ok, erro: r.erro, igrejas: lista }
+}
+
+/** Dá ou tira o acesso de um pastor a outra igreja (o servidor confere que quem pede é pastor nas duas). */
+export function definirAcessoRede(authUserId: string, igrejaDestino: string, conceder: boolean): Promise<ResultadoServidor> {
+  return chamarAcesso('rede_definir', { authUserId, igrejaDestino, conceder })
+}
+
 /** Enquanto a igreja não tem administrador aprovado, a própria pessoa ativa o seu acesso. */
 export async function virarPrimeiroAdminNoServidor(): Promise<ResultadoServidor> {
   const r = await chamarAcesso('primeiro_admin')

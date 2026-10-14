@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  acharFicha, aplicarSolicitacao, chamadorPodeAprovar, contaJaTemFichaAqui, contaTemFicha, criarFichaDeRede, fichaDePastorAprovado, fichasDuplicadas, unirFichasDuplicadas, usosDaFicha, desativarFichaDaConta, deveTerVinculo, ehAdminAprovado, existeAdminAprovado, ligarFichaAConta,
+  acharFicha, aplicarSolicitacao, chamadorPodeAprovar, contaJaTemFichaAqui, contaTemFicha, criarFichaDeRede, fichaDePastorAprovado, fichasDuplicadas, podeDefinirRede, reativarFichaDeRede, unirFichasDuplicadas, usosDaFicha, desativarFichaDaConta, deveTerVinculo, ehAdminAprovado, existeAdminAprovado, ligarFichaAConta,
   formatarTelefone, lerSolicitacao, podeRevogarVinculo, podeSerPrimeiroAdmin, servidorNegaAcesso, statusDaConta, type ContaAuth, type Solicitacao,
 } from '../regras-membros'
 import type { AppState, ConfigIgreja, Usuario } from '../types'
@@ -300,5 +300,28 @@ describe('ficha de pastor de rede (servidor)', () => {
     // já tem ficha (por conta ou por e-mail): não cria outra
     expect(criarFichaDeRede(e, conta('R1', 'r@x.com'), origem, () => 'g', AGORA)).toBeNull()
     expect(contaJaTemFichaAqui([usuario('z', { email: 'R@X.com' })], conta('R1', 'r@x.com'))).toBe(true)
+  })
+})
+
+describe('acesso de pastor a outras igrejas', () => {
+  const pastorAqui = (id: string, conta: string, extra: Partial<Usuario> = {}) =>
+    usuario(id, { papeis: ['pastor'], statusAcesso: 'aprovado', authUserId: conta, ...extra })
+  const aqui = [pastorAqui('eu', 'EU'), pastorAqui('alvo', 'AL')]
+  const la = [pastorAqui('eu-la', 'EU')]
+  it('quem chama precisa ser pastor aprovado aqui E no destino', () => {
+    expect(podeDefinirRede(aqui, la, conta('EU'), 'AL').ok).toBe(true)
+    expect(podeDefinirRede(aqui, [], conta('EU'), 'AL').ok).toBe(false)
+    expect(podeDefinirRede([pastorAqui('eu', 'EU', { papeis: ['coordenacao'] }), aqui[1]], la, conta('EU'), 'AL').ok).toBe(false)
+  })
+  it('o alvo precisa ser outro pastor aprovado e ativo daqui', () => {
+    expect(podeDefinirRede(aqui, la, conta('EU'), 'EU').ok).toBe(false)
+    expect(podeDefinirRede([aqui[0], pastorAqui('alvo', 'AL', { ativo: false })], la, conta('EU'), 'AL').ok).toBe(false)
+    expect(podeDefinirRede([aqui[0], pastorAqui('alvo', 'AL', { papeis: ['lider'] })], la, conta('EU'), 'AL').ok).toBe(false)
+  })
+  it('reativa só a ficha de rede (r-<conta>), nunca outra ficha da pessoa', () => {
+    const rede = usuario('r-AL', { papeis: ['pastor'], statusAcesso: 'aprovado', authUserId: 'AL', ativo: false })
+    const e = reativarFichaDeRede(estado([rede]), 'AL')!
+    expect(e.usuarios[0]).toMatchObject({ ativo: true, statusAcesso: 'aprovado' })
+    expect(reativarFichaDeRede(estado([usuario('x', { authUserId: 'AL', ativo: false })]), 'AL')).toBeNull()
   })
 })
