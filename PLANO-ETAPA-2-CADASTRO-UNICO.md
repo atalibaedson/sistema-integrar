@@ -6,6 +6,25 @@
 > Documentos anteriores: [PLANO-CADASTRO-UNICO.md](PLANO-CADASTRO-UNICO.md) (seção 3.6 já previa esta etapa),
 > [IMPLANTACAO-CADASTRO-UNICO.md](IMPLANTACAO-CADASTRO-UNICO.md).
 
+## Decisões (2026-10-14)
+
+| # | Decisão |
+|---|---|
+| D1 | Área no **Integrar** para dizer a que igreja(s) cada pastor tem acesso (uma ou mais). O Check-iFE usa essa lista para limitar a leitura por igreja. |
+| D2 | A igreja da pessoa é definida **no Integrar** (o Check-iFE consulta). |
+| D3 | Pedir ao Check-iFE para aceitar `outro` (e o Integrar passa a ter `uniao_estavel`). |
+| D4 | Sim: tela "Sem conexão" para a Gestão Integração. |
+| D5 | O Integrar grava a linha da **própria** pessoa (termo, conexão, estado civil). |
+| D6 | `dataNascimento` sai da ficha e passa a vir do cadastro único. |
+| D7 | Fichas sem login continuam só no Integrar até a pessoa criar conta. |
+| D8 | Manter a conta compartilhada "Integração - IFE". |
+
+**Achado na lista de papéis:** a conta `ataliba.edson` tem **duas fichas em São José** (duplicata). Causa: a
+ficha de pastor de rede é criada pelo **aparelho** (`garantirFichaMembroRede`, no `App.tsx`) quando ele ainda
+não baixou o bloco da nuvem; outro aparelho faz o mesmo e a mesclagem guarda as duas. O Adilson com uma ficha
+em cada igreja **não** é duplicata: é o modelo (1 login, 1 cadastro pessoal, 1 ficha por igreja com os papéis
+daquela igreja). Correção no passo 0 da seção 13.
+
 ## 0. Resumo
 
 1. **O Integrar quase não depende de dados pessoais da pessoa.** Dentro do bloco `estados`, a ficha
@@ -276,3 +295,18 @@ do cadastro único. Nada disso depende do cadastro único e **nada muda** neles 
 
 Testes previstos: regras puras (mapeamento de campos e de estado civil, quem pode ler, ligação ficha↔pessoa,
 fallback sem papel), sem tocar produção; roteiro de aceite com contas de teste dos três papéis.
+
+## 13. Passo a passo (com as decisões de 2026-10-14)
+
+| Passo | O que é feito | Quem | Versão |
+|---|---|---|---|
+| **0. Arrumar a casa** | (a) A ficha de pastor de rede passa a ser criada pelo **servidor** (`acesso-membro`), uma só por conta e igreja; (b) rotina que **une fichas duplicadas** da mesma conta na mesma igreja (mantém a mais usada, transfere visitantes `responsavelId`/`liderConexaoId`, `supervisorId`, líderes de conexão e `autorId`, remove a outra, registra na auditoria); (c) excluir uma ficha **nunca** apaga a conta se a mesma conta tiver outra ficha ou outra igreja. | Integrar (eu) + você publica | 2.7.0 |
+| **1. Igrejas da rede (D1)** | Na ficha do pastor (Equipe): "Acesso a outras igrejas", marcando uma ou mais. Só quem é pastor aprovado na igreja de destino concede; o servidor cria o vínculo e a ficha de pastor ali. Substitui o SQL manual de hoje. | Integrar | 2.7.0 |
+| **2. Funções para o Check-iFE (D1, D2)** | Funções **só leitura** do Integrar: igrejas a que uma conta tem acesso, e a igreja de casa de uma pessoa. O Check-iFE as consulta (nunca escreve no Integrar). | Integrar (SQL novo, você roda) | 2.7.0 |
+| **3. Pedidos ao Check-iFE** | Enviar P1–P11 (seção 8 + P11: limitar a leitura de `pastor`/`integracao` às igrejas da função do passo 2; aceitar `outro`). Esperar as respostas antes da fase A. | você leva; Check-iFE faz | — |
+| **A. Ler** | Equipe e Aprovações leem `pessoas`/`pessoas_sensivel` (quem tem papel); a ficha fica como reserva; aviso quando o papel no Check-iFE falta; data de atualização. | Integrar | 2.8.0 |
+| **B. Completar** | Tela "Completar o cadastro único" (termo do Check-iFE + conexão da igreja da pessoa + estado civil, com `uniao_estavel`) no 1º acesso; "Meu cadastro" no menu. Grava só a linha da própria pessoa (D5). | Integrar | 2.9.0 |
+| **D4. Sem conexão** | Tela para a Gestão Integração: quem marcou "ainda não participo", com botão de mensagem. | Integrar | 2.9.0 |
+| **C. Limpar** | Remover da ficha `situacaoCivil`, `conexaoParticipaId`, `bairro` e `dataNascimento` (D6) — só das fichas ligadas a conta e com o cadastro único preenchido; fichas sem login ficam (D7). Backup antes. | Integrar + você confere | 3.0.0 |
+
+Em todos: testes das regras puras, build, publicação só com o seu "publica", e roteiro de conferência.
