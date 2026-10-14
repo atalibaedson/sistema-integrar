@@ -333,3 +333,185 @@ export function aplicarSolicitacao(
 function limpar<T extends object>(o: T): Partial<T> {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>
 }
+
+// ---- Fichas duplicadas da mesma conta (mesma igreja) ----
+//
+// Uma conta tem UMA ficha por igreja. Duplicatas apareceram quando a ficha de pastor de
+// rede era criada pelo aparelho antes de ele baixar o bloco da nuvem: outro aparelho fazia
+// o mesmo e a mesclagem guardava as duas. A união é determinística (o mesmo resultado em
+// qualquer servidor/aparelho) e só junta fichas da MESMA conta — nunca de pessoas diferentes.
+
+/** Quantas coisas apontam para a ficha (visitantes, hierarquia, conexões, interações). */
+export function usosDaFicha(e: AppState, id: string): number {
+  let n = 0
+  for (const v of e.visitantes ?? []) if (v.responsavelId === id || v.liderConexaoId === id) n++
+  for (const u of e.usuarios ?? []) if (u.supervisorId === id) n++
+  for (const c of e.conexoes ?? []) if (c.liderId === id || c.lider2Id === id) n++
+  for (const i of e.interacoes ?? []) if (i.autorId === id) n++
+  return n
+}
+
+/** Contas com mais de uma ficha nesta igreja (authUserId → ids das fichas, na ordem do bloco). */
+export function fichasDuplicadas(usuarios: Usuario[]): Map<string, string[]> {
+  const porConta = new Map<string, string[]>()
+  for (const u of usuarios) {
+    if (!u.authUserId) continue
+    porConta.set(u.authUserId, [...(porConta.get(u.authUserId) ?? []), u.id])
+  }
+  return new Map([...porConta].filter(([, ids]) => ids.length > 1))
+}
+
+export interface UniaoDeFichas { authUserId: string; mantida: string; removidas: string[] }
+
+// campos pessoais que a ficha mantida herda das outras quando estão vazios nela
+const CAMPOS_HERDAVEIS: (keyof Usuario)[] = [
+  'whatsapp', 'email', 'dataNascimento', 'situacaoCivil', 'fotoUrl', 'conexaoId', 'conexaoParticipaId',
+  'supervisorId', 'loginPreferido', 'cadastroCompletoEm', 'emailConfirmadoEm', 'bairro', 'comoConheceu',
+]
+
+/**
+ * Une as fichas duplicadas de cada conta. Fica a ficha mais usada (empate: a aprovada e
+ * ativa; depois, a primeira do bloco). Funções: só as de fichas APROVADAS e ativas entram
+ * (um pedido pendente nunca vira poder). Tudo que apontava para as removidas passa a apontar
+ * para a mantida; as removidas ganham lápide (a mesclagem não as ressuscita) e a união vai
+ * para a auditoria.
+ */
+export function unirFichasDuplicadas(
+  estado: AppState, gerarId: () => string, agora: Date = new Date(),
+): { estado: AppState; unioes: UniaoDeFichas[] } {
+  const duplicadas = fichasDuplicadas(estado.usuarios ?? [])
+  if (duplicadas.size === 0) return { estado, unioes: [] }
+  const iso = agora.toISOString()
+  const unioes: UniaoDeFichas[] = []
+  const troca = new Map<string, string>() // id removido → id mantido
+  const fundidas = new Map<string, Usuario>() // id mantido → ficha resultante
+  const porId = new Map((estado.usuarios ?? []).map((u) => [u.id, u]))
+  const ativaAprovada = (u: Usuario) => u.ativo && u.statusAcesso === 'aprovado'
+
+  for (const [authUserId, ids] of duplicadas) {
+    const fichas = ids.map((id) => porId.get(id)!)
+    const ordem = fichas
+      .map((f, i) => ({ f, i, usos: usosDaFicha(estado, f.id) }))
+      .sort((a, b) => b.usos - a.usos || Number(ativaAprovada(b.f)) - Number(ativaAprovada(a.f)) || a.i - b.i)
+    const mantida = ordem[0].f
+    const outras = ordem.slice(1).map((o) => o.f)
+    let r: Usuario = { ...mantida }
+    for (const o of outras) {
+      for (const k of CAMPOS_HERDAVEIS) {
+        const atual = r[k]
+        if ((atual === undefined || atual === '') && o[k] !== undefined && o[k] !== '') r = { ...r, [k]: o[k] }
+      }
+    }
+    const aprovadas = fichas.filter(ativaAprovada)
+    if (aprovadas.length > 0) {
+      const base = ativaAprovada(mantida) ? mantida : aprovadas[0]
+      r = {
+        ...r, ativo: true, statusAcesso: 'aprovado',
+        papeis: [...new Set(aprovadas.flatMap((f) => f.papeis))],
+        aprovadoPorId: r.aprovadoPorId ?? base.aprovadoPorId, aprovadoEm: r.aprovadoEm ?? base.aprovadoEm,
+        motivoRejeicao: undefined,
+      }
+    }
+    const removidas = outras.map((o) => o.id)
+    for (const id of removidas) troca.set(id, mantida.id)
+    if (r.supervisorId && (r.supervisorId === mantida.id || removidas.includes(r.supervisorId))) r = { ...r, supervisorId: undefined }
+    fundidas.set(mantida.id, r)
+    unioes.push({ authUserId, mantida: mantida.id, removidas })
+  }
+
+  const novoId = (id?: string) => (id && troca.has(id) ? troca.get(id)! : id)
+  const usuarios = (estado.usuarios ?? [])
+    .filter((u) => !troca.has(u.id))
+    .map((u) => {
+      const base = fundidas.get(u.id) ?? u
+      const sup = novoId(base.supervisorId)
+      return {
+        ...base,
+        supervisorId: sup === base.id ? undefined : sup,
+        aprovadoPorId: novoId(base.aprovadoPorId),
+        rejeitadoPorId: novoId(base.rejeitadoPorId),
+      }
+    })
+  const conexoes = (estado.conexoes ?? []).map((c) => {
+    const liderId = novoId(c.liderId)
+    const lider2Id = novoId(c.lider2Id)
+    return { ...c, liderId, lider2Id: lider2Id && lider2Id === liderId ? undefined : lider2Id }
+  })
+  const visitantes = (estado.visitantes ?? []).map((v) => ({
+    ...v, responsavelId: novoId(v.responsavelId), liderConexaoId: novoId(v.liderConexaoId),
+  }))
+  const interacoes = (estado.interacoes ?? []).map((i) => ({ ...i, autorId: novoId(i.autorId) }))
+  // dispensas (adiar/já resolvi) são por pessoa: passam para a ficha mantida, sem repetir
+  const dispensasPorId = new Map<string, NonNullable<AppState['dispensas']>[number]>()
+  for (const d of estado.dispensas ?? []) {
+    const usuarioId = novoId(d.usuarioId)!
+    const nova = { ...d, usuarioId, id: `${usuarioId}|${d.chave}` }
+    const ja = dispensasPorId.get(nova.id)
+    if (!ja || ja.em < nova.em) dispensasPorId.set(nova.id, nova)
+  }
+
+  const registros: RegistroAuditoria[] = unioes.map((u) => {
+    const nome = fundidas.get(u.mantida)?.nome ?? '?'
+    return {
+      id: gerarId(), data: iso, usuarioNome: 'Sistema',
+      acao: '🔗 Uniu fichas duplicadas da mesma conta',
+      detalhe: `Ficha mantida: ${u.mantida} · removida(s): ${u.removidas.join(', ')}`,
+      alvoTipo: 'usuario', alvoId: u.mantida, alvoNome: nome,
+    }
+  })
+
+  return {
+    unioes,
+    estado: {
+      ...estado,
+      usuarios, conexoes, visitantes, interacoes,
+      ...(estado.dispensas ? { dispensas: [...dispensasPorId.values()] } : {}),
+      excluidos: [
+        ...(estado.excluidos ?? []),
+        ...unioes.flatMap((u) => u.removidas.map((id) => ({ tipo: 'usuario' as const, id, em: iso }))),
+      ],
+      auditoria: [...registros, ...(estado.auditoria ?? [])].slice(0, LIMITE_AUDITORIA),
+    },
+  }
+}
+
+// ---- Ficha de pastor de rede (criada pelo servidor) ----
+
+/** A conta já tem ficha nesta igreja, por conta OU por e-mail (qualquer um dos dois impede criar outra). */
+export function contaJaTemFichaAqui(usuarios: Usuario[], conta: ContaAuth): boolean {
+  const email = normalizarEmail(conta.email)
+  return usuarios.some((u) => u.authUserId === conta.id || (!!email && normalizarEmail(u.email) === email))
+}
+
+/** Ficha de PASTOR aprovada e ativa, ligada a esta conta (por conta, nunca por e-mail). */
+export function fichaDePastorAprovado(usuarios: Usuario[], authUserId: string): Usuario | undefined {
+  return usuarios.find((u) => u.authUserId === authUserId && u.ativo && u.statusAcesso === 'aprovado' && u.papeis.includes('pastor'))
+}
+
+/**
+ * Pastor de rede que abre uma igreja onde ainda não tem ficha. Só o servidor chama, e só
+ * quando: (1) a conta tem vínculo com ESTA igreja; (2) não há ficha dela aqui; (3) ela é
+ * pastor aprovado e ativo em OUTRA igreja (`origem`). A ficha nasce com os dados de lá.
+ * Id previsível (`r-<conta>`): duas chamadas ao mesmo tempo mesclam em vez de duplicar.
+ */
+export function criarFichaDeRede(estado: AppState, conta: ContaAuth, origem: Usuario, gerarId: () => string, agora: Date = new Date()): AppState | null {
+  if (contaJaTemFichaAqui(estado.usuarios ?? [], conta)) return null
+  const iso = agora.toISOString()
+  const id = `r-${conta.id}`
+  const nova: Usuario = {
+    id, nome: origem.nome, whatsapp: origem.whatsapp ?? '', email: conta.email ?? origem.email,
+    fotoUrl: origem.fotoUrl, papeis: ['pastor'], ativo: true, statusAcesso: 'aprovado',
+    authUserId: conta.id, cadastroCompletoEm: iso, aprovadoEm: iso,
+  }
+  const registro: RegistroAuditoria = {
+    id: gerarId(), data: iso, usuarioNome: origem.nome,
+    acao: '🌐 Entrou como pastor de rede (acesso multi-igreja)',
+    alvoTipo: 'usuario', alvoId: id, alvoNome: origem.nome,
+  }
+  return {
+    ...estado,
+    usuarios: [nova, ...(estado.usuarios ?? [])],
+    excluidos: (estado.excluidos ?? []).filter((t) => !(t.tipo === 'usuario' && t.id === id)),
+    auditoria: [registro, ...(estado.auditoria ?? [])].slice(0, LIMITE_AUDITORIA),
+  }
+}

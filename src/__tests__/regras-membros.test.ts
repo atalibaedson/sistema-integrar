@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  acharFicha, aplicarSolicitacao, chamadorPodeAprovar, contaTemFicha, desativarFichaDaConta, deveTerVinculo, ehAdminAprovado, existeAdminAprovado, ligarFichaAConta,
+  acharFicha, aplicarSolicitacao, chamadorPodeAprovar, contaJaTemFichaAqui, contaTemFicha, criarFichaDeRede, fichaDePastorAprovado, fichasDuplicadas, unirFichasDuplicadas, usosDaFicha, desativarFichaDaConta, deveTerVinculo, ehAdminAprovado, existeAdminAprovado, ligarFichaAConta,
   formatarTelefone, lerSolicitacao, podeRevogarVinculo, podeSerPrimeiroAdmin, servidorNegaAcesso, statusDaConta, type ContaAuth, type Solicitacao,
 } from '../regras-membros'
 import type { AppState, ConfigIgreja, Usuario } from '../types'
@@ -234,5 +234,71 @@ describe('servidorNegaAcesso (a ficha do aparelho não vale contra o servidor)',
   it('sem resposta do servidor (offline) não nega', () => {
     expect(servidorNegaAcesso({ carregado: false, vinculado: false })).toBe(false)
     expect(servidorNegaAcesso({ carregado: true, vinculado: false })).toBe(false)
+  })
+})
+
+describe('fichas duplicadas da mesma conta', () => {
+  let n = 0
+  const gerar = () => `g${++n}`
+  const pastorA = usuario('a', { nome: 'Edson', papeis: ['pastor'], statusAcesso: 'aprovado', authUserId: 'E1', whatsapp: '' })
+  const pastorB = usuario('b', { nome: 'Edson', papeis: ['pastor'], statusAcesso: 'aprovado', authUserId: 'E1', whatsapp: '(12) 99999-0000' })
+  const outro = usuario('c', { authUserId: 'C1', supervisorId: 'b' })
+  function base() {
+    return estado([pastorA, pastorB, outro], {
+      visitantes: [{ id: 'v1', responsavelId: 'b', liderConexaoId: 'b' } as never],
+      interacoes: [{ id: 'i1', visitanteId: 'v1', autorId: 'b' } as never],
+      conexoes: [{ id: 'cx', nome: 'Centro', liderId: 'a', lider2Id: 'b' } as never],
+      dispensas: [
+        { id: 'a|k', usuarioId: 'a', chave: 'k', ate: '2026-10-20', em: '2026-10-01' },
+        { id: 'b|k', usuarioId: 'b', chave: 'k', ate: '2026-10-21', em: '2026-10-02' },
+      ],
+    })
+  }
+  it('acha só contas com mais de uma ficha', () => {
+    expect([...fichasDuplicadas(base().usuarios)]).toEqual([['E1', ['a', 'b']]])
+    expect(fichasDuplicadas([pastorA, outro]).size).toBe(0)
+  })
+  it('mantém a ficha mais usada e transfere tudo para ela', () => {
+    const e = base()
+    expect(usosDaFicha(e, 'b')).toBeGreaterThan(usosDaFicha(e, 'a'))
+    const r = unirFichasDuplicadas(e, gerar, AGORA)
+    expect(r.unioes).toEqual([{ authUserId: 'E1', mantida: 'b', removidas: ['a'] }])
+    expect(r.estado.usuarios.map((u) => u.id)).toEqual(['b', 'c'])
+    expect(r.estado.conexoes[0]).toMatchObject({ liderId: 'b', lider2Id: undefined }) // não repete o mesmo líder
+    expect(r.estado.visitantes[0]).toMatchObject({ responsavelId: 'b', liderConexaoId: 'b' })
+    expect(r.estado.usuarios.find((u) => u.id === 'c')?.supervisorId).toBe('b')
+    expect(r.estado.dispensas).toEqual([{ id: 'b|k', usuarioId: 'b', chave: 'k', ate: '2026-10-21', em: '2026-10-02' }])
+    expect(r.estado.excluidos).toContainEqual({ tipo: 'usuario', id: 'a', em: AGORA.toISOString() })
+    expect(r.estado.auditoria[0].acao).toContain('Uniu fichas duplicadas')
+  })
+  it('pedido pendente nunca vira poder: só funções de fichas aprovadas e ativas', () => {
+    const pendente = usuario('p', { papeis: ['pastor'], statusAcesso: 'pendente_aprovacao', authUserId: 'X1' })
+    const aprovada = usuario('q', { papeis: ['consolidador'], statusAcesso: 'aprovado', authUserId: 'X1' })
+    const r = unirFichasDuplicadas(estado([pendente, aprovada]), gerar, AGORA)
+    expect(r.estado.usuarios).toHaveLength(1)
+    expect(r.estado.usuarios[0].papeis).toEqual(['consolidador'])
+    expect(r.estado.usuarios[0].statusAcesso).toBe('aprovado')
+  })
+  it('herda dado pessoal vazio da ficha removida e não mexe em fichas de outras contas', () => {
+    const r = unirFichasDuplicadas(estado([pastorA, pastorB]), gerar, AGORA)
+    expect(r.estado.usuarios[0].whatsapp).toBe('(12) 99999-0000')
+    expect(unirFichasDuplicadas(estado([pastorA, outro]), gerar, AGORA).unioes).toEqual([])
+  })
+})
+
+describe('ficha de pastor de rede (servidor)', () => {
+  const origem = usuario('o', { nome: 'Pastor Rede', papeis: ['pastor'], statusAcesso: 'aprovado', authUserId: 'R1', whatsapp: '(12) 98888-0000' })
+  it('só pastor aprovado e ativo, ligado pela conta, serve de origem', () => {
+    expect(fichaDePastorAprovado([origem], 'R1')?.id).toBe('o')
+    expect(fichaDePastorAprovado([{ ...origem, ativo: false }], 'R1')).toBeUndefined()
+    expect(fichaDePastorAprovado([{ ...origem, papeis: ['coordenacao'] }], 'R1')).toBeUndefined()
+    expect(fichaDePastorAprovado([{ ...origem, authUserId: undefined, email: 'r@x.com' }], 'R1')).toBeUndefined()
+  })
+  it('cria uma ficha só, com id previsível e os dados da igreja de origem', () => {
+    const e = criarFichaDeRede(estado([]), conta('R1', 'r@x.com'), origem, () => 'g', AGORA)!
+    expect(e.usuarios[0]).toMatchObject({ id: 'r-R1', nome: 'Pastor Rede', papeis: ['pastor'], statusAcesso: 'aprovado', authUserId: 'R1' })
+    // já tem ficha (por conta ou por e-mail): não cria outra
+    expect(criarFichaDeRede(e, conta('R1', 'r@x.com'), origem, () => 'g', AGORA)).toBeNull()
+    expect(contaJaTemFichaAqui([usuario('z', { email: 'R@X.com' })], conta('R1', 'r@x.com'))).toBe(true)
   })
 })

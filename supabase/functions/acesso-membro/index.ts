@@ -9,6 +9,8 @@
 //
 // Ações (POST/JSON, `acao`), todas exigem o token de uma conta real (não anônima):
 //   • status         — situação da própria conta. Se ela já foi aprovada, garante o vínculo.
+//                      Também arruma o bloco: une fichas duplicadas da mesma conta e cria a
+//                      ficha de pastor de rede (vínculo aqui + pastor aprovado em outra igreja).
 //   • solicitar      — cria a ficha PENDENTE da conta (dos metadados do cadastro, ou do
 //                      que a pessoa confirmou em "Completar cadastro"). Nunca aprova.
 //   • aprovar        — a liderança (pastor/gestão aprovados, conferidos AQUI) libera o
@@ -23,8 +25,8 @@
 // JWT — o padrão). Não usa segredos novos.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import {
-  acharFicha, aplicarSolicitacao, chamadorPodeAprovar, contaTemFicha, existeAdminAprovado, lerSolicitacao,
-  desativarFichaDaConta, deveTerVinculo, ligarFichaAConta, podeRevogarVinculo, podeSerPrimeiroAdmin, statusDaConta, type ContaAuth,
+  acharFicha, aplicarSolicitacao, chamadorPodeAprovar, contaTemFicha, criarFichaDeRede, existeAdminAprovado,
+  fichaDePastorAprovado, fichasDuplicadas, lerSolicitacao, unirFichasDuplicadas, desativarFichaDaConta, deveTerVinculo, ligarFichaAConta, podeRevogarVinculo, podeSerPrimeiroAdmin, statusDaConta, type ContaAuth,
 } from '../_shared/regras-membros.ts'
 import type { AppState } from '../_shared/types.ts'
 
@@ -116,11 +118,50 @@ async function alterarEstado(igrejaId: string, alterar: (e: AppState) => AppStat
   return 'ocupado'
 }
 
+// ---- arrumação do bloco (fichas duplicadas, ficha de rede) ----
+
+// Une as fichas duplicadas da mesma conta (ver regras-membros). As inscrições de push
+// apontam para o id da ficha: passam para a ficha mantida.
+async function unirDuplicadas(igrejaId: string): Promise<void> {
+  let unioes: { mantida: string; removidas: string[] }[] = []
+  const r = await alterarEstado(igrejaId, (e) => {
+    if (fichasDuplicadas(e.usuarios).size === 0) return null
+    const u = unirFichasDuplicadas(e, uid)
+    unioes = u.unioes
+    return u.unioes.length ? u.estado : null
+  })
+  if (r !== 'gravou') return
+  for (const u of unioes) {
+    await admin.from('assinaturas_push').update({ usuario_id: u.mantida }).eq('igreja_id', igrejaId).in('usuario_id', u.removidas)
+    console.log('fichas unidas', igrejaId, u.mantida, u.removidas.join(','))
+  }
+}
+
+// Pastor de rede sem ficha nesta igreja: vínculo aqui + pastor aprovado em OUTRA igreja.
+async function criarFichaDeRedeSePreciso(c: Chamador, igrejaId: string): Promise<boolean> {
+  if (!(await estaVinculado(c.conta.id, igrejaId))) return false
+  const { data } = await admin.from('membros_igreja').select('igreja_id').eq('auth_user_id', c.conta.id)
+  for (const outra of (data ?? []).map((x) => x.igreja_id as string).filter((x) => x !== igrejaId)) {
+    const linhaOutra = await lerEstado(outra)
+    const origem = linhaOutra && fichaDePastorAprovado(linhaOutra.dados.usuarios, c.conta.id)
+    if (!origem) continue
+    const r = await alterarEstado(igrejaId, (e) => criarFichaDeRede(e, c.conta, origem, uid))
+    return r === 'gravou'
+  }
+  return false
+}
+
 // ---- status ----
 
 async function acaoStatus(c: Chamador, igrejaId: string) {
-  const linha = await lerEstado(igrejaId)
+  await unirDuplicadas(igrejaId)
+  let linha = await lerEstado(igrejaId)
   if (!linha) return resposta({ error: 'Igreja não encontrada.' }, 404)
+  let fichaCriada = false
+  if (!acharFicha(linha.dados.usuarios, c.conta) && (await criarFichaDeRedeSePreciso(c, igrejaId))) {
+    fichaCriada = true
+    linha = (await lerEstado(igrejaId)) ?? linha
+  }
   const usuarios = linha.dados.usuarios
   const ficha = acharFicha(usuarios, c.conta)
   const status = statusDaConta(ficha)
@@ -148,6 +189,7 @@ async function acaoStatus(c: Chamador, igrejaId: string) {
     nome: ficha?.nome,
     motivo: status === 'rejeitado' ? ficha?.motivoRejeicao : undefined,
     podePrimeiroAdmin: podeSerPrimeiroAdmin(usuarios, c.conta),
+    fichaCriada, // o app baixa o bloco de novo para receber a ficha de rede
     // só o necessário para a tela: nada do restante do bloco
   })
 }

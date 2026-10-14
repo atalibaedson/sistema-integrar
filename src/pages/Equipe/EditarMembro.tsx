@@ -137,11 +137,21 @@ export default function EditarMembro({ u, onFechar }: { u: Usuario; onFechar: ()
       ? `\n\n⚠️ ${u.nome} cuida de ${dependentes.length} visitante(s) — eles ficarão SEM responsável/líder e precisarão ser redistribuídos. Se a pessoa só saiu por um tempo, prefira "Desativar".`
       : ''
     // O login é um só para os três sistemas da igreja: excluir apaga a conta de todos eles.
-    const avisoConta = u.authUserId
+    // Exceção: ficha DUPLICADA da mesma conta nesta igreja — sai só a ficha; o login fica.
+    const duplicada = !!u.authUserId && s.usuarios.some((x) => x.id !== u.id && x.authUserId === u.authUserId)
+    const avisoConta = duplicada
+      ? `\n\nEsta é uma ficha repetida da mesma conta: sai só esta ficha, o login continua.`
+      : u.authUserId
       ? `\n\n🔑 O login de ${u.nome} é o mesmo do Check-iFE e do Louvor: a conta será APAGADA e a pessoa perde o acesso aos três sistemas. O cadastro dela no Check-iFE não é apagado — só fica sem login.`
       : ''
     if (!(await confirmar({ titulo: 'Remover integrante', mensagem: `Remover ${u.nome} da equipe? Esta ação não pode ser desfeita.${aviso}${avisoConta}`, confirmar: 'Excluir', perigo: true }))) return
-    const authUserId = u.authUserId
+    const authUserId = duplicada ? undefined : u.authUserId
+    // Antes de apagar a ficha, tira o acesso aos dados desta igreja (vínculo). Sem isso, uma
+    // conta que o servidor não apaga (ex.: de outra igreja também) continuaria lendo o bloco.
+    if (authUserId) {
+      const r = await revogarNoServidor(authUserId)
+      if (!r.ok) { toast(r.erro ?? 'Não foi possível retirar o acesso agora. Tente de novo.', 'erro'); return }
+    }
     const agora = new Date().toISOString()
     setEstado((st) => comExclusoes({
       ...st,

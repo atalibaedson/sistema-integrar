@@ -8,7 +8,6 @@ import { confirmar } from './confirmar'
 import { getModoTema, alternarModoTema } from './tema-modo'
 import { useIgrejasDoUsuario, useVinculos, type IgrejaAcesso, trocarIgreja, lembrarNomeIgreja, igrejaAtivaId } from './igrejas'
 import { getIgrejaAtiva } from './nuvem'
-import { garantirFichaMembroRede } from './actions'
 import { aplicarRotulos, rotuloPapel, type Usuario } from './types'
 import { corDeContraste } from './tema'
 import { IcoAjuda, IcoAuditoria, IcoCasa, IcoConfig, IcoJornada, IcoLua, IcoMais, IcoMenu, IcoPainel, IcoRelatorios, IcoSair, IcoSino, IcoSol, IcoTrocar, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
@@ -270,19 +269,13 @@ export default function App() {
     if (!contaLiberada && atualId === usuarioSessao.id) setUsuarioAtualId(null)
   }, [sessao, usuarioSessao, contaLiberada, atualId])
 
-  // Visão de rede: quando a pessoa TROCOU para outra igreja (override ativo) e é
-  // membro dela mas ainda não tem ficha ali, provisiona uma ficha de pastor
-  // aprovado — o vínculo (membros_igreja, só via SQL do dono) é a autorização.
-  // Estritamente restrito ao override: o login na igreja de casa não passa aqui.
+  // Visão de rede: a ficha de pastor de rede numa igreja trocada é criada pelo SERVIDOR
+  // (`acesso-membro` → status), uma só por conta. Antes era o aparelho que a criava, e dois
+  // aparelhos sem o bloco atualizado geravam fichas duplicadas. Com o status "aprovado",
+  // a tela de espera baixa o bloco de novo e a ficha chega.
   const { ids: vinculos } = useVinculos()
   const { igrejas, ativa } = useIgrejasDoUsuario()
   const overrideAtivo = getIgrejaAtiva() != null
-  const ehMembroRede = !!vinculos && vinculos.includes(igrejaAtivaId())
-  useEffect(() => {
-    if (sessao && overrideAtivo && !usuarioSessao && ehMembroRede) {
-      garantirFichaMembroRede(sessao.userId, sessao.email)
-    }
-  }, [sessao, overrideAtivo, usuarioSessao, ehMembroRede])
 
   // Com a permissão de notificações já dada, renova a inscrição no servidor
   useEffect(() => {
@@ -311,9 +304,8 @@ export default function App() {
   // Logado, mas a conta ainda não pode usar (pendente, rejeitada ou DESATIVADA)
   // → tela de espera (com bootstrap do 1º admin)
   if (!usuarioSessao || !contaLiberada) {
-    // Numa igreja trocada (override): espera o vínculo carregar / a ficha de rede
-    // ser criada antes de decidir "aguardando" — senão pisca a tela de espera.
-    if (overrideAtivo && !usuarioSessao && (vinculos === null || ehMembroRede)) {
+    // Numa igreja trocada (override): espera os vínculos carregarem antes de decidir
+    if (overrideAtivo && !usuarioSessao && vinculos === null) {
       return <TelaCarregando nome={estado.config.nomeIgreja} />
     }
     return <AguardandoAprovacao usuario={usuarioSessao} />
