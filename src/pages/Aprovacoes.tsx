@@ -6,11 +6,14 @@ import { aprovarIntegrante, rejeitarIntegrante } from '../actions'
 import { PAPEL_COR, PAPEL_LABEL, rotuloPapel, SITUACAO_CIVIL_LABEL, STATUS_ACESSO_LABEL, type Papel, type Usuario } from '../types'
 import { IcoCheck, IcoEmail, IcoMapa, IcoWhats } from '../icones'
 import Avatar from '../Avatar'
+import { useCadastroUnico } from '../cadastroUnico'
+import { descreverConexao, ESTADO_CIVIL_CU_LABEL, idadeEmAnos } from '../regras-cadastro-unico'
+import { igrejaAtivaId } from '../igrejas'
+import { useSessaoReal } from '../acesso'
 
 function idade(dataNascimento?: string): string {
-  if (!dataNascimento) return ''
-  const anos = Math.floor((Date.now() - new Date(dataNascimento).getTime()) / 31_557_600_000)
-  return Number.isFinite(anos) && anos > 0 ? ` · ${anos} anos` : ''
+  const anos = idadeEmAnos(dataNascimento)
+  return anos !== undefined && anos > 0 ? ` · ${anos} anos` : ''
 }
 
 // Fila de aprovação de acesso: novos integrantes que confirmaram o e-mail e
@@ -44,13 +47,20 @@ export default function Aprovacoes() {
     .filter((u) => u.aprovadoEm || u.rejeitadoEm)
     .sort((a, b) => (b.aprovadoEm ?? b.rejeitadoEm ?? '').localeCompare(a.aprovadoEm ?? a.rejeitadoEm ?? ''))
     .slice(0, 10)
+  // Cadastro único (Check-iFE): idade, estado civil e conexão vêm de lá; a ficha é a reserva
+  const sessao = useSessaoReal()
+  const cu = useCadastroUnico([...pendentes, ...decididos].map((u) => u.authUserId), sessao?.userId)
+  const termoGrupo = s.config.termoGrupo?.trim() || 'Conexão'
 
   function Cartao({ u, acoes }: { u: Usuario; acoes: boolean }) {
+    const p = u.authUserId ? cu.pessoas.get(u.authUserId) : undefined
+    const estadoCivil = p?.estadoCivil ? ESTADO_CIVIL_CU_LABEL[p.estadoCivil] : u.situacaoCivil ? SITUACAO_CIVIL_LABEL[u.situacaoCivil] : ''
+    const conexao = p ? descreverConexao(p, igrejaAtivaId(), s.conexoes, termoGrupo) : null
     return (
       <div className={`card aprov-cartao ${acoes ? 'aprov-pendente' : ''}`}>
         <Avatar nome={u.nome} tom={PAPEL_COR[u.papeis[0]]} foto={u.fotoUrl} />
         <div className="aprov-corpo">
-          <div className="pessoa-nome">{u.nome}<span className="aprov-idade">{idade(u.dataNascimento)}</span></div>
+          <div className="pessoa-nome">{u.nome}<span className="aprov-idade">{idade(p?.dataNascimento ?? u.dataNascimento)}</span></div>
           {acoes ? (
             <div className="aprov-funcoes">
               <span>Funções (confirme ou ajuste antes de liberar):</span>
@@ -74,8 +84,9 @@ export default function Aprovacoes() {
             <span><IcoWhats size={12} /> {u.whatsapp}</span>
             {u.email && <span><IcoEmail size={12} /> {u.email}</span>}
             {u.bairro && <span><IcoMapa size={12} /> {u.bairro}</span>}
-            {u.situacaoCivil && <span>{SITUACAO_CIVIL_LABEL[u.situacaoCivil]}</span>}
+            {estadoCivil && <span>{estadoCivil}</span>}
           </div>
+          {conexao && <div className="pessoa-sub">{termoGrupo}: <b className={`cu-${conexao.tom}`}>{conexao.texto}</b></div>}
           {u.comoConheceu && <div className="pessoa-sub">Chegou por: {u.comoConheceu}</div>}
           <div className="aprov-status">
             {STATUS_ACESSO_LABEL[u.statusAcesso]}

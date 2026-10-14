@@ -9,6 +9,8 @@ import { ChipAcesso, ChipsPapeis, primeiroNome, semSupervisor, supervisorAtivo, 
 import EditarMembro from './EditarMembro'
 import NovoMembro from './NovoMembro'
 import Hierarquia from './Hierarquia'
+import { useCadastroUnico } from '../../cadastroUnico'
+import { useSessaoReal } from '../../acesso'
 
 type Visao = 'pessoas' | 'hierarquia'
 type FiltroAcesso = 'todos' | 'com_acesso' | 'pendente' | 'sem_login'
@@ -58,6 +60,9 @@ export default function Equipe() {
   const [novo, setNovo] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
 
+  // Cadastro único (Check-iFE): lê em lote quem tem conta — a gaveta usa o mesmo resultado
+  const sessao = useSessaoReal()
+  const cu = useCadastroUnico(s.usuarios.map((u) => u.authUserId), sessao?.userId)
   const nomeConexao = (id?: string) => s.conexoes.find((c) => c.id === id)?.nome
   const ativos = s.usuarios.filter((u) => u.ativo)
   const inativos = s.usuarios.length - ativos.length
@@ -102,6 +107,16 @@ export default function Equipe() {
           <button type="button" className="btn" onClick={() => setNovo(true)}><IcoMais size={15} /> Novo membro</button>
         </div>
       </div>
+
+      {cu.estado === 'sem_permissao' && (
+        <div className="cu-aviso-papel" role="status">
+          <IcoAlerta size={16} />
+          <span>
+            O cadastro único (Check-iFE) não aparece para você: o seu perfil lá ainda não tem o papel de <b>pastor</b> ou
+            {' '}<b>integração</b>. Peça ao administrador do Check-iFE (Pessoas &amp; papéis → Papel na igreja). Enquanto isso, valem os dados da ficha.
+          </span>
+        </div>
+      )}
 
       {/* Resumo: o retrato da equipe de relance, com atalho para o que pede ação */}
       <div className="eq-resumos">

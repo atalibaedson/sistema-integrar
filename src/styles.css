@@ -2070,3 +2070,15 @@ button.eq-resumo { cursor: default; }
   .eq-g-pend { flex-basis: 100%; margin-left: 0; order: -1; }
   .eq-g-linha-acao { flex-direction: column; align-items: flex-start; gap: 8px; }
 }
+
+/* ---- Cadastro único (Check-iFE) na Equipe — etapa 2, fase A ---- */
+.cu-dados { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: 13px; }
+.cu-dados dt { color: var(--text-3); }
+.cu-dados dd { margin: 0; color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+.cu-ok { color: var(--ok); font-weight: 600; }
+.cu-aviso { color: var(--warn); font-weight: 600; }
+.cu-diferente { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--warn-soft); }
+.cu-aviso-papel { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; margin: 0 0 16px; border-radius: 12px;
+  background: var(--warn-soft); color: var(--text); font-size: 13.5px; line-height: 1.5; }
+.cu-aviso-papel svg { flex: none; color: var(--warn); margin-top: 2px; }
+.aprov-cu { display: inline-flex; align-items: center; gap: 6px; }

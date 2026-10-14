@@ -1,0 +1,108 @@
+// Regras PURAS do cadastro único (Check-iFE) do lado do Integrar — sem navegador.
+//
+// Etapa 2, fase A: o Integrar LÊ nome, telefone, nascimento, estado civil e conexão das
+// tabelas `pessoas` / `pessoas_sensivel` do Check-iFE (quem pode ler é decidido pelas
+// regras do banco DELE: a própria pessoa, o admin, e `pastor`/`integracao` da mesma igreja).
+// A ficha do Integrar continua como reserva: se a leitura não vier, a tela usa a ficha.
+// Ver PLANO-ETAPA-2-CADASTRO-UNICO.md (seções 1, 2 e 15).
+import type { Conexao, Usuario } from './types'
+
+export type EstadoCivilCU = 'solteiro' | 'casado' | 'uniao_estavel' | 'divorciado' | 'viuvo' | 'outro'
+
+export const ESTADO_CIVIL_CU_LABEL: Record<EstadoCivilCU, string> = {
+  solteiro: 'Solteiro(a)',
+  casado: 'Casado(a)',
+  uniao_estavel: 'União estável',
+  divorciado: 'Divorciado(a)',
+  viuvo: 'Viúvo(a)',
+  outro: 'Outro',
+}
+
+/** O que o Integrar usa do cadastro único de uma conta. */
+export interface PessoaCU {
+  userId: string
+  pessoaId: string
+  nome?: string
+  email?: string
+  telefone?: string
+  dataNascimento?: string // AAAA-MM-DD
+  ativo?: boolean
+  estadoCivil?: EstadoCivilCU
+  conexaoSituacao?: 'participa' | 'nao_participa' // ausente = ainda não respondeu
+  conexaoCodigo?: string // id da Conexão no Integrar
+  conexaoIgreja?: string // igreja dessa Conexão (minha-igreja, ife-sjc…)
+}
+
+const txt = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
+
+/** Monta a pessoa a partir das linhas do banco (lidas pela API), ignorando o que vier fora do formato. */
+export function pessoaDasLinhas(p: Record<string, unknown>, s?: Record<string, unknown>): PessoaCU | null {
+  const userId = txt(p.user_id)
+  const pessoaId = txt(p.id)
+  if (!userId || !pessoaId) return null
+  const ec = txt(s?.estado_civil)
+  const sit = txt(s?.conexao_situacao)
+  const nasc = txt(p.data_nascimento)
+  return {
+    userId,
+    pessoaId,
+    nome: txt(p.nome),
+    email: txt(p.email),
+    telefone: txt(p.telefone),
+    dataNascimento: nasc && /^\d{4}-\d{2}-\d{2}/.test(nasc) ? nasc.slice(0, 10) : undefined,
+    ativo: typeof p.ativo === 'boolean' ? p.ativo : undefined,
+    estadoCivil: ec && ec in ESTADO_CIVIL_CU_LABEL ? (ec as EstadoCivilCU) : undefined,
+    conexaoSituacao: sit === 'participa' || sit === 'nao_participa' ? sit : undefined,
+    conexaoCodigo: txt(s?.conexao_codigo),
+    conexaoIgreja: txt(s?.conexao_igreja),
+  }
+}
+
+/** Idade em anos completos (ou undefined se a data não serve). */
+export function idadeEmAnos(data?: string, agora: Date = new Date()): number | undefined {
+  if (!data || !/^\d{4}-\d{2}-\d{2}$/.test(data)) return undefined
+  const [a, m, d] = data.split('-').map(Number)
+  let anos = agora.getFullYear() - a
+  if (agora.getMonth() + 1 < m || (agora.getMonth() + 1 === m && agora.getDate() < d)) anos--
+  return anos >= 0 && anos < 130 ? anos : undefined
+}
+
+/** Texto da participação em Conexão, do jeito que a igreja chama o grupo. */
+export function descreverConexao(
+  p: PessoaCU | undefined, igrejaAtual: string, conexoes: Conexao[], termoGrupo = 'Conexão',
+): { texto: string; tom: 'ok' | 'neutro' | 'aviso' } {
+  const termo = termoGrupo.toLowerCase()
+  if (!p || (!p.conexaoSituacao && !p.conexaoCodigo)) return { texto: `Ainda não respondeu sobre ${termo}`, tom: 'neutro' }
+  if (p.conexaoSituacao === 'nao_participa') return { texto: `Ainda não participa de ${termo}`, tom: 'aviso' }
+  if (p.conexaoIgreja && igrejaAtual && p.conexaoIgreja !== igrejaAtual) return { texto: `Participa de ${termo} de outra igreja`, tom: 'neutro' }
+  const c = conexoes.find((x) => x.id === p.conexaoCodigo)
+  if (c) return { texto: c.nome, tom: 'ok' }
+  return { texto: `${termoGrupo} não encontrada (pode ter sido removida)`, tom: 'aviso' }
+}
+
+const soDigitos = (t?: string) => (t ?? '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '')
+const normNome = (t?: string) => (t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
+
+/** Onde a ficha (cópia do Integrar) está diferente do cadastro único — para a liderança atualizar a ficha. */
+export function divergencias(ficha: Pick<Usuario, 'nome' | 'whatsapp'>, p: PessoaCU | undefined): ('nome' | 'whatsapp')[] {
+  if (!p) return []
+  const r: ('nome' | 'whatsapp')[] = []
+  if (p.nome && normNome(p.nome) !== normNome(ficha.nome)) r.push('nome')
+  if (p.telefone && soDigitos(p.telefone) && soDigitos(p.telefone) !== soDigitos(ficha.whatsapp)) r.push('whatsapp')
+  return r
+}
+
+export type SituacaoLeitura = 'ok' | 'parcial' | 'sem_permissao'
+
+/**
+ * Como foi a leitura em lote. As regras do Check-iFE devolvem SÓ o que a pessoa pode ver
+ * (sem erro): se pedimos outras pessoas e não veio nenhuma, é o papel que falta no Check-iFE.
+ * "parcial" = algumas contas ainda não têm cadastro lá (ex.: e-mail não confirmado).
+ */
+export function avaliarLeitura(pedidas: string[], recebidas: string[], minhaConta?: string): SituacaoLeitura {
+  const outras = pedidas.filter((id) => id !== minhaConta)
+  const recebidasOutras = recebidas.filter((id) => id !== minhaConta)
+  // com uma só pessoa pedida não dá para distinguir "sem papel" de "ainda sem cadastro"
+  if (outras.length >= 2 && recebidasOutras.length === 0) return 'sem_permissao'
+  return recebidas.length < pedidas.length ? 'parcial' : 'ok'
+}

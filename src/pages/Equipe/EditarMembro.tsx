@@ -14,6 +14,8 @@ import Avatar from '../../Avatar'
 import Gaveta from './Gaveta'
 import SeletorFuncoes from '../../SeletorFuncoes'
 import AcessoRede from './AcessoRede'
+import CadastroUnicoSecao from './CadastroUnicoSecao'
+import { formatarTelefone } from '../../regras-membros'
 import { temPapel, useUsuarioAtualId } from '../../acesso'
 import { ChipAcesso, ChipsPapeis, definirSupervisor } from './comum'
 
@@ -234,6 +236,12 @@ export default function EditarMembro({ u, onFechar }: { u: Usuario; onFechar: ()
             <input type="tel" value={whats} onChange={(e) => setWhats(e.target.value)} />
           </label>
         </section>
+
+        <CadastroUnicoSecao u={u} onUsarNaFicha={(d) => {
+          if (d.nome) setNome(d.nome)
+          if (d.whatsapp) setWhats(formatarTelefone(d.whatsapp))
+          toast('Copiado para a ficha — confira e toque em Salvar alterações', 'info')
+        }} />
 
         <section className="eq-g-secao">
           <h3>Funções <small>marque todas que a pessoa exerce</small></h3>

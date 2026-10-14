@@ -21,11 +21,11 @@ function diasAtras(d: number, hora = 10): string {
 
 const usuarios: Usuario[] = [
   { id: 'u-marcos', nome: 'Marcos Andrade', whatsapp: '(00) 90000-0001', email: SESSAO_DEMO.email, papeis: ['coordenacao', 'pastor'], ativo: true, statusAcesso: 'aprovado', authUserId: SESSAO_DEMO.userId, aprovadoEm: diasAtras(60) },
-  { id: 'u-ana', nome: 'Ana Paula Rocha', whatsapp: '(00) 90000-0002', email: 'ana@exemplo.com', papeis: ['consolidador'], ativo: true, statusAcesso: 'aprovado', supervisorId: 'u-marcos', aprovadoPorId: 'u-marcos', aprovadoEm: diasAtras(40) },
+  { id: 'u-ana', nome: 'Ana Paula Rocha', whatsapp: '(00) 90000-0002', email: 'ana@exemplo.com', papeis: ['consolidador'], ativo: true, statusAcesso: 'aprovado', authUserId: 'demo-ana', supervisorId: 'u-marcos', aprovadoPorId: 'u-marcos', aprovadoEm: diasAtras(40) },
   { id: 'u-joao', nome: 'João Vitor Mendes', whatsapp: '(00) 90000-0003', email: 'joao@exemplo.com', papeis: ['consolidador'], ativo: true, statusAcesso: 'aprovado', supervisorId: 'u-marcos', aprovadoPorId: 'u-marcos', aprovadoEm: diasAtras(35) },
-  { id: 'u-carla', nome: 'Carla e Rodrigo Teles', whatsapp: '(00) 90000-0004', email: 'carla@exemplo.com', papeis: ['lider'], ativo: true, statusAcesso: 'aprovado', conexaoId: 'cx-centro', supervisorId: 'u-marcos', aprovadoPorId: 'u-marcos', aprovadoEm: diasAtras(50) },
+  { id: 'u-carla', nome: 'Carla e Rodrigo Teles', whatsapp: '(00) 90000-0004', email: 'carla@exemplo.com', papeis: ['lider'], ativo: true, statusAcesso: 'aprovado', authUserId: 'demo-carla', conexaoId: 'cx-centro', supervisorId: 'u-marcos', aprovadoPorId: 'u-marcos', aprovadoEm: diasAtras(50) },
   { id: 'u-felipe', nome: 'Felipe Costa', whatsapp: '(00) 90000-0005', email: 'felipe@exemplo.com', papeis: ['lider'], ativo: true, statusAcesso: 'aprovado', conexaoId: 'cx-norte', supervisorId: 'u-ana', aprovadoPorId: 'u-marcos', aprovadoEm: diasAtras(30) },
-  { id: 'u-sofia', nome: 'Sofia Martins', whatsapp: '(00) 90000-0006', email: 'sofia@exemplo.com', papeis: ['consolidador'], ativo: true, statusAcesso: 'pendente_aprovacao' },
+  { id: 'u-sofia', nome: 'Sofia Martins', whatsapp: '(00) 90000-0006', email: 'sofia@exemplo.com', papeis: ['consolidador'], ativo: true, statusAcesso: 'pendente_aprovacao', authUserId: 'demo-sofia' },
   { id: 'u-lucia', nome: 'Lúcia Barbosa', whatsapp: '(00) 90000-0007', email: 'lucia@exemplo.com', papeis: ['acolhedor'], ativo: true, statusAcesso: 'aprovado', supervisorId: 'u-ana', aprovadoPorId: 'u-marcos', aprovadoEm: diasAtras(20) },
   { id: 'u-davi', nome: 'Davi Nogueira', whatsapp: '(00) 90000-0008', papeis: ['acolhedor', 'consolidador'], ativo: true, statusAcesso: 'sem_login' },
   { id: 'u-pedro', nome: 'Pedro Lima', whatsapp: '(00) 90000-0009', email: 'pedro@exemplo.com', papeis: ['consolidador'], ativo: false, statusAcesso: 'aprovado', supervisorId: 'u-marcos' },
@@ -73,6 +73,16 @@ const interacoes: Interacao[] = [
 
 // Monta o estado da igreja fictícia a partir do estado inicial do app
 // (config padrão, mensagens etc.), trocando só os dados.
+// Cadastro único (Check-iFE) fictício, para ver as telas da etapa 2 no modo demonstração
+export const CADASTRO_UNICO_DEMO: Record<string, unknown>[] = [
+  { id: 'p-marcos', user_id: SESSAO_DEMO.userId, nome: 'Marcos Andrade', email: SESSAO_DEMO.email, telefone: '00900000001', data_nascimento: '1980-04-12', ativo: true,
+    _s: { estado_civil: 'casado', conexao_situacao: 'participa', conexao_codigo: 'cx-centro', conexao_igreja: 'minha-igreja' } },
+  { id: 'p-ana', user_id: 'demo-ana', nome: 'Ana Paula Rocha Lima', email: 'ana@exemplo.com', telefone: '00900000002', data_nascimento: '1992-09-03', ativo: true,
+    _s: { estado_civil: 'uniao_estavel', conexao_situacao: 'participa', conexao_codigo: 'cx-norte', conexao_igreja: 'minha-igreja' } },
+  { id: 'p-sofia', user_id: 'demo-sofia', nome: 'Sofia Martins', email: 'sofia@exemplo.com', telefone: '00900000006', data_nascimento: '2001-01-20', ativo: true,
+    _s: { estado_civil: 'solteiro', conexao_situacao: 'nao_participa' } },
+]
+
 export function dadosDemo(base: AppState): AppState {
   return {
     ...base,

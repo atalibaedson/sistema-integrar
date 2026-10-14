@@ -70,6 +70,9 @@ aprovação de conta e aplica a identidade da igreja (cores + rótulos).
 - `metadadosCadastro.ts` (metadados do `signUp`, padrão combinado com Louvor e Check-iFE), `retornoLink.ts`
   (retorno dos links de e-mail: `?code=`, `#access_token=`, `?token_hash=`), `urlApp.ts` (endereço do app para
   os links dos e-mails), `fotoPendente.ts` (foto guardada até o e-mail ser confirmado).
+- `cadastroUnico.ts` — lê o **cadastro único do Check-iFE** (`pessoas`/`pessoas_sensivel`) em lote, só em MEMÓRIA
+  (`useCadastroUnico`); regras puras em `regras-cadastro-unico.ts`. Quem lê o quê é regra do banco do Check-iFE; sem
+  leitura, as telas usam a ficha (reserva). Equipe (`CadastroUnicoSecao`) e Aprovações.
 - `auditoria.ts` — trilha de auditoria (LGPD): quem fez o quê, quando.
 
 ### Apoio
