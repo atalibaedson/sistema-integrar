@@ -49,7 +49,7 @@ export default function AcessoRede({ u }: { u: Usuario }) {
       )}
       {igrejas && igrejas.map((ig) => (
         <div className="eq-g-linha-acao" key={ig.id}>
-          <p><b>{nomeDaIgreja(ig.id)}</b> · {ig.temAcesso ? 'tem acesso de pastor' : 'sem acesso'}</p>
+          <p><b>{nomeDaIgreja(ig.id)}</b> · {ig.temAcesso ? 'tem acesso' : 'sem acesso'}</p>
           <button type="button" className="btn btn-sec btn-mini" disabled={!!salvando} onClick={() => void alternar(ig.id, ig.temAcesso)}>
             {salvando === ig.id ? 'Salvando…' : ig.temAcesso ? 'Tirar acesso' : 'Dar acesso'}
           </button>
