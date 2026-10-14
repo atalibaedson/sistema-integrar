@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { ativarPrimeiroAdmin, pedirAcessoAutomatico } from '../actions'
-import { garantirVinculoIgreja, sairDaConta, useAcessoConta } from '../supabaseClient'
+import { garantirVinculoIgreja, sairDaConta, supabase, useAcessoConta } from '../supabaseClient'
+import { igrejaAtivaId } from '../igrejas'
+import { APPS_DAS_IGREJAS, igrejaDoCadastroSeOutra } from '../urlApp'
 import { tentarSincronizarAgora } from '../store'
 import { confirmar } from '../confirmar'
 import { setUsuarioAtualId, useSessaoReal } from '../acesso'
@@ -25,6 +27,18 @@ export default function AguardandoAprovacao({ usuario }: { usuario?: Usuario }) 
   const [erro, setErro] = useState('')
   const [ativando, setAtivando] = useState(false)
   const pediuAutomatico = useRef(false)
+  // Cadastro feito para OUTRA igreja (o link do e-mail pode cair no endereço padrão):
+  // undefined = ainda conferindo; null = é esta mesma (ou não dá para saber)
+  const [outraIgreja, setOutraIgreja] = useState<string | null | undefined>(supabase ? undefined : null)
+
+  useEffect(() => {
+    if (!sessao || !supabase) { setOutraIgreja(null); return }
+    let vivo = true
+    supabase.auth.getUser()
+      .then(({ data }) => { if (vivo) setOutraIgreja(igrejaDoCadastroSeOutra(data.user?.user_metadata, igrejaAtivaId())) })
+      .catch(() => { if (vivo) setOutraIgreja(null) })
+    return () => { vivo = false }
+  }, [sessao?.userId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Ainda não perguntamos ao servidor (ex.: a sessão acabou de chegar)
   useEffect(() => {
@@ -33,7 +47,8 @@ export default function AguardandoAprovacao({ usuario }: { usuario?: Usuario }) 
 
   // Conta sem pedido: tenta criar o pedido a partir do cadastro feito neste site
   useEffect(() => {
-    if (acesso.status !== 'sem_ficha' || pediuAutomatico.current) return
+    // na igreja errada não pede nada sozinho: a tela oferece ir para a igreja do cadastro
+    if (acesso.status !== 'sem_ficha' || pediuAutomatico.current || outraIgreja !== null) return
     pediuAutomatico.current = true
     setPedindo(true)
     void pedirAcessoAutomatico(sessao?.email).then((r) => {
@@ -42,7 +57,7 @@ export default function AguardandoAprovacao({ usuario }: { usuario?: Usuario }) 
       if (r.semDados) setCompletar(true) // conta criada em outro sistema: pede os dados
       else setErro(r.erro ?? 'Não foi possível enviar o seu pedido.')
     })
-  }, [acesso.status, sessao?.email])
+  }, [acesso.status, sessao?.email, outraIgreja])
 
   // Aguardando ou recém-aprovada: confere o servidor e, havendo vínculo, baixa os dados
   useEffect(() => {
@@ -67,7 +82,7 @@ export default function AguardandoAprovacao({ usuario }: { usuario?: Usuario }) 
   )
 
   // Ainda consultando
-  if (!acesso.carregado || (acesso.status === 'sem_ficha' && pedindo)) {
+  if (!acesso.carregado || (acesso.status === 'sem_ficha' && (pedindo || outraIgreja === undefined))) {
     return (
       <TelaPublica>
         <div className="ac-cartao ac-cartao-ok">
@@ -89,6 +104,29 @@ export default function AguardandoAprovacao({ usuario }: { usuario?: Usuario }) 
           <p className="ac-texto-ok">Não foi possível verificar o seu acesso agora. Confira a internet e tente de novo.</p>
           <div className="wz-acoes" style={{ justifyContent: 'center' }}>
             <button className="btn" onClick={() => sessao && void garantirVinculoIgreja(sessao.userId, true)}>Tentar de novo</button>
+          </div>
+          {rodape}
+        </div>
+      </TelaPublica>
+    )
+  }
+
+  // Cadastro feito para outra igreja: leva ao endereço certo (ou, se quiser mesmo, pede aqui)
+  if (acesso.status === 'sem_ficha' && outraIgreja && !completar) {
+    const destino = APPS_DAS_IGREJAS[outraIgreja]
+    const aqui = APPS_DAS_IGREJAS[igrejaAtivaId()]?.nome ?? 'esta igreja'
+    return (
+      <TelaPublica larga>
+        <div className="ac-cartao ac-cartao-lg">
+          <div className="ac-check">⛪</div>
+          <h1 className="ac-titulo-ok">Seu cadastro é da {destino.nome}</h1>
+          <p className="ac-texto-ok">
+            Você abriu o endereço da <b>{aqui}</b>. Para o seu pedido chegar à liderança certa, entre
+            pelo endereço da <b>{destino.nome}</b> com o mesmo e-mail e senha.
+          </p>
+          <div className="wz-acoes" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a className="btn" href={destino.url}>Ir para a {destino.nome}</a>
+            <button className="btn btn-sec" onClick={() => setCompletar(true)}>Quero pedir acesso à {aqui}</button>
           </div>
           {rodape}
         </div>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { interpretarRetornoLink, mensagemLinkInvalido, urlSemRetorno } from '../retornoLink'
-import { urlDoAppParaHost } from '../urlApp'
+import { igrejaDoCadastroSeOutra, urlDoAppParaHost } from '../urlApp'
 
 describe('interpretarRetornoLink', () => {
   it('reconhece os três formatos do link', () => {
@@ -43,5 +43,19 @@ describe('urlDoAppParaHost', () => {
     expect(urlDoAppParaHost('integracaoifesjc.ifamiliaextraordinaria.com.br', 'https://integracaoifesjc.ifamiliaextraordinaria.com.br'))
       .toBe('https://integracaoifesjc.ifamiliaextraordinaria.com.br')
     expect(urlDoAppParaHost('localhost', 'http://localhost:5173/')).toBe('http://localhost:5173')
+  })
+})
+
+describe('igreja do cadastro × igreja aberta', () => {
+  const meta = (igreja: string, origem = 'integrar') => ({ origem, integrar: { igreja, funcoes: ['consolidador'] } })
+  it('aponta a igreja do cadastro quando é outra e conhecida', () => {
+    expect(igrejaDoCadastroSeOutra(meta('ife-sjc'), 'minha-igreja')).toBe('ife-sjc')
+    expect(igrejaDoCadastroSeOutra(meta('minha-igreja'), 'ife-sjc')).toBe('minha-igreja')
+  })
+  it('não aponta nada se é a mesma, desconhecida ou cadastro de outro sistema', () => {
+    expect(igrejaDoCadastroSeOutra(meta('ife-sjc'), 'ife-sjc')).toBeNull()
+    expect(igrejaDoCadastroSeOutra(meta('outra-igreja'), 'minha-igreja')).toBeNull()
+    expect(igrejaDoCadastroSeOutra(meta('ife-sjc', 'louvor'), 'minha-igreja')).toBeNull()
+    expect(igrejaDoCadastroSeOutra(undefined, 'minha-igreja')).toBeNull()
   })
 })

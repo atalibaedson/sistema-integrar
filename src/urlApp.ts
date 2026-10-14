@@ -22,3 +22,20 @@ export function urlDoAppParaHost(hostname: string, origem: string): string {
 export function urlDoApp(): string {
   return urlDoAppParaHost(window.location.hostname, window.location.origin)
 }
+
+// App de cada igreja — para avisar quem abriu o endereço de OUTRA igreja (ex.: o link
+// do e-mail caiu no endereço padrão) e levá-lo ao certo, em vez de deixar o pedido de
+// acesso ir para a igreja errada.
+export const APPS_DAS_IGREJAS: Record<string, { nome: string; url: string }> = {
+  'minha-igreja': { nome: 'iFE Resende', url: 'https://integracaoife.ifamiliaextraordinaria.com.br' },
+  'ife-sjc': { nome: 'iFE São José dos Campos', url: 'https://integracaoifesjc.ifamiliaextraordinaria.com.br' },
+}
+
+/** Igreja escolhida no cadastro do Integrar (metadados `integrar.igreja`), se for OUTRA que não a aberta agora e conhecida. */
+export function igrejaDoCadastroSeOutra(metadados: unknown, igrejaAberta: string): string | null {
+  const m = metadados && typeof metadados === 'object' ? (metadados as Record<string, unknown>) : {}
+  const integrar = m.integrar && typeof m.integrar === 'object' ? (m.integrar as Record<string, unknown>) : {}
+  const igreja = typeof integrar.igreja === 'string' ? integrar.igreja : ''
+  if (m.origem !== 'integrar' || !igreja || igreja === igrejaAberta || !APPS_DAS_IGREJAS[igreja]) return null
+  return igreja
+}
