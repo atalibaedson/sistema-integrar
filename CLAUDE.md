@@ -156,7 +156,8 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe/` (pasta: `index` lista + resum
   `registrar-membro/` (só liga quem já foi aprovado) e `deletar-usuario-auth/` (só Pastor/Gestão aprovado).
 - `supabase/functions/alertas-push/` — inscrições e envio dos pushes (rotina agendada a
   cada 30 min); usa `_shared/` (cópia das regras dos avisos). `supabase/sql/08_alertas_push.sql`.
-- `supabase/sql/10_funcoes_para_checkife.sql` — funções SÓ LEITURA para o Check-iFE: `integrar_igrejas()`,
+- `supabase/sql/10_funcoes_para_checkife.sql` — ⚠️ **contrato com o Check-iFE** (ele as usa nas regras de leitura; não
+  renomear/remover sem combinar; teste `contrato-checkife`). Funções SÓ LEITURA: `integrar_igrejas()`,
   `integrar_minhas_igrejas()` (escopo de quem chama) e `integrar_igrejas_da_pessoa(uuid)` (igreja da pessoa).
 - `supabase/sql/01..04_*.sql` — RPCs (append atômico, config pública), backup e
   endurecimento do RLS. Rodar na ordem; o 04 (RLS) por último. Ver o runbook.

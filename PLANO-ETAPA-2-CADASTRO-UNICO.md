@@ -325,3 +325,22 @@ Exemplo de regra de leitura (o Check-iFE decide e escreve a dele):
 `integrar_igrejas_da_pessoa(pessoas.user_id) && integrar_minhas_igrejas()` (há igreja em comum).
 Pessoa **sem** igreja no Integrar (só cadastrada no Check-iFE) devolve `{}`: o Check-iFE precisa definir o que
 fazer com ela (ex.: liberar para `integracao` ou usar `conexao_igreja`).
+
+## 15. Respostas do Check-iFE (migration 0025, v0.24.0 — 14/10/2026)
+
+Detalhe: `~/sistema-Check-iFE/docs/INTEGRACAO-LOUVOR.md` §15. **Só usar depois de o Edson confirmar a 0025 em produção.**
+
+| Pedido | Resposta | O que muda no Integrar |
+|---|---|---|
+| P1 metadados | lê `nome`, `telefone`, `nascimento`, `consentimento_versao` (só com aceite), `conexao`, `conexao_igreja` (ou `integrar.igreja`), `estado_civil` (vocabulário do Check-iFE) | fase B: o `signUp` passa a mandar `estado_civil` e `conexao_igreja` no topo; `consentimento_versao` só se a pessoa aceitou o termo **do cadastro único** na tela |
+| P2 leitura | lote por `user_id in (…)`, até 1000 por página; `user_id` único | fase A pronta para começar |
+| P3 papéis | `papel_global` é um valor só (`admin`/`pastor`/`integracao`); o admin define no Check-iFE | **você** dá o papel às pessoas da lista (Pessoas & papéis → Papel na igreja) |
+| P4 conexões | `checkife_conexoes_todas()` → `[{igreja, igreja_nome, cidade, id, nome, minha}]`; gravar `conexao_igreja`; igreja errada → 23514 | fase B usa essa lista (em vez de `conexoes_publicas`) |
+| P5 | `outro` aceito | mapeamento direto; Integrar ganha `uniao_estavel` |
+| P6 gravação | `pessoas` livre; `pessoas_sensivel` só após o termo (≥ `2026-11`, senão 42501), `upsert on conflict (pessoa_id)` | fase B |
+| P7 | `checkife_definir_conexao(p_user_id, p_codigo, p_igreja)` — admin ou pastor/integração da mesma igreja | tela "Sem conexão"/Equipe pode mover |
+| P8 termo | versão vigente `2026-11c` (sempre ler de `checkife_termo()`); `html` fixo, só `div,p,b,i,h4,ul,li` | fase B exibe como veio |
+| P9 links | `/?ir=perfil&secao=conexao&voltar=<url do Integrar>` | "Meu cadastro" |
+| P10 exclusão | `user_id` fica nulo; religa com o mesmo e-mail **confirmado** | nada |
+| P11 escopo | pastor/integração leem só com igreja em comum (nossas funções + `conexao_igreja`); pessoa sem igreja = `minha-igreja` | **as funções do SQL 10 viraram contrato** (teste `contrato-checkife`) |
+| P12 | `integracao` lê `conexao_situacao` da igreja dele; sem linha = não respondeu | tela "Sem conexão" |

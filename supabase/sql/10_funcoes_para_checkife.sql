@@ -6,6 +6,9 @@
 -- O Check-iFE CONSULTA estas funções (por exemplo, dentro das regras de leitura dele);
 -- nunca escreve no Integrar.
 --
+-- ⚠️ O Check-iFE usa estas funções nas REGRAS DE LEITURA dele (migration 0025, 14/10/2026):
+--   NÃO renomeie, não remova e não mude a assinatura sem combinar antes com o Check-iFE.
+--   O teste src/__tests__/contrato-checkife.test.ts barra o deploy se isso mudar.
 -- ✔ Só cria funções novas do Integrar (prefixo integrar_). Não toca em tabela nenhuma,
 --   nem em nada do Check-iFE ou do Louvor.
 -- ✔ Sessão anônima (o Integrar cria uma por aparelho) recebe lista vazia.
