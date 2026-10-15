@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   avaliarLeitura, descreverConexao, divergencias, idadeEmAnos, lerSituacaoCU, linhaParticipacao, linkPerfilCheckife,
   mensagemDoErroCU, pendenciasCU, pessoaDasLinhas, type PessoaCU,
+  fichaPodeLimpar, limparCopiasDaFicha, planoDeCopia, temCopiaNaFicha, type CadastroProprio,
 } from '../regras-cadastro-unico'
-import type { Conexao } from '../types'
+import type { AppState, Conexao, Usuario } from '../types'
+import { mesclarEstados } from '../mesclar'
 
 const conexoes = [{ id: 'cx1', nome: 'Conexão Centro' }] as Conexao[]
 const pessoa = (extra: Partial<PessoaCU> = {}): PessoaCU => ({ userId: 'U1', pessoaId: 'P1', ...extra })
@@ -86,5 +88,41 @@ describe('gravação da própria linha (fase B)', () => {
     expect(l.searchParams.get('ir')).toBe('perfil')
     expect(l.searchParams.get('secao')).toBe('conexao')
     expect(l.searchParams.get('voltar')).toBe('https://integracaoifesjc.ifamiliaextraordinaria.com.br/#/meu-cadastro')
+  })
+})
+
+
+describe('fase C: a ficha larga a cópia só depois de o cadastro único ter os dados', () => {
+  const ficha = { id: 'u1', nome: 'Ana', whatsapp: '', papeis: ['consolidador'], ativo: true, statusAcesso: 'aprovado', authUserId: 'U1',
+    dataNascimento: '1990-05-02', situacaoCivil: 'casado', bairro: 'Centro', conexaoParticipaId: 'cx1' } as Usuario
+  const cuVazio: CadastroProprio = { userId: 'U1', pessoaId: 'P1' }
+
+  it('copia só o que está vazio lá; sensíveis só com o termo', () => {
+    const sem = planoDeCopia(ficha, cuVazio, { termoAceito: false, igrejaAtual: 'minha-igreja', conexaoExiste: true })
+    expect(sem).toEqual({ pessoas: { data_nascimento: '1990-05-02' }, sensivel: null })
+    const com = planoDeCopia(ficha, cuVazio, { termoAceito: true, igrejaAtual: 'minha-igreja', conexaoExiste: true })
+    expect(com.sensivel).toEqual({ pessoa_id: 'P1', estado_civil: 'casado', bairro: 'Centro', conexao_situacao: 'participa', conexao_codigo: 'cx1', conexao_igreja: 'minha-igreja' })
+    // o cadastro único vence: nada é sobrescrito
+    const cheio: CadastroProprio = { ...cuVazio, dataNascimento: '1991-01-01', estadoCivil: 'solteiro', bairro: 'Vila', conexaoSituacao: 'nao_participa' }
+    expect(planoDeCopia(ficha, cheio, { termoAceito: true, igrejaAtual: 'minha-igreja', conexaoExiste: true })).toEqual({ pessoas: null, sensivel: null })
+  })
+  it('só limpa quando cada dado tem lugar no cadastro único (conexão removida não segura)', () => {
+    expect(fichaPodeLimpar(ficha, cuVazio, true)).toBe(false)
+    const quase: CadastroProprio = { ...cuVazio, dataNascimento: '1990-05-02', estadoCivil: 'casado', bairro: 'Centro' }
+    expect(fichaPodeLimpar(ficha, quase, true)).toBe(false)
+    expect(fichaPodeLimpar(ficha, quase, false)).toBe(true)
+  })
+  it('ficha marcada perde a cópia, e a mesclagem com aparelho desatualizado não a traz de volta', () => {
+    const limpa = limparCopiasDaFicha({ ...ficha, cadastroUnicoEm: '2026-10-14T00:00:00Z' })
+    expect(limpa.dataNascimento).toBeUndefined()
+    expect(limpa.conexaoParticipaId).toBeUndefined()
+    expect(temCopiaNaFicha(limpa)).toBe(false)
+    expect(temCopiaNaFicha(ficha)).toBe(true)
+    const estado = (u: Usuario) => ({ config: {}, visitantes: [], interacoes: [], conexoes: [], usuarios: [u], templates: [], auditoria: [] }) as unknown as AppState
+    // aparelho desatualizado (local, com a cópia) × nuvem já limpa
+    const r = mesclarEstados(estado(ficha), estado(limpa))
+    expect(r.usuarios[0].cadastroUnicoEm).toBe('2026-10-14T00:00:00Z')
+    expect(r.usuarios[0].dataNascimento).toBeUndefined()
+    expect(r.usuarios[0].situacaoCivil).toBeUndefined()
   })
 })

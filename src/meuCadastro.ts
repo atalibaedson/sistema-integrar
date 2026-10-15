@@ -7,9 +7,10 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { supabase, getSessaoReal } from './supabaseClient'
 import { MODO_DEMO } from './demo'
 import {
-  lerSituacaoCU, linhaParticipacao, mensagemDoErroCU, pessoaDasLinhas,
-  type PessoaCU, type SituacaoCU,
+  fichaPodeLimpar, lerSituacaoCU, linhaParticipacao, mensagemDoErroCU, pessoaDasLinhas, planoDeCopia, temCopiaNaFicha,
+  type CadastroProprio, type PessoaCU, type SituacaoCU,
 } from './regras-cadastro-unico'
+import type { Usuario } from './types'
 import { carregarCadastroUnico } from './cadastroUnico'
 
 export interface TermoCU { versao: string; html: string }
@@ -40,16 +41,51 @@ export async function aceitarTermo(versao: string): Promise<Resultado> {
   return { ok: true }
 }
 
-export async function lerMeuCadastro(): Promise<PessoaCU | null> {
+export async function lerMeuCadastro(): Promise<CadastroProprio | null> {
   if (MODO_DEMO) return demo.pessoa
   const eu = getSessaoReal()?.userId
   if (!supabase || !eu) return null
   const { data: p } = await supabase.from('pessoas').select('id,user_id,nome,email,telefone,data_nascimento,ativo').eq('user_id', eu).maybeSingle()
   if (!p) return null
   const ler = (cols: string) => supabase!.from('pessoas_sensivel').select(cols).eq('pessoa_id', (p as { id: string }).id).maybeSingle()
-  let r: { data: unknown; error: unknown } = await ler('estado_civil,conexao_situacao,conexao_codigo,conexao_igreja')
+  let r: { data: unknown; error: unknown } = await ler('estado_civil,conexao_situacao,conexao_codigo,conexao_igreja,bairro')
   if (r.error) r = await ler('estado_civil,conexao_situacao,conexao_codigo')
-  return pessoaDasLinhas(p as Record<string, unknown>, (r.data ?? undefined) as Record<string, unknown> | undefined)
+  const sens = (r.data ?? undefined) as Record<string, unknown> | undefined
+  const pessoa = pessoaDasLinhas(p as Record<string, unknown>, sens)
+  return pessoa ? { ...pessoa, bairro: typeof sens?.bairro === 'string' && sens.bairro.trim() ? sens.bairro.trim() : undefined } : null
+}
+
+/**
+ * Fase C: leva os dados da PRÓPRIA ficha para o cadastro único (só o que lá está vazio) e diz
+ * se a ficha já pode largar a cópia. Quem limpa a ficha é quem chama (o estado é do app).
+ *   'limpar'   → tudo o que a ficha tinha já está no cadastro único
+ *   'esperar'  → falta algo (ex.: termo não aceito, ainda sem cadastro único); tenta no próximo acesso
+ */
+export async function levarFichaAoCadastroUnico(
+  ficha: Usuario, igrejaAtual: string, conexoesDaIgreja: { id: string }[],
+): Promise<'limpar' | 'esperar' | 'nada'> {
+  if (!supabase || MODO_DEMO || !temCopiaNaFicha(ficha)) return 'nada'
+  const eu = getSessaoReal()?.userId
+  if (!eu || ficha.authUserId !== eu) return 'nada' // só a própria ficha, nunca a de outra pessoa
+  const cu = await lerMeuCadastro()
+  if (!cu) return 'esperar'
+  const { data: sit } = await supabase.rpc('checkife_cadastro_completo')
+  const situacao = lerSituacaoCU(sit)
+  const termoAceito = !!situacao && !situacao.falta.includes('termo') && !situacao.falta.includes('conta')
+  const conexaoExiste = !!ficha.conexaoParticipaId && conexoesDaIgreja.some((c) => c.id === ficha.conexaoParticipaId)
+  const plano = planoDeCopia(ficha, cu, { termoAceito, igrejaAtual, conexaoExiste })
+  if (plano.pessoas) {
+    const { error } = await supabase.from('pessoas').update(plano.pessoas).eq('user_id', eu).is('data_nascimento', null)
+    if (error) return 'esperar'
+  }
+  if (plano.sensivel) {
+    const { error } = await supabase.from('pessoas_sensivel').upsert(plano.sensivel, { onConflict: 'pessoa_id' })
+    if (error) return 'esperar'
+  }
+  const depois = plano.pessoas || plano.sensivel ? await lerMeuCadastro() : cu
+  if (!depois) return 'esperar'
+  void carregarCadastroUnico([eu], eu, true)
+  return fichaPodeLimpar(ficha, depois, conexaoExiste) ? 'limpar' : 'esperar'
 }
 
 /** Nome, telefone e nascimento (tabela `pessoas`): não dependem do termo. */

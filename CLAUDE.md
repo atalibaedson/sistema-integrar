@@ -146,6 +146,9 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe/` (pasta: `index` lista + resum
 - **Acesso de pastor a outras igrejas** (Equipe → ficha do pastor → `AcessoRede.tsx`): só quem é pastor aprovado aqui E
   no destino concede/tira (`podeDefinirRede`); substitui o SQL manual. Cadastro feito para outra igreja (metadados
   `integrar.igreja`) não pede acesso sozinho na igreja errada: a tela leva ao endereço certo (`APPS_DAS_IGREJAS` em `urlApp.ts`).
+- **Fase C (cópias):** no login, a PRÓPRIA pessoa leva nascimento/situação civil/bairro/conexão da ficha para o cadastro
+  único (`levarFichaAoCadastroUnico`; só o que lá está vazio); quando tudo chegou, a ficha ganha `cadastroUnicoEm` e
+  perde a cópia. `limparCopiasDaFicha` roda no `migrar` e na mesclagem: a cópia não volta de aparelho desatualizado.
 - **Páginas públicas de cadastro seguem o ENDEREÇO** (`paginaSegueEndereco` em `nuvem.ts`), nunca a igreja trocada no
   seletor; o App recarrega ao entrar/sair delas quando há igreja trocada.
 - Conta pendente não lê o bloco: a tela de espera (`AguardandoAprovacao`) usa o status do servidor

@@ -153,3 +153,56 @@ export function linkPerfilCheckife(voltarPara: string, secao?: 'conexao'): strin
   if (voltarPara) u.searchParams.set('voltar', voltarPara)
   return u.toString()
 }
+
+// ---- Fase C: a ficha deixa de guardar a cópia dos dados pessoais ----
+//
+// O Check-iFE só trouxe o NOME das contas antigas. Nascimento, situação civil, bairro e conexão
+// das fichas antigas ainda só existem aqui. Por isso: no login, a PRÓPRIA pessoa leva os dados
+// da sua ficha para o cadastro único (só ela pode gravar a linha dela), o app confere que
+// chegaram e só então marca a ficha (`cadastroUnicoEm`) e apaga a cópia. Fichas sem login e de
+// quem ainda não aceitou o termo continuam como estão (decisão D7).
+
+export const CAMPOS_COPIADOS = ['dataNascimento', 'situacaoCivil', 'bairro', 'conexaoParticipaId'] as const
+
+/** Ficha já marcada: os campos copiados saem SEMPRE (inclusive vindos de um aparelho desatualizado na mesclagem). */
+export function limparCopiasDaFicha<T extends Partial<Usuario>>(u: T): T {
+  if (!u.cadastroUnicoEm) return u
+  const r = { ...u }
+  for (const c of CAMPOS_COPIADOS) delete (r as Record<string, unknown>)[c]
+  return r
+}
+
+/** O que a ficha tem para levar ao cadastro único. */
+export function temCopiaNaFicha(u: Partial<Usuario>): boolean {
+  return !u.cadastroUnicoEm && CAMPOS_COPIADOS.some((c) => !!u[c])
+}
+
+export interface CadastroProprio extends PessoaCU { bairro?: string }
+
+/**
+ * Quais dados da ficha vão para o cadastro único — só o que lá está VAZIO (o cadastro único
+ * vence sempre). Os sensíveis (estado civil, bairro, conexão) só com o termo aceito.
+ */
+export function planoDeCopia(
+  ficha: Partial<Usuario>, cu: CadastroProprio, o: { termoAceito: boolean; igrejaAtual: string; conexaoExiste: boolean },
+): { pessoas: Record<string, unknown> | null; sensivel: Record<string, unknown> | null } {
+  const pessoas = ficha.dataNascimento && !cu.dataNascimento && /^\d{4}-\d{2}-\d{2}$/.test(ficha.dataNascimento)
+    ? { data_nascimento: ficha.dataNascimento } : null
+  if (!o.termoAceito) return { pessoas, sensivel: null }
+  const s: Record<string, unknown> = {}
+  if (ficha.situacaoCivil && !cu.estadoCivil && ficha.situacaoCivil in ESTADO_CIVIL_CU_LABEL) s.estado_civil = ficha.situacaoCivil
+  if (ficha.bairro && !cu.bairro) s.bairro = ficha.bairro.slice(0, 80)
+  if (ficha.conexaoParticipaId && !cu.conexaoSituacao && o.conexaoExiste) {
+    Object.assign(s, { conexao_situacao: 'participa', conexao_codigo: ficha.conexaoParticipaId, conexao_igreja: o.igrejaAtual })
+  }
+  return { pessoas, sensivel: Object.keys(s).length > 0 ? { pessoa_id: cu.pessoaId, ...s } : null }
+}
+
+/** Cada dado da ficha já tem lugar no cadastro único? (conexão que não existe mais não segura a limpeza) */
+export function fichaPodeLimpar(ficha: Partial<Usuario>, cu: CadastroProprio, conexaoExiste: boolean): boolean {
+  if (ficha.dataNascimento && !cu.dataNascimento) return false
+  if (ficha.situacaoCivil && !cu.estadoCivil) return false
+  if (ficha.bairro && !cu.bairro) return false
+  if (ficha.conexaoParticipaId && conexaoExiste && !cu.conexaoSituacao) return false
+  return true
+}

@@ -310,6 +310,9 @@ export interface Usuario {
   situacaoCivil?: SituacaoCivil
   comoConheceu?: string
   fotoUrl?: string // Supabase Storage (bucket "avatares")
+  // Etapa 2, fase C: quando os dados pessoais desta ficha já estão no cadastro único (Check-iFE),
+  // a ficha deixa de guardar a cópia (nascimento, situação civil, bairro, conexão de que participa).
+  cadastroUnicoEm?: string // ISO
 
   // Login real + fluxo de aprovação
   authUserId?: string // id do usuário no Supabase Auth

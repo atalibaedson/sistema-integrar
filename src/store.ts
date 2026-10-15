@@ -5,6 +5,7 @@ import { aplicarTransicao, diasDesde } from './machine'
 import { diaSemanaDoCulto, gerarOcorrencias } from './cultos'
 import { baixarConexoesPublicas, baixarConfigPublica, baixarEstado, baixarEstadoComVersao, enviarEstado, esperarSessaoPronta, getConfigNuvem, gravarEstadoCondicional, setConfigNuvem, type ConexaoPublica, type ConfigNuvem } from './nuvem'
 import { mesclarEstados } from './mesclar'
+import { limparCopiasDaFicha } from './regras-cadastro-unico'
 import { PALETA_IFE, atualizarPaletaAntiga } from './tema'
 import { getUsuarioAtualId } from './acesso'
 import { MODO_DEMO, dadosDemo } from './demo'
@@ -244,7 +245,7 @@ function migrar(raw: any): AppState {
       papeis: Array.isArray(u.papeis) && u.papeis.length > 0 ? u.papeis : [papel ?? 'consolidador'],
       statusAcesso: u.statusAcesso ?? 'sem_login',
     }
-  })
+  }).map((u: any) => limparCopiasDaFicha(u)) // fase C do cadastro único
 
   // v8 → v9: batismo e membresia deixam de ser a mesma coisa.
   // O campo antigo `dataBatismoMembresia` guardava a data que CONCLUÍA a jornada,

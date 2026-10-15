@@ -3,6 +3,7 @@
 // dois computadores usavam o sistema ao mesmo tempo: agora os dados se somam,
 // e as exclusões se propagam pelas lápides (AppState.excluidos).
 import type { AppState, Dispensa, Exclusao, RegistroAuditoria, StatusAcesso, Usuario } from './types'
+import { limparCopiasDaFicha } from './regras-cadastro-unico'
 
 // Quão "decidido/avançado" está o acesso da conta — quanto maior, mais forte.
 // Usado para não deixar uma ficha antiga (sem login) sobrescrever uma conta já
@@ -22,7 +23,7 @@ const RANK_ACESSO: Record<StatusAcesso, number> = {
 // a conta aprovada na nuvem (regra antiga era "a versão local vence", cega).
 function mesclarUsuario(l: Usuario, r: Usuario): Usuario {
   const base = RANK_ACESSO[r.statusAcesso] > RANK_ACESSO[l.statusAcesso] ? r : l
-  return {
+  return limparCopiasDaFicha({
     ...base,
     authUserId: l.authUserId ?? r.authUserId ?? base.authUserId,
     email: base.email || l.email || r.email || undefined,
@@ -30,7 +31,9 @@ function mesclarUsuario(l: Usuario, r: Usuario): Usuario {
     emailConfirmadoEm: base.emailConfirmadoEm ?? l.emailConfirmadoEm ?? r.emailConfirmadoEm,
     aprovadoPorId: base.aprovadoPorId ?? l.aprovadoPorId ?? r.aprovadoPorId,
     aprovadoEm: base.aprovadoEm ?? l.aprovadoEm ?? r.aprovadoEm,
-  }
+    // fase C: uma vez no cadastro único, a cópia não volta (nem de aparelho desatualizado)
+    cadastroUnicoEm: base.cadastroUnicoEm ?? l.cadastroUnicoEm ?? r.cadastroUnicoEm,
+  })
 }
 
 const LIMITE_LAPIDES = 800

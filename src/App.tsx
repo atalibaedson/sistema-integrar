@@ -1,6 +1,9 @@
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRota } from './router'
-import { useAppState, useNuvem, tentarSincronizarAgora } from './store'
+import { setEstado, useAppState, useNuvem, tentarSincronizarAgora } from './store'
+import { registrarAuditoria } from './auditoria'
+import { levarFichaAoCadastroUnico } from './meuCadastro'
+import { limparCopiasDaFicha, temCopiaNaFicha } from './regras-cadastro-unico'
 import { setUsuarioAtualId, useUsuarioAtualId, podeVerCuidado, podeAcessarRota, soAcolhedor, soLider, useSessaoReal, useSessaoCarregada, usuarioDaSessao } from './acesso'
 import { garantirSessao, sairDaConta, supabase, useAcessoConta } from './supabaseClient'
 import { servidorNegaAcesso } from './regras-membros'
@@ -292,6 +295,21 @@ export default function App() {
   const { ids: vinculos } = useVinculos()
   const { igrejas, ativa } = useIgrejasDoUsuario()
   const overrideAtivo = getIgrejaAtiva() != null
+
+  // Fase C do cadastro único: no 1º acesso liberado da sessão, a pessoa leva os dados da PRÓPRIA
+  // ficha para o cadastro único (só o que lá está vazio); quando tudo chegou, a ficha larga a cópia.
+  const levouFicha = useRef(false)
+  useEffect(() => {
+    if (!contaLiberada || !usuarioSessao || levouFicha.current || !temCopiaNaFicha(usuarioSessao)) return
+    levouFicha.current = true
+    const ficha = usuarioSessao
+    void levarFichaAoCadastroUnico(ficha, igrejaAtivaId(), estado.conexoes).then((r) => {
+      if (r !== 'limpar') return
+      const em = new Date().toISOString()
+      setEstado((st) => ({ ...st, usuarios: st.usuarios.map((u) => (u.id === ficha.id ? limparCopiasDaFicha({ ...u, cadastroUnicoEm: em }) : u)) }))
+      registrarAuditoria('📇 Dados pessoais passaram para o cadastro único', { alvoTipo: 'usuario', alvoId: ficha.id, alvoNome: ficha.nome })
+    })
+  }, [contaLiberada, usuarioSessao?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Com a permissão de notificações já dada, renova a inscrição no servidor
   useEffect(() => {
