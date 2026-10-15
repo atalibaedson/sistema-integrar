@@ -305,8 +305,8 @@ fallback sem papel), sem tocar produção; roteiro de aceite com contas de teste
 | **2. Funções para o Check-iFE (D1, D2)** ✅ SQL 10 | Funções **só leitura** do Integrar: igrejas a que uma conta tem acesso, e a igreja de casa de uma pessoa. O Check-iFE as consulta (nunca escreve no Integrar). | Integrar (SQL novo, você roda) | 2.7.0 |
 | **3. Pedidos ao Check-iFE** | Enviar P1–P11 (seção 8 + P11: limitar a leitura de `pastor`/`integracao` às igrejas da função do passo 2; aceitar `outro`). Esperar as respostas antes da fase A. | você leva; Check-iFE faz | — |
 | **A. Ler** ✅ código pronto (v2.8.0), publicar só após a 0025 | Equipe e Aprovações leem `pessoas`/`pessoas_sensivel` (quem tem papel); a ficha fica como reserva; aviso quando o papel no Check-iFE falta; data de atualização. | Integrar | 2.8.0 |
-| **B. Completar** | Tela "Completar o cadastro único" (termo do Check-iFE + conexão da igreja da pessoa + estado civil, com `uniao_estavel`) no 1º acesso; "Meu cadastro" no menu. Grava só a linha da própria pessoa (D5). | Integrar | 2.9.0 |
-| **D4. Sem conexão** | Tela para a Gestão Integração: quem marcou "ainda não participo", com botão de mensagem. | Integrar | 2.9.0 |
+| **B. Completar** ✅ v2.9.0 | Tela "Completar o cadastro único" (termo do Check-iFE + conexão da igreja da pessoa + estado civil, com `uniao_estavel`) no 1º acesso; "Meu cadastro" no menu. Grava só a linha da própria pessoa (D5). | Integrar | 2.9.0 |
+| **D4. Sem conexão** ✅ v2.9.0 | Tela para a Gestão Integração: quem marcou "ainda não participo", com botão de mensagem. | Integrar | 2.9.0 |
 | **C. Limpar** | Remover da ficha `situacaoCivil`, `conexaoParticipaId`, `bairro` e `dataNascimento` (D6) — só das fichas ligadas a conta e com o cadastro único preenchido; fichas sem login ficam (D7). Backup antes. | Integrar + você confere | 3.0.0 |
 
 Em todos: testes das regras puras, build, publicação só com o seu "publica", e roteiro de conferência.

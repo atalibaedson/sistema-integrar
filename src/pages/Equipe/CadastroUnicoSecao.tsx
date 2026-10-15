@@ -1,4 +1,8 @@
+import { useState } from 'react'
 import { useAppState } from '../../store'
+import { definirConexaoDe } from '../../meuCadastro'
+import { registrarAuditoria } from '../../auditoria'
+import { toast } from '../../toast'
 import { useCadastroUnico } from '../../cadastroUnico'
 import { descreverConexao, divergencias, ESTADO_CIVIL_CU_LABEL, idadeEmAnos } from '../../regras-cadastro-unico'
 import { igrejaAtivaId } from '../../igrejas'
@@ -18,6 +22,7 @@ export default function CadastroUnicoSecao({ u, onUsarNaFicha }: {
 }) {
   const s = useAppState()
   const sessao = useSessaoReal()
+  const [mudando, setMudando] = useState(false)
   const cu = useCadastroUnico([u.authUserId], sessao?.userId)
   if (!u.authUserId || cu.estado === 'desligado') return null
   const p = cu.pessoas.get(u.authUserId)
@@ -25,6 +30,18 @@ export default function CadastroUnicoSecao({ u, onUsarNaFicha }: {
   const conexao = descreverConexao(p, igrejaAtivaId(), s.conexoes, termoGrupo)
   const diferente = divergencias(u, p)
   const idade = idadeEmAnos(p?.dataNascimento)
+
+  // A liderança muda a conexão da pessoa (o Check-iFE confere e registra quem mudou)
+  async function mudarConexao(codigo: string) {
+    if (!codigo || !u.authUserId) return
+    const nome = codigo === 'nenhuma' ? 'Ainda não participa' : s.conexoes.find((c) => c.id === codigo)?.nome ?? codigo
+    setMudando(true)
+    const r = await definirConexaoDe(u.authUserId, codigo, igrejaAtivaId())
+    setMudando(false)
+    if (!r.ok) { toast(r.erro, 'erro'); return }
+    registrarAuditoria(`🔗 Mudou a ${termoGrupo} de integrante (cadastro único)`, { alvoTipo: 'usuario', alvoId: u.id, alvoNome: u.nome, detalhe: `→ ${nome}` })
+    toast('Conexão atualizada no cadastro único')
+  }
 
   return (
     <section className="eq-g-secao">
@@ -47,6 +64,14 @@ export default function CadastroUnicoSecao({ u, onUsarNaFicha }: {
             <dt>Estado civil</dt><dd>{p.estadoCivil ? ESTADO_CIVIL_CU_LABEL[p.estadoCivil] : '—'}</dd>
             <dt>{termoGrupo}</dt><dd className={`cu-${conexao.tom}`}>{conexao.texto}</dd>
           </dl>
+          <div className="eq-g-linha-acao cu-mudar">
+            <p>Mudar a {termoGrupo.toLowerCase()} de que a pessoa participa:</p>
+            <select className="sc-select" value="" disabled={mudando} onChange={(e) => void mudarConexao(e.target.value)}>
+              <option value="">{mudando ? 'Salvando…' : 'Escolher…'}</option>
+              <option value="nenhuma">Ainda não participa</option>
+              {s.conexoes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </select>
+          </div>
           {diferente.length > 0 && (
             <div className="eq-g-linha-acao cu-diferente">
               <p>A ficha está com {diferente.map((d) => (d === 'nome' ? 'outro nome' : 'outro WhatsApp')).join(' e ')}. O cadastro único é o que vale.</p>

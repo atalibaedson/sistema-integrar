@@ -544,6 +544,7 @@ export interface NovoIntegranteInput {
   papeis: Papel[]
   loginPreferido: 'email' | 'whatsapp'
   consentimentoLgpd: boolean
+  termoCadastroUnico?: string // versão do termo do cadastro único aceito na tela (vai nos metadados)
 }
 
 export interface ResultadoCadastroIntegrante {

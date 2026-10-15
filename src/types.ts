@@ -15,7 +15,7 @@ export type Status =
 
 export type Origem = 'culto' | 'qr_code'
 
-export type SituacaoCivil = 'solteiro' | 'casado' | 'divorciado' | 'viuvo' | 'outro'
+export type SituacaoCivil = 'solteiro' | 'casado' | 'uniao_estavel' | 'divorciado' | 'viuvo' | 'outro'
 
 export type HorarioContato = 'manha' | 'tarde' | 'noite'
 
@@ -520,6 +520,7 @@ export const PAPEL_COR: Record<Papel, string> = {
 export const SITUACAO_CIVIL_LABEL: Record<SituacaoCivil, string> = {
   solteiro: 'Solteiro(a)',
   casado: 'Casado(a)',
+  uniao_estavel: 'União estável',
   divorciado: 'Divorciado(a)',
   viuvo: 'Viúvo(a)',
   outro: 'Outro',

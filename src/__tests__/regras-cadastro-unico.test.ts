@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { avaliarLeitura, descreverConexao, divergencias, idadeEmAnos, pessoaDasLinhas, type PessoaCU } from '../regras-cadastro-unico'
+import {
+  avaliarLeitura, descreverConexao, divergencias, idadeEmAnos, lerSituacaoCU, linhaParticipacao, linkPerfilCheckife,
+  mensagemDoErroCU, pendenciasCU, pessoaDasLinhas, type PessoaCU,
+} from '../regras-cadastro-unico'
 import type { Conexao } from '../types'
 
 const conexoes = [{ id: 'cx1', nome: 'Conexão Centro' }] as Conexao[]
@@ -54,5 +57,34 @@ describe('avaliarLeitura', () => {
     expect(avaliarLeitura(['EU', 'A', 'B'], ['EU', 'A'], 'EU')).toBe('parcial')
     expect(avaliarLeitura(['EU', 'A'], ['EU'], 'EU')).toBe('parcial') // uma só: pode ser só falta de cadastro
     expect(avaliarLeitura(['A', 'B'], ['A', 'B'])).toBe('ok')
+  })
+})
+
+describe('gravação da própria linha (fase B)', () => {
+  it('traduz os erros do Check-iFE', () => {
+    expect(mensagemDoErroCU({ code: '42501' })).toContain('Aceite o termo')
+    expect(mensagemDoErroCU({ code: '22023' })).toContain('termo foi atualizado')
+    expect(mensagemDoErroCU({ code: '23514' })).toContain('não é da igreja')
+    expect(mensagemDoErroCU({ code: 'X', message: 'falhou' })).toBe('falhou')
+    expect(mensagemDoErroCU(null)).toContain('Tente de novo')
+  })
+  it('participação respeita a regra do banco (participa = código + igreja; não participa = sem código)', () => {
+    expect(linhaParticipacao('P1', 'cx1', 'ife-sjc')).toEqual({ pessoa_id: 'P1', conexao_situacao: 'participa', conexao_codigo: 'cx1', conexao_igreja: 'ife-sjc' })
+    expect(linhaParticipacao('P1', 'nenhuma', 'ife-sjc')).toEqual({ pessoa_id: 'P1', conexao_situacao: 'nao_participa', conexao_codigo: null, conexao_igreja: null })
+  })
+  it('situação e pendências: só avisa (termo, conexão, campos da igreja)', () => {
+    const s = lerSituacaoCU({ completo: false, falta: ['termo', 'conexao'], conexao_removida: true, campos_pendentes: ['sexo', 'extra:9'] })!
+    expect(pendenciasCU(s)).toEqual([
+      'aceitar o termo de privacidade', 'escolher de novo a sua conexão (a anterior foi removida)', 'completar 2 informações pedidas pela igreja',
+    ])
+    expect(pendenciasCU(lerSituacaoCU({ completo: true, falta: [], campos_pendentes: [] }))).toEqual([])
+    expect(lerSituacaoCU('lixo')).toBeNull()
+  })
+  it('link do perfil no Check-iFE com volta ao Integrar', () => {
+    const l = new URL(linkPerfilCheckife('https://integracaoifesjc.ifamiliaextraordinaria.com.br/#/meu-cadastro', 'conexao'))
+    expect(l.host).toBe('checkife.ifamiliaextraordinaria.com.br')
+    expect(l.searchParams.get('ir')).toBe('perfil')
+    expect(l.searchParams.get('secao')).toBe('conexao')
+    expect(l.searchParams.get('voltar')).toBe('https://integracaoifesjc.ifamiliaextraordinaria.com.br/#/meu-cadastro')
   })
 })

@@ -72,7 +72,10 @@ aprovação de conta e aplica a identidade da igreja (cores + rótulos).
   os links dos e-mails), `fotoPendente.ts` (foto guardada até o e-mail ser confirmado).
 - `cadastroUnico.ts` — lê o **cadastro único do Check-iFE** (`pessoas`/`pessoas_sensivel`) em lote, só em MEMÓRIA
   (`useCadastroUnico`); regras puras em `regras-cadastro-unico.ts`. Quem lê o quê é regra do banco do Check-iFE; sem
-  leitura, as telas usam a ficha (reserva). Equipe (`CadastroUnicoSecao`) e Aprovações.
+  leitura, as telas usam a ficha (reserva). Equipe (`CadastroUnicoSecao`, com "mudar conexão") e Aprovações.
+- `meuCadastro.ts` — grava SÓ a linha da própria pessoa no cadastro único (termo, dados, estado civil, conexão; 42501
+  sem termo) e a situação para o aviso `AvisoCadastroUnico.tsx` (só avisa, não bloqueia). Telas `MeuCadastro` e
+  `SemConexao` (D4). O texto do termo vem do Check-iFE e passa por `limparTermo` antes de exibir.
 - `auditoria.ts` — trilha de auditoria (LGPD): quem fez o quê, quando.
 
 ### Apoio
@@ -143,6 +146,8 @@ grande), `NovoVisitante`, `PainelLider`, `Equipe/` (pasta: `index` lista + resum
 - **Acesso de pastor a outras igrejas** (Equipe → ficha do pastor → `AcessoRede.tsx`): só quem é pastor aprovado aqui E
   no destino concede/tira (`podeDefinirRede`); substitui o SQL manual. Cadastro feito para outra igreja (metadados
   `integrar.igreja`) não pede acesso sozinho na igreja errada: a tela leva ao endereço certo (`APPS_DAS_IGREJAS` em `urlApp.ts`).
+- **Páginas públicas de cadastro seguem o ENDEREÇO** (`paginaSegueEndereco` em `nuvem.ts`), nunca a igreja trocada no
+  seletor; o App recarrega ao entrar/sair delas quando há igreja trocada.
 - Conta pendente não lê o bloco: a tela de espera (`AguardandoAprovacao`) usa o status do servidor
   (`useAcessoConta` em `supabaseClient.ts`), não a ficha local.
 - O cadastro funciona com a confirmação de e-mail ligada ou desligada: a ficha vai nos metadados do

@@ -39,7 +39,8 @@ export function lembrarNomeIgreja(igrejaId: string, nome: string) {
 
 // Igreja ativa: o override do seletor, ou a igreja padrão do site.
 export function igrejaAtivaId(): string {
-  return getIgrejaAtiva() ?? getConfigNuvem()?.igrejaId ?? ''
+  // = a igreja que o app usa agora (já considera a troca do seletor e as páginas públicas)
+  return getConfigNuvem()?.igrejaId ?? ''
 }
 
 // Troca a igreja ativa e recarrega o app apontando para ela. Voltar à igreja

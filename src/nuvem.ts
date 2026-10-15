@@ -88,9 +88,24 @@ export function getIgrejaPadraoDoSite(): string | null {
   return configBase()?.igrejaId ?? null
 }
 
+// Páginas públicas de cadastro (integrante e visitante) valem SEMPRE para a igreja do
+// ENDEREÇO — nunca para a igreja trocada no seletor deste navegador (pastor de rede):
+// quem se cadastra pelo link de Resende vai para Resende, em qualquer aparelho. Decidido
+// no carregamento, porque a chave do armazenamento local (store.ts) depende da igreja;
+// o App recarrega a página ao entrar/sair dessas rotas quando há igreja trocada.
+export function rotaDeCadastroPublico(hash: string): boolean {
+  const rota = hash.replace(/^#/, '').split('?')[0]
+  return rota.startsWith('/cadastro-integrante') || rota.startsWith('/autocadastro')
+}
+const SEGUE_ENDERECO = typeof window !== 'undefined' && rotaDeCadastroPublico(window.location.hash)
+export function paginaSegueEndereco(): boolean {
+  return SEGUE_ENDERECO
+}
+
 export function getConfigNuvem(): ConfigNuvem | null {
   const c = configBase()
   if (!c) return null
+  if (SEGUE_ENDERECO) return c
   const ativa = getIgrejaAtiva()
   // Override só troca a igreja; URL e chave (o projeto Supabase) são os mesmos.
   return ativa && ativa !== c.igrejaId ? { ...c, igrejaId: ativa } : c

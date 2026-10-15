@@ -50,6 +50,7 @@ export const ACESSO_ROTA: { prefixo: string; papeis: Papel[] }[] = [
   { prefixo: '/auditoria', papeis: ['pastor', 'coordenacao'] },
   { prefixo: '/config', papeis: ['pastor', 'coordenacao'] },
   { prefixo: '/equipe', papeis: ['pastor', 'coordenacao'] },
+  { prefixo: '/sem-conexao', papeis: ['pastor', 'coordenacao'] },
   { prefixo: '/lideres', papeis: ['pastor', 'coordenacao', 'lider'] },
 ]
 
@@ -57,7 +58,7 @@ export const ACESSO_ROTA: { prefixo: string; papeis: Papel[] }[] = [
 // deny-list acima, ele tem uma allow-list — só o formulário de cadastro e a
 // ajuda. Como uma pessoa pode ter vários papéis, quem for acolhedor + algo mais
 // segue as regras normais (a união das permissões dos seus papéis).
-const ROTAS_ACOLHEDOR = ['/novo', '/ajuda']
+const ROTAS_ACOLHEDOR = ['/novo', '/ajuda', '/meu-cadastro']
 
 export function soAcolhedor(u: Usuario | undefined): boolean {
   return !!u && u.papeis.includes('acolhedor') && u.papeis.every((p) => p === 'acolhedor')

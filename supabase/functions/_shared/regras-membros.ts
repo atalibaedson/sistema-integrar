@@ -12,7 +12,7 @@ import type { AppState, Papel, RegistroAuditoria, SituacaoCivil, Usuario } from 
 import { PAPEL_LABEL } from './types.ts'
 
 export const PAPEIS_VALIDOS = Object.keys(PAPEL_LABEL) as Papel[]
-const SITUACOES: SituacaoCivil[] = ['solteiro', 'casado', 'divorciado', 'viuvo', 'outro']
+const SITUACOES: SituacaoCivil[] = ['solteiro', 'casado', 'uniao_estavel', 'divorciado', 'viuvo', 'outro']
 const LIMITE_AUDITORIA = 1000 // = LIMITE_REGISTROS em auditoria.ts
 
 export function normalizarEmail(e?: string | null): string {

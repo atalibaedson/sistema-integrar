@@ -111,3 +111,29 @@ export function esquecerCadastroUnico() {
 }
 
 supabase?.auth.onAuthStateChange((evento) => { if (evento === 'SIGNED_OUT') esquecerCadastroUnico() })
+
+/** Quem respondeu "ainda não participo de uma Conexão" (só as pessoas que as regras do Check-iFE deixam ver). */
+export async function listarSemConexao(): Promise<PessoaCU[] | null> {
+  if (MODO_DEMO) {
+    return CADASTRO_UNICO_DEMO
+      .filter((p) => (p._s as Record<string, unknown>)?.conexao_situacao === 'nao_participa')
+      .map((p) => pessoaDasLinhas(p, p._s as Record<string, unknown>))
+      .filter((p): p is PessoaCU => !!p)
+  }
+  if (!supabase) return null
+  const { data: sens, error } = await supabase.from('pessoas_sensivel').select('pessoa_id,conexao_situacao').eq('conexao_situacao', 'nao_participa').limit(1000)
+  if (error) return null
+  const ids = ((sens ?? []) as { pessoa_id: string }[]).map((x) => x.pessoa_id)
+  if (ids.length === 0) return []
+  const r: PessoaCU[] = []
+  for (let i = 0; i < ids.length; i += LOTE) {
+    const { data } = await supabase.from('pessoas').select('id,user_id,nome,email,telefone,data_nascimento,ativo').in('id', ids.slice(i, i + LOTE))
+    for (const p of (data ?? []) as Record<string, unknown>[]) {
+      // pessoa sem conta (user_id nulo) também aparece: o userId fica vazio
+      const pessoa = pessoaDasLinhas({ ...p, user_id: p.user_id ?? '' }, { conexao_situacao: 'nao_participa' }) ??
+        (typeof p.id === 'string' ? { userId: '', pessoaId: p.id, nome: p.nome as string | undefined, telefone: p.telefone as string | undefined, email: p.email as string | undefined, conexaoSituacao: 'nao_participa' as const } : null)
+      if (pessoa && pessoa.ativo !== false) r.push(pessoa)
+    }
+  }
+  return r.sort((a, b) => (a.nome ?? '').localeCompare(b.nome ?? '', 'pt-BR'))
+}

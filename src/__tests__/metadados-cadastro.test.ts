@@ -12,7 +12,16 @@ describe('metadados do signUp', () => {
   it('segue o padrão combinado: origem, nome, telefone, nascimento, conexao', () => {
     const m = montarMetadadosCadastro(base)
     expect(m).toMatchObject({ origem: 'integrar', nome: 'Maria Souza', telefone: '12999990000', nascimento: '1990-05-17', conexao: 'k3j2h1' })
-    expect(Object.keys(m).sort()).toEqual(['conexao', 'integrar', 'nascimento', 'nome', 'origem', 'telefone'])
+    expect(Object.keys(m).sort()).toEqual(['conexao', 'conexao_igreja', 'integrar', 'nascimento', 'nome', 'origem', 'telefone'])
+    expect(m.conexao_igreja).toBe('ife-sjc') // a igreja da conexão vai junto (contrato com o Check-iFE)
+  })
+  it('estado civil e aceite do termo do cadastro único vão no topo, só quando existem', () => {
+    const m = montarMetadadosCadastro({ ...base, situacaoCivil: 'uniao_estavel', termoCadastroUnico: '2026-11d' })
+    expect(m).toMatchObject({ estado_civil: 'uniao_estavel', consentimento_versao: '2026-11d' })
+    const sem = montarMetadadosCadastro({ ...base, conexao: 'nenhuma' })
+    expect(sem).not.toHaveProperty('estado_civil')
+    expect(sem).not.toHaveProperty('consentimento_versao')
+    expect(sem).not.toHaveProperty('conexao_igreja')
   })
   it("sem conexão escolhida vira 'nenhuma'; sem nascimento, vazio", () => {
     const m = montarMetadadosCadastro({ ...base, conexao: '', dataNascimento: undefined })

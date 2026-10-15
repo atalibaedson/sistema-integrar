@@ -7,13 +7,14 @@ import { servidorNegaAcesso } from './regras-membros'
 import { confirmar } from './confirmar'
 import { getModoTema, alternarModoTema } from './tema-modo'
 import { useIgrejasDoUsuario, useVinculos, type IgrejaAcesso, trocarIgreja, lembrarNomeIgreja, igrejaAtivaId } from './igrejas'
-import { getIgrejaAtiva } from './nuvem'
+import { getIgrejaAtiva, getIgrejaPadraoDoSite, paginaSegueEndereco, rotaDeCadastroPublico } from './nuvem'
 import { aplicarRotulos, rotuloPapel, type Usuario } from './types'
 import { corDeContraste } from './tema'
-import { IcoAjuda, IcoAuditoria, IcoCasa, IcoConfig, IcoJornada, IcoLua, IcoMais, IcoMenu, IcoPainel, IcoRelatorios, IcoSair, IcoSino, IcoSol, IcoTrocar, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
+import { IcoAjuda, IcoAuditoria, IcoPerfil, IcoCasa, IcoConfig, IcoJornada, IcoLua, IcoMais, IcoMenu, IcoPainel, IcoRelatorios, IcoSair, IcoSino, IcoSol, IcoTrocar, IcoUserCheck, IcoUserPlus, IcoUsuarios } from './icones'
 import { useAvisos } from './avisos'
 import { renovarAssinaturaPush } from './push'
 import { lazyComRecarga } from './carregar'
+import AvisoCadastroUnico from './AvisoCadastroUnico'
 import Dashboard from './pages/Dashboard'
 import Visitantes from './pages/Visitantes'
 import VisitanteDetalhe from './pages/VisitanteDetalhe'
@@ -36,6 +37,8 @@ const Aprovacoes = lazyComRecarga(() => import('./pages/Aprovacoes'))
 const Relatorios = lazyComRecarga(() => import('./pages/Relatorios'))
 const VisitanteDados = lazyComRecarga(() => import('./pages/VisitanteDados'))
 const Avisos = lazyComRecarga(() => import('./pages/Avisos'))
+const MeuCadastro = lazyComRecarga(() => import('./pages/MeuCadastro'))
+const SemConexao = lazyComRecarga(() => import('./pages/SemConexao'))
 
 type ItemMenu = { rota: string; icone: (p: { size?: number }) => JSX.Element; rotulo: string }
 
@@ -56,6 +59,7 @@ const MENU: { secao: string; itens: ItemMenu[] }[] = [
     itens: [
       { rota: '/equipe', icone: IcoUsuarios, rotulo: 'Equipe' },
       { rota: '/aprovacoes', icone: IcoUserCheck, rotulo: 'Aprovações' },
+      { rota: '/sem-conexao', icone: IcoUsuarios, rotulo: 'Sem conexão' },
       { rota: '/relatorios', icone: IcoRelatorios, rotulo: 'Relatórios' },
       { rota: '/auditoria', icone: IcoAuditoria, rotulo: 'Auditoria' },
     ],
@@ -63,6 +67,7 @@ const MENU: { secao: string; itens: ItemMenu[] }[] = [
   {
     secao: 'Igreja',
     itens: [
+      { rota: '/meu-cadastro', icone: IcoPerfil, rotulo: 'Meu cadastro' },
       { rota: '/config', icone: IcoConfig, rotulo: 'Configurações' },
       { rota: '/ajuda', icone: IcoAjuda, rotulo: 'Ajuda' },
     ],
@@ -82,7 +87,9 @@ const NAV_MAIS: ItemMenu[] = [
   { rota: '/relatorios', icone: IcoRelatorios, rotulo: 'Relatórios' },
   { rota: '/equipe', icone: IcoUsuarios, rotulo: 'Equipe' },
   { rota: '/aprovacoes', icone: IcoUserCheck, rotulo: 'Aprovações' },
+  { rota: '/sem-conexao', icone: IcoUsuarios, rotulo: 'Sem conexão' },
   { rota: '/auditoria', icone: IcoAuditoria, rotulo: 'Auditoria' },
+  { rota: '/meu-cadastro', icone: IcoPerfil, rotulo: 'Meu cadastro' },
   { rota: '/config', icone: IcoConfig, rotulo: 'Configurações' },
   { rota: '/ajuda', icone: IcoAjuda, rotulo: 'Ajuda' },
 ]
@@ -252,6 +259,15 @@ export default function App() {
   // (sem mudar estado, nada re-renderizaria para corrigir).
   aplicarRotulos(estado.config)
 
+  // Página pública de cadastro segue o ENDEREÇO (ver nuvem.ts). Num navegador com outra igreja
+  // escolhida no seletor, entrar ou sair dessa página recarrega o app na igreja certa — sem
+  // isso, a página usaria a igreja trocada (ou o app, a do endereço) até o próximo carregamento.
+  useEffect(() => {
+    const trocada = getIgrejaAtiva()
+    if (!trocada || trocada === getIgrejaPadraoDoSite()) return
+    if (rotaDeCadastroPublico(window.location.hash) !== paginaSegueEndereco()) window.location.reload()
+  }, [rota])
+
   // Fecha a folha "Mais" ao navegar
   useEffect(() => { setMaisAberto(false) }, [rota])
 
@@ -337,6 +353,8 @@ export default function App() {
   else if (rota === '/auditoria') pagina = <Auditoria />
   else if (rota === '/config') pagina = <Configuracoes />
   else if (rota === '/ajuda') pagina = <Ajuda />
+  else if (rota === '/meu-cadastro') pagina = <MeuCadastro />
+  else if (rota === '/sem-conexao') pagina = <SemConexao />
   else pagina = paginaInicial
 
   // Bloqueio central de rota: sem permissão → volta à página inicial da pessoa
@@ -358,6 +376,7 @@ export default function App() {
     ? [
         { rota: '/lideres', icone: IcoUserCheck, rotulo: 'Meu painel' },
         { rota: '/avisos', icone: IcoSino, rotulo: 'Avisos' },
+        { rota: '/meu-cadastro', icone: IcoPerfil, rotulo: 'Cadastro' },
         { rota: '/ajuda', icone: IcoAjuda, rotulo: 'Ajuda' },
       ]
     : NAV_PRINCIPAL.filter((m) => podeAcessarRota(m.rota, eu))
@@ -417,7 +436,10 @@ export default function App() {
           avisos={podeAcessarRota('/avisos', eu) ? avisos.ativos.length : null}
           seletorCelular={<SeletorIgreja igrejas={igrejas} ativa={ativa} classe="seletor-igreja-celular" />}
         />
-        <main className="conteudo"><Suspense fallback={<Carregando />}>{pagina}</Suspense></main>
+        <main className="conteudo">
+          {rota !== '/meu-cadastro' && <AvisoCadastroUnico />}
+          <Suspense fallback={<Carregando />}>{pagina}</Suspense>
+        </main>
       </div>
 
       {/* Navegação inferior — aparece só no celular */}

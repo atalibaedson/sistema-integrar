@@ -10,6 +10,7 @@ import { urlDoApp } from '../urlApp'
 import { IcoEmail } from '../icones'
 import TelaPublica from '../TelaPublica'
 import { APPS_DAS_IGREJAS } from '../urlApp'
+import { lerTermo, limparTermo, type TermoCU } from '../meuCadastro'
 import { getConfigNuvem } from '../nuvem'
 import { IcoCasa } from '../icones'
 
@@ -50,6 +51,11 @@ export default function CadastroIntegrante() {
   const [foto, setFoto] = useState<File | undefined>()
   const [fotoPreview, setFotoPreview] = useState('')
   const [consentimento, setConsentimento] = useState(false)
+  // Termo do cadastro único (Check-iFE/Louvor): opcional aqui — quem não aceitar agora aceita no 1º acesso
+  const [termoCU, setTermoCU] = useState<TermoCU | null>(null)
+  const [aceitaCU, setAceitaCU] = useState(false)
+  const [verTermoCU, setVerTermoCU] = useState(false)
+  useEffect(() => { void lerTermo().then(setTermoCU) }, [])
   const [enviando, setEnviando] = useState(false)
   const [enviado, setEnviado] = useState<'confirmar' | 'pedido' | null>(null)
   const [erro, setErro] = useState('')
@@ -115,6 +121,7 @@ export default function CadastroIntegrante() {
       papeis,
       loginPreferido,
       consentimentoLgpd: consentimento,
+      termoCadastroUnico: aceitaCU && termoCU ? termoCU.versao : undefined,
     })
     setEnviando(false)
     if (!r.ok) { setErro(r.erro ?? 'Não foi possível concluir o cadastro. Tente novamente.'); return }
@@ -305,6 +312,17 @@ export default function CadastroIntegrante() {
                 <input type="checkbox" checked={consentimento} onChange={(e) => setConsentimento(e.target.checked)} />
                 Autorizo o uso dos meus dados para esse fim. *
               </label>
+              {termoCU && (
+                <div className="ac-termo-cu">
+                  <label className="check">
+                    <input type="checkbox" checked={aceitaCU} onChange={(e) => setAceitaCU(e.target.checked)} />
+                    Também aceito o termo do <b>cadastro único</b> da igreja (o mesmo login no Check-iFE e no Louvor).
+                  </label>
+                  <button type="button" className="link-btn" onClick={() => setVerTermoCU((v) => !v)}>{verTermoCU ? 'Esconder o termo' : 'Ler o termo'}</button>
+                  {verTermoCU && <div className="mc-termo" dangerouslySetInnerHTML={{ __html: limparTermo(termoCU.html) }} />}
+                  <p className="ac-termo-cu-nota">Opcional agora: se não marcar, você aceita no primeiro acesso.</p>
+                </div>
+              )}
             </div>
           )}
 

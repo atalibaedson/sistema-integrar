@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { interpretarRetornoLink, mensagemLinkInvalido, urlSemRetorno } from '../retornoLink'
 import { igrejaDoCadastroSeOutra, urlDoAppParaHost } from '../urlApp'
+import { rotaDeCadastroPublico } from '../nuvem'
 
 describe('interpretarRetornoLink', () => {
   it('reconhece os três formatos do link', () => {
@@ -57,5 +58,14 @@ describe('igreja do cadastro × igreja aberta', () => {
     expect(igrejaDoCadastroSeOutra(meta('outra-igreja'), 'minha-igreja')).toBeNull()
     expect(igrejaDoCadastroSeOutra(meta('ife-sjc', 'louvor'), 'minha-igreja')).toBeNull()
     expect(igrejaDoCadastroSeOutra(undefined, 'minha-igreja')).toBeNull()
+  })
+})
+
+describe('página pública de cadastro segue o endereço', () => {
+  it('reconhece as rotas públicas de cadastro (com ou sem parâmetros)', () => {
+    expect(rotaDeCadastroPublico('#/cadastro-integrante')).toBe(true)
+    expect(rotaDeCadastroPublico('#/autocadastro?origem=qr')).toBe(true)
+    expect(rotaDeCadastroPublico('#/equipe')).toBe(false)
+    expect(rotaDeCadastroPublico('')).toBe(false)
   })
 })
